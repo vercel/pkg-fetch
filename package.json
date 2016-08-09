@@ -1,0 +1,51 @@
+{
+  "name": "pkg-proto",
+  "version": "0.0.1",
+  "description": "Base binaries for pkg",
+  "readme": "",
+  "main": "",
+  "files": [],
+  "babel": {
+    "plugins": [
+      "transform-async-to-generator",
+      "transform-es2015-modules-commonjs"
+    ]
+  },
+  "eslintConfig": {
+    "extends": "standard",
+    "parser": "babel-eslint",
+    "rules": {
+      "yoda": 0,
+      "arrow-parens": 0,
+      "semi": [
+        2,
+        "always"
+      ],
+      "no-extra-semi": 2,
+      "semi-spacing": [
+        2,
+        {
+          "before": false,
+          "after": true
+        }
+      ],
+      "no-shadow": [
+        2,
+        {
+          "builtinGlobals": true,
+          "hoist": "functions"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+  },
+  "devDependencies": {
+    "babel-plugin-transform-async-to-generator": "6.8.0",
+    "babel-plugin-transform-es2015-modules-commonjs": "6.8.0",
+    "babel-register": "6.9.0"
+  },
+  "scripts": {
+  },
+  "ava": {}
+}
