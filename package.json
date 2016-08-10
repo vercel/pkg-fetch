@@ -36,6 +36,7 @@
           "hoist": "functions"
         }
       ],
+      "sort-imports": 2,
       "generator-star-spacing": 0
     }
   },
@@ -57,7 +58,7 @@
     "eslint-plugin-standard": "2.0.0"
   },
   "scripts": {
-    "build": "node -r babel-register lib/build.js",
+    "build-and-upload": "node -r babel-register build-and-upload.js",
     "lint": "eslint . || true"
   },
   "ava": {}
