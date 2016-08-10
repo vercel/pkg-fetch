@@ -1,0 +1,4 @@
+{
+  "localPlace": "~/.pkg-cache/{version}/{nodeVersion}-{platform}-{arch}",
+  "remotePlace": "https://enclosejs.s3.amazonaws.com/pkg-cache/{version}/{nodeVersion}-{platform}-{arch}"
+}

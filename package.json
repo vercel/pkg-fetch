@@ -45,6 +45,7 @@
     }
   },
   "dependencies": {
+    "aws-sdk": "2.4.14",
     "chalk": "1.1.3",
     "child-process-promise": "2.0.3",
     "expand-template": "1.0.2",
