@@ -37,6 +37,10 @@
         }
       ],
       "sort-imports": 2,
+      "array-bracket-spacing": [
+        2,
+        "always"
+      ],
       "generator-star-spacing": 0
     }
   },
