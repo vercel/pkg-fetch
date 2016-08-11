@@ -6,17 +6,16 @@ import { targets } from './lib/system.js';
 import upload from './lib/upload.js';
 import { version } from './package.json';
 
-const platform = process.platform;
+const { platform } = process;
 
 async function main () {
   for (const nodeVersion in patchesJson) {
     for (const target of targets) {
-      const local = localPlace({
-        arch: target, nodeVersion, platform, version });
-      await build({
-        copyDest: local, nodeVersion, target });
-      const remote = remotePlace({
-        arch: target, nodeVersion, platform, version });
+      const local = localPlace({ arch: target, nodeVersion, platform, version });
+      console.error(`> ${chalk.yellow('Building')} ${nodeVersion}-${target}`);
+      await build({ copyDest: local, nodeVersion, target });
+      console.error(`> ${chalk.yellow('Uploading')} ${local}`);
+      const remote = remotePlace({ arch: target, nodeVersion, platform, version });
       await upload(local, remote);
     }
   }
