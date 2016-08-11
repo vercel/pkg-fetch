@@ -16,7 +16,7 @@ async function main () {
       await build({ copyDest: local, nodeVersion, target });
       console.error(`> ${chalk.yellow('Uploading')} ${local}`);
       const remote = remotePlace({ arch: target, nodeVersion, platform, version });
-      await upload(local, remote);
+      await upload(local, remote, version);
     }
   }
 }
