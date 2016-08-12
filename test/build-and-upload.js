@@ -4,6 +4,11 @@ import main from '../lib/build-and-upload.js';
 import path from 'path';
 import test from 'ava';
 
+if (process.platform === 'win32' ||
+    process.arch !== 'x64') {
+  throw new Error('Run the test only on linux-x64 or darwin-x64');
+}
+
 function relative (p) {
   const p2 = path.relative(__dirname, p);
   return p2.replace(/\\/g, '/');
@@ -81,7 +86,8 @@ test(async () => {
     'patch -p1 -i ../patches/backport.R25039.patch {"stdio":"inherit","cwd":"../temp/node"}',
     'patch -p1 -i ../patches/backport.R25444.patch {"stdio":"inherit","cwd":"../temp/node"}',
     'patch -p1 -i ../patches/node.v0.12.15.patch {"stdio":"inherit","cwd":"../temp/node"}',
-    'cmd /c vcbuild.bat x64 nosign {"stdio":"inherit","cwd":"../temp/node"}',
+    './configure --dest-cpu x64 {"stdio":"inherit","cwd":"../temp/node"}',
+    'make  {"stdio":"inherit","cwd":"../temp/node"}',
     'copyFile ../temp/node/out/Release/node',
     'getRelease v7.8.9',
     'createRelease v7.8.9',
@@ -103,7 +109,8 @@ test(async () => {
     'patch -p1 -i ../patches/backport.R25039.patch {"stdio":"inherit","cwd":"../temp/node"}',
     'patch -p1 -i ../patches/backport.R25444.patch {"stdio":"inherit","cwd":"../temp/node"}',
     'patch -p1 -i ../patches/node.v0.12.15.patch {"stdio":"inherit","cwd":"../temp/node"}',
-    'cmd /c vcbuild.bat x86 nosign {"stdio":"inherit","cwd":"../temp/node"}',
+    './configure --dest-cpu ia32 {"stdio":"inherit","cwd":"../temp/node"}',
+    'make  {"stdio":"inherit","cwd":"../temp/node"}',
     'copyFile ../temp/node/out/Release/node',
     'getRelease v7.8.9',
     'createRelease v7.8.9',
@@ -112,7 +119,8 @@ test(async () => {
     'git reset --hard v4.4.7 {"stdio":"inherit","cwd":"../temp/node"}',
     'patch -p1 -i ../patches/backport.R32768.v8=4.5.patch {"stdio":"inherit","cwd":"../temp/node"}',
     'patch -p1 -i ../patches/node.v4.4.7.patch {"stdio":"inherit","cwd":"../temp/node"}',
-    'cmd /c vcbuild.bat x64 nosign {"stdio":"inherit","cwd":"../temp/node"}',
+    './configure --dest-cpu x64 {"stdio":"inherit","cwd":"../temp/node"}',
+    'make  {"stdio":"inherit","cwd":"../temp/node"}',
     'copyFile ../temp/node/out/Release/node',
     'getRelease v7.8.9',
     'createRelease v7.8.9',
@@ -121,7 +129,8 @@ test(async () => {
     'git reset --hard v4.4.7 {"stdio":"inherit","cwd":"../temp/node"}',
     'patch -p1 -i ../patches/backport.R32768.v8=4.5.patch {"stdio":"inherit","cwd":"../temp/node"}',
     'patch -p1 -i ../patches/node.v4.4.7.patch {"stdio":"inherit","cwd":"../temp/node"}',
-    'cmd /c vcbuild.bat x86 nosign {"stdio":"inherit","cwd":"../temp/node"}',
+    './configure --dest-cpu ia32 {"stdio":"inherit","cwd":"../temp/node"}',
+    'make  {"stdio":"inherit","cwd":"../temp/node"}',
     'copyFile ../temp/node/out/Release/node',
     'getRelease v7.8.9',
     'createRelease v7.8.9',
@@ -129,7 +138,8 @@ test(async () => {
     'git clone https://github.com/nodejs/node node {"stdio":"inherit","cwd":"../temp"}',
     'git reset --hard v6.3.1 {"stdio":"inherit","cwd":"../temp/node"}',
     'patch -p1 -i ../patches/node.v6.3.1.patch {"stdio":"inherit","cwd":"../temp/node"}',
-    'cmd /c vcbuild.bat x64 nosign {"stdio":"inherit","cwd":"../temp/node"}',
+    './configure --dest-cpu x64 {"stdio":"inherit","cwd":"../temp/node"}',
+    'make  {"stdio":"inherit","cwd":"../temp/node"}',
     'copyFile ../temp/node/out/Release/node',
     'getRelease v7.8.9',
     'createRelease v7.8.9',
@@ -137,7 +147,8 @@ test(async () => {
     'git clone https://github.com/nodejs/node node {"stdio":"inherit","cwd":"../temp"}',
     'git reset --hard v6.3.1 {"stdio":"inherit","cwd":"../temp/node"}',
     'patch -p1 -i ../patches/node.v6.3.1.patch {"stdio":"inherit","cwd":"../temp/node"}',
-    'cmd /c vcbuild.bat x86 nosign {"stdio":"inherit","cwd":"../temp/node"}',
+    './configure --dest-cpu ia32 {"stdio":"inherit","cwd":"../temp/node"}',
+    'make  {"stdio":"inherit","cwd":"../temp/node"}',
     'copyFile ../temp/node/out/Release/node',
     'getRelease v7.8.9',
     'createRelease v7.8.9',
