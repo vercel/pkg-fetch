@@ -4,9 +4,9 @@ import main from '../lib/build-and-upload.js';
 import path from 'path';
 import test from 'ava';
 
-if (process.platform === 'win32' ||
+if (process.platform !== 'linux' ||
     process.arch !== 'x64') {
-  throw new Error('Run the test only on linux-x64 or darwin-x64');
+  throw new Error('Run the test only on linux-x64');
 }
 
 function relative (p) {
