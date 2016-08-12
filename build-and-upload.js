@@ -8,9 +8,16 @@ import { version } from './package.json';
 
 const { platform } = process;
 
+function isBrokenBuild(nodeVersion, target) {
+  if (/^v?0/.test(nodeVersion) &&
+      /^arm/.test(target)) return true;
+  return false;
+}
+
 async function main () {
   for (const nodeVersion in patchesJson) {
     for (const target of targets) {
+      if (isBrokenBuild(nodeVersion, target)) continue;
       const local = localPlace({ arch: target, nodeVersion, platform, version });
       console.error(`> ${chalk.yellow('Building')} ${nodeVersion}-${target}`);
       await build({ copyDest: local, nodeVersion, target });
