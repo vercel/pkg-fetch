@@ -53,6 +53,7 @@
     "rimraf-promise": "2.0.0"
   },
   "devDependencies": {
+    "ava": "^0.16.0",
     "babel-eslint": "6.0.4",
     "babel-plugin-transform-async-to-generator": "6.8.0",
     "babel-plugin-transform-es2015-modules-commonjs": "6.8.0",
@@ -64,7 +65,16 @@
   },
   "scripts": {
     "build-and-upload": "node -r babel-register lib/build-and-upload.js",
-    "lint": "eslint . || true"
+    "lint": "eslint . || true",
+    "test": "ava"
   },
-  "ava": {}
+  "ava": {
+    "failFast": true,
+    "files": [
+      "test/*.js"
+    ],
+    "require": [
+      "babel-register"
+    ]
+  }
 }
