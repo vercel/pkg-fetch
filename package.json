@@ -41,6 +41,7 @@
         2,
         "always"
       ],
+      "no-var": 2,
       "generator-star-spacing": 0
     }
   },
