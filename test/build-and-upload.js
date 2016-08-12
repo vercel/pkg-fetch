@@ -1,6 +1,5 @@
 import assert from 'assert';
 import fs from 'fs';
-import main from '../lib/build-and-upload.js';
 import path from 'path';
 import test from 'ava';
 
@@ -19,6 +18,10 @@ let lastLocal;
 const assets = [];
 
 require('../package.json').version = '7.8.9';
+
+require('../lib/temp-path.js').tempPath = function () {
+  return path.join(__dirname, '../temp');
+};
 
 require('../lib/spawn.js').spawn = function (cmd, args, opts) {
   assert(opts);
@@ -67,6 +70,7 @@ require('../lib/github.js').uploadAsset = function (local, release, name) {
 };
 
 test(async () => {
+  const { main } = require('../lib/build-and-upload.js');
   await main();
   const mustBe = [
     'git clone https://github.com/nodejs/node node {"stdio":"inherit","cwd":"../temp"}',

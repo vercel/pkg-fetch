@@ -51,7 +51,8 @@
     "mkdirp-promise": "2.0.0",
     "request": "2.74.0",
     "rimraf-promise": "2.0.0",
-    "semver": "5.3.0"
+    "semver": "5.3.0",
+    "unique-temp-dir": "1.0.0"
   },
   "devDependencies": {
     "ava": "0.16.0",
