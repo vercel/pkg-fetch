@@ -70,7 +70,7 @@ test(async () => {
   await main();
   assert.deepEqual(actions, [
     'git clone https://github.com/nodejs/node node {"stdio":"inherit","cwd":"../temp"}',
-    'git reset --hard v0.12.5 {"stdio":"inherit","cwd":"../temp/node"}',
+    'git reset --hard v0.12.15 {"stdio":"inherit","cwd":"../temp/node"}',
     'patch -p1 -i ../patches/backport.R00000.patch {"stdio":"inherit","cwd":"../temp/node"}',
     'patch -p1 -i ../patches/backport.R24002.patch {"stdio":"inherit","cwd":"../temp/node"}',
     'patch -p1 -i ../patches/backport.R24204.patch {"stdio":"inherit","cwd":"../temp/node"}',
@@ -91,9 +91,9 @@ test(async () => {
     'copyFile ../temp/node/out/Release/node',
     'getRelease v7.8.9',
     'createRelease v7.8.9',
-    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[]} v0.12.5-linux-x64',
+    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[]} v0.12.15-linux-x64',
     'git clone https://github.com/nodejs/node node {"stdio":"inherit","cwd":"../temp"}',
-    'git reset --hard v0.12.5 {"stdio":"inherit","cwd":"../temp/node"}',
+    'git reset --hard v0.12.15 {"stdio":"inherit","cwd":"../temp/node"}',
     'patch -p1 -i ../patches/backport.R00000.patch {"stdio":"inherit","cwd":"../temp/node"}',
     'patch -p1 -i ../patches/backport.R24002.patch {"stdio":"inherit","cwd":"../temp/node"}',
     'patch -p1 -i ../patches/backport.R24204.patch {"stdio":"inherit","cwd":"../temp/node"}',
@@ -114,7 +114,7 @@ test(async () => {
     'copyFile ../temp/node/out/Release/node',
     'getRelease v7.8.9',
     'createRelease v7.8.9',
-    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":["v0.12.5-linux-x64"]} v0.12.5-linux-x86',
+    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":["v0.12.15-linux-x64"]} v0.12.15-linux-x86',
     'git clone https://github.com/nodejs/node node {"stdio":"inherit","cwd":"../temp"}',
     'git reset --hard v4.4.7 {"stdio":"inherit","cwd":"../temp/node"}',
     'patch -p1 -i ../patches/backport.R32768.v8=4.5.patch {"stdio":"inherit","cwd":"../temp/node"}',
@@ -124,7 +124,7 @@ test(async () => {
     'copyFile ../temp/node/out/Release/node',
     'getRelease v7.8.9',
     'createRelease v7.8.9',
-    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":["v0.12.5-linux-x64","v0.12.5-linux-x86"]} v4.4.7-linux-x64',
+    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":["v0.12.15-linux-x64","v0.12.15-linux-x86"]} v4.4.7-linux-x64',
     'git clone https://github.com/nodejs/node node {"stdio":"inherit","cwd":"../temp"}',
     'git reset --hard v4.4.7 {"stdio":"inherit","cwd":"../temp/node"}',
     'patch -p1 -i ../patches/backport.R32768.v8=4.5.patch {"stdio":"inherit","cwd":"../temp/node"}',
@@ -134,7 +134,7 @@ test(async () => {
     'copyFile ../temp/node/out/Release/node',
     'getRelease v7.8.9',
     'createRelease v7.8.9',
-    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":["v0.12.5-linux-x64","v0.12.5-linux-x86","v4.4.7-linux-x64"]} v4.4.7-linux-x86',
+    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":["v0.12.15-linux-x64","v0.12.15-linux-x86","v4.4.7-linux-x64"]} v4.4.7-linux-x86',
     'git clone https://github.com/nodejs/node node {"stdio":"inherit","cwd":"../temp"}',
     'git reset --hard v6.3.1 {"stdio":"inherit","cwd":"../temp/node"}',
     'patch -p1 -i ../patches/node.v6.3.1.patch {"stdio":"inherit","cwd":"../temp/node"}',
@@ -143,7 +143,7 @@ test(async () => {
     'copyFile ../temp/node/out/Release/node',
     'getRelease v7.8.9',
     'createRelease v7.8.9',
-    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":["v0.12.5-linux-x64","v0.12.5-linux-x86","v4.4.7-linux-x64","v4.4.7-linux-x86"]} v6.3.1-linux-x64',
+    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":["v0.12.15-linux-x64","v0.12.15-linux-x86","v4.4.7-linux-x64","v4.4.7-linux-x86"]} v6.3.1-linux-x64',
     'git clone https://github.com/nodejs/node node {"stdio":"inherit","cwd":"../temp"}',
     'git reset --hard v6.3.1 {"stdio":"inherit","cwd":"../temp/node"}',
     'patch -p1 -i ../patches/node.v6.3.1.patch {"stdio":"inherit","cwd":"../temp/node"}',
@@ -152,6 +152,6 @@ test(async () => {
     'copyFile ../temp/node/out/Release/node',
     'getRelease v7.8.9',
     'createRelease v7.8.9',
-    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":["v0.12.5-linux-x64","v0.12.5-linux-x86","v4.4.7-linux-x64","v4.4.7-linux-x86","v6.3.1-linux-x64"]} v6.3.1-linux-x86'
+    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":["v0.12.15-linux-x64","v0.12.15-linux-x86","v4.4.7-linux-x64","v4.4.7-linux-x86","v6.3.1-linux-x64"]} v6.3.1-linux-x86'
   ]);
 });
