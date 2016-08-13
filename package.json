@@ -67,7 +67,7 @@
     "eslint-plugin-standard": "2.0.0"
   },
   "scripts": {
-    "build-and-upload": "node -r babel-register lib/build-and-upload.js",
+    "upload": "node -r babel-register lib/upload.js",
     "lint": "eslint . || true",
     "test": "ava"
   },

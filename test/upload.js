@@ -70,7 +70,7 @@ require('../lib/github.js').uploadAsset = function (local, release, name) {
 };
 
 test(async () => {
-  const { main } = require('../lib/build-and-upload.js');
+  const { main } = require('../lib/upload.js');
   await main();
   const mustBe = [
     'git clone https://github.com/nodejs/node node {"stdio":"inherit","cwd":"../temp"}',
