@@ -1,3 +1,5 @@
+/* eslint-disable camelcase */
+
 import assert from 'assert';
 import fs from 'fs';
 import path from 'path';
