@@ -3,8 +3,8 @@
   "version": "0.0.2",
   "description": "Base binaries for pkg",
   "readme": "",
-  "main": "",
-  "files": [],
+  "main": "lib/index.js",
+  "bin": "lib/bin.js",
   "babel": {
     "plugins": [
       "transform-async-to-generator",
@@ -16,6 +16,7 @@
     "child-process-promise": "2.0.3",
     "expand-template": "1.0.2",
     "fs-promise": "0.5.0",
+    "minimist": "1.2.0",
     "request": "2.74.0",
     "semver": "5.3.0",
     "unique-temp-dir": "1.0.0"
@@ -28,6 +29,7 @@
     "klopov-eslint": "0.6.2"
   },
   "scripts": {
+    "bin": "node -r babel-register lib/bin.js",
     "upload": "node -r babel-register lib/upload.js",
     "lint": "klopov-eslint . || true",
     "test": "ava"
