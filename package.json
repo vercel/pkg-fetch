@@ -46,7 +46,7 @@
   "ava": {
     "failFast": true,
     "files": [
-      "test/*.js"
+      "test/*.test.js"
     ],
     "require": [
       "babel-register"
