@@ -1,7 +1,7 @@
 {
-  "name": "pkg-cache",
+  "name": "pkg-fetch",
   "version": "0.0.3",
-  "description": "Base binaries for pkg",
+  "description": "",
   "readme": "",
   "main": "lib-es5/index.js",
   "bin": "lib-es5/bin.js",
