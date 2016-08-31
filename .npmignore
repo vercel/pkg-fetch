@@ -3,3 +3,4 @@
 /test
 .eslintignore
 .gitignore
+npm-debug.log
