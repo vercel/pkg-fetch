@@ -1,5 +1,4 @@
 /lib
-/patches/*.patch
 /test
 .eslintignore
 .gitignore
