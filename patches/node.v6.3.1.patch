@@ -103,7 +103,7 @@
 +
 +  read = static_cast<int>(fread(&length, 1, sizeof(length), stdin));
 +  if (read != sizeof(length)) {
-+    base::OS::PrintError("EncloseJS: Invalid stdin provided.\n");
++    base::OS::PrintError("Pkg: Invalid stdin provided.\n");
 +    exit(1);
 +  }
 +
@@ -113,7 +113,7 @@
 +  for (int i = 0; i < *psize;) {
 +    read = static_cast<int>(fread(&dispose_me[i], 1, *psize - i, stdin));
 +    if (ferror(stdin) != 0) {
-+      base::OS::PrintError("EncloseJS: Error reading from stdin.\n");
++      base::OS::PrintError("Pkg: Error reading from stdin.\n");
 +      exit(1);
 +    }
 +    i += read;
@@ -136,7 +136,7 @@
 +  for (int i = 0; i < size;) {
 +    written = static_cast<int>(fwrite(&buffer[i], 1, size - i, stdout));
 +    if (ferror(stdout) != 0) {
-+      base::OS::PrintError("EncloseJS: Error writing to stdout.\n");
++      base::OS::PrintError("Pkg: Error writing to stdout.\n");
 +      exit(1);
 +    }
 +    i += written;
@@ -154,14 +154,14 @@
 +
 +  // start of search. WARNING! THIS VALUE DIFFERS IN NODE BRANCHES
 +  if (file == NULL || fseek(file, 12 * 1024 * 1024, SEEK_SET) != 0) {
-+    base::OS::PrintError("EncloseJS: Error reading file.\n");
++    base::OS::PrintError("Pkg: Error reading file.\n");
 +    exit(1);
 +  }
 +
 +  while (true) {
 +    read = static_cast<int>(fread(&sentinel, 1, sizeof(sentinel), file));
 +    if (read != sizeof(length)) {
-+      base::OS::PrintError("EncloseJS: Invalid file provided.\n");
++      base::OS::PrintError("Pkg: Invalid file provided.\n");
 +      exit(1);
 +    }
 +    if (sentinel != 0x26e0c928) continue;
@@ -179,7 +179,7 @@
 +  for (int i = 0; i < *psize;) {
 +    read = static_cast<int>(fread(&dispose_me[i], 1, *psize - i, file));
 +    if (ferror(file) != 0) {
-+      base::OS::PrintError("EncloseJS: Error reading from file.\n");
++      base::OS::PrintError("Pkg: Error reading from file.\n");
 +      exit(1);
 +    }
 +    i += read;
@@ -281,7 +281,7 @@
 +    ScriptCompiler::kProduceCodeCache);
 +
 +  if (try_catch.HasCaught()) {
-+    base::OS::PrintError("EncloseJS: compilation failed.\n");
++    base::OS::PrintError("Pkg: compilation failed.\n");
 +    DumpException(iso->GetCurrentContext(), try_catch.Message());
 +    exit(1);
 +  }
@@ -805,13 +805,13 @@
    uint32_t magic_number = GetMagicNumber();
 -  if (magic_number != ComputeMagicNumber(isolate)) return MAGIC_NUMBER_MISMATCH;
 +  if (magic_number != ComputeMagicNumber(isolate)) {
-+    base::OS::PrintError("EncloseJS: MAGIC_NUMBER_MISMATCH\n");
++    base::OS::PrintError("Pkg: MAGIC_NUMBER_MISMATCH\n");
 +    return MAGIC_NUMBER_MISMATCH;
 +  }
    uint32_t version_hash = GetHeaderValue(kVersionHashOffset);
 -  uint32_t source_hash = GetHeaderValue(kSourceHashOffset);
 +  if (version_hash != Version::Hash()) {
-+    base::OS::PrintError("EncloseJS: VERSION_MISMATCH\n");
++    base::OS::PrintError("Pkg: VERSION_MISMATCH\n");
 +    return VERSION_MISMATCH;
 +  }
    uint32_t cpu_features = GetHeaderValue(kCpuFeaturesOffset);
@@ -823,7 +823,7 @@
 -  if (cpu_features != static_cast<uint32_t>(CpuFeatures::SupportedFeatures())) {
 +  uint32_t host_features = static_cast<uint32_t>(CpuFeatures::SupportedFeatures());
 +  if (cpu_features & (~host_features)) {
-+    base::OS::PrintError("EncloseJS: CPU_FEATURES_MISMATCH\n");
++    base::OS::PrintError("Pkg: CPU_FEATURES_MISMATCH\n");
      return CPU_FEATURES_MISMATCH;
    }
 -  if (flags_hash != FlagList::Hash()) return FLAGS_MISMATCH;
@@ -1112,7 +1112,7 @@
 +  auto source = String::NewFromUtf8(env->isolate(),
 +    "var binding = process.binding('enclose');\n" \
 +    "var result; try { result = binding.read(process.execPath); } catch(_) {}\n" \
-+    "if (!result) { console.error('EncloseJS: Failed to read bytecode.'); process.exit(2); }\n" \
++    "if (!result) { console.error('Pkg: Failed to read bytecode.'); process.exit(2); }\n" \
 +    "result(process, require, console);\n"
 +  );
 +  target->Set(name, source);
