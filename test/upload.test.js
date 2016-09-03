@@ -6,6 +6,8 @@ import fs from 'fs';
 import path from 'path';
 import test from 'ava';
 
+process.env.GITHUB_USERNAME = 'suppress upload error';
+
 function relative (p) {
   const p2 = path.relative(__dirname, p);
   return p2.replace(/\\/g, '/');
@@ -15,7 +17,7 @@ const actions = [];
 let lastLocal;
 const assets = [];
 
-require('../package.json').version = '1337.0.1';
+require('../package.json').version = '1337.2.3';
 
 require('../lib/log.js').log = new LogMock(actions);
 
@@ -58,6 +60,11 @@ require('../lib/copy-file.js').copyFile = function (src, dest) {
 
 require('../lib/github.js').getRelease = function (tag) {
   actions.push([ 'getRelease', tag ].join(' '));
+  return null;
+};
+
+require('../lib/github.js').getReleaseDraft = function (tag) {
+  actions.push([ 'getReleaseDraft', tag ].join(' '));
   return null;
 };
 
@@ -108,8 +115,9 @@ test(async () => {
     'make  {"cwd":"../temp/node"}',
     'copyFile ../temp/node/out/Release/node',
     '> Uploading built-v0.12.15-linux-x64...',
-    'getRelease v1337.0.1',
-    'createRelease v1337.0.1',
+    'getRelease v1337.2.0',
+    'getReleaseDraft v1337.2.0',
+    'createRelease v1337.2.0',
     'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[]} uploaded-v0.12.15-linux-x64',
     '> Building built-v0.12.15-linux-x86...',
     '> Cloning Node.js repository from GitHub...',
@@ -137,8 +145,9 @@ test(async () => {
     'make  {"cwd":"../temp/node"}',
     'copyFile ../temp/node/out/Release/node',
     '> Uploading built-v0.12.15-linux-x86...',
-    'getRelease v1337.0.1',
-    'createRelease v1337.0.1',
+    'getRelease v1337.2.0',
+    'getReleaseDraft v1337.2.0',
+    'createRelease v1337.2.0',
     'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[{"name":"uploaded-v0.12.15-linux-x64"}]} uploaded-v0.12.15-linux-x86',
     '> Building built-v4.4.7-linux-x64...',
     '> Cloning Node.js repository from GitHub...',
@@ -153,8 +162,9 @@ test(async () => {
     'make  {"cwd":"../temp/node"}',
     'copyFile ../temp/node/out/Release/node',
     '> Uploading built-v4.4.7-linux-x64...',
-    'getRelease v1337.0.1',
-    'createRelease v1337.0.1',
+    'getRelease v1337.2.0',
+    'getReleaseDraft v1337.2.0',
+    'createRelease v1337.2.0',
     'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[{"name":"uploaded-v0.12.15-linux-x64"},{"name":"uploaded-v0.12.15-linux-x86"}]} uploaded-v4.4.7-linux-x64',
     '> Building built-v4.4.7-linux-x86...',
     '> Cloning Node.js repository from GitHub...',
@@ -169,8 +179,9 @@ test(async () => {
     'make  {"cwd":"../temp/node"}',
     'copyFile ../temp/node/out/Release/node',
     '> Uploading built-v4.4.7-linux-x86...',
-    'getRelease v1337.0.1',
-    'createRelease v1337.0.1',
+    'getRelease v1337.2.0',
+    'getReleaseDraft v1337.2.0',
+    'createRelease v1337.2.0',
     'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[{"name":"uploaded-v0.12.15-linux-x64"},{"name":"uploaded-v0.12.15-linux-x86"},{"name":"uploaded-v4.4.7-linux-x64"}]} uploaded-v4.4.7-linux-x86',
     '> Building built-v6.3.1-linux-x64...',
     '> Cloning Node.js repository from GitHub...',
@@ -184,8 +195,9 @@ test(async () => {
     'make  {"cwd":"../temp/node"}',
     'copyFile ../temp/node/out/Release/node',
     '> Uploading built-v6.3.1-linux-x64...',
-    'getRelease v1337.0.1',
-    'createRelease v1337.0.1',
+    'getRelease v1337.2.0',
+    'getReleaseDraft v1337.2.0',
+    'createRelease v1337.2.0',
     'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[{"name":"uploaded-v0.12.15-linux-x64"},{"name":"uploaded-v0.12.15-linux-x86"},{"name":"uploaded-v4.4.7-linux-x64"},{"name":"uploaded-v4.4.7-linux-x86"}]} uploaded-v6.3.1-linux-x64',
     '> Building built-v6.3.1-linux-x86...',
     '> Cloning Node.js repository from GitHub...',
@@ -199,8 +211,9 @@ test(async () => {
     'make  {"cwd":"../temp/node"}',
     'copyFile ../temp/node/out/Release/node',
     '> Uploading built-v6.3.1-linux-x86...',
-    'getRelease v1337.0.1',
-    'createRelease v1337.0.1',
+    'getRelease v1337.2.0',
+    'getReleaseDraft v1337.2.0',
+    'createRelease v1337.2.0',
     'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[{"name":"uploaded-v0.12.15-linux-x64"},{"name":"uploaded-v0.12.15-linux-x86"},{"name":"uploaded-v4.4.7-linux-x64"},{"name":"uploaded-v4.4.7-linux-x86"},{"name":"uploaded-v6.3.1-linux-x64"}]} uploaded-v6.3.1-linux-x86'
   ];
   assert.equal(actions.length, mustBe.length);
