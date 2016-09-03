@@ -44,6 +44,7 @@
     "bin": "node lib-es5/bin.js",
     "upload": "node lib-es5/upload.js",
     "lint": "eslint-klopov . || true",
+    "prepublish": "npm run lint && npm test && npm run babel",
     "test": "ava"
   },
   "eslintConfig": {
