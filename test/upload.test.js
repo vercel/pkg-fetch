@@ -6,11 +6,6 @@ import fs from 'fs';
 import path from 'path';
 import test from 'ava';
 
-if (process.platform !== 'linux' ||
-    process.arch !== 'x64') {
-  throw new Error('Run the test only on linux-x64');
-}
-
 function relative (p) {
   const p2 = path.relative(__dirname, p);
   return p2.replace(/\\/g, '/');
@@ -78,6 +73,12 @@ require('../lib/github.js').uploadAsset = function (local, release, name) {
 };
 
 test(async () => {
+  if (process.platform !== 'linux' ||
+      process.arch !== 'x64') {
+    console.log('RUN THE TEST ONLY ON LINUX-X64');
+    return;
+  }
+
   const { main } = require('../lib/upload.js');
   await main();
   const mustBe = [
