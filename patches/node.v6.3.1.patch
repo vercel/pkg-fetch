@@ -6,7 +6,7 @@
      kConsumeCodeCache
    };
  
-+  static Local<String> EncloseParseToAst(Isolate* isolate, Local<String> code);
++  static Local<String> PkgParseToAst(Isolate* isolate, Local<String> code);
 +
    /**
     * Compiles the specified script (context-independent).
@@ -19,8 +19,8 @@
                                        char** argv,
                                        bool remove_flags);
  
-+  static void EncloseReadBytecode(const FunctionCallbackInfo<Value>& args);
-+  static void EncloseWriteBytecode();
++  static void PkgReadBytecode(const FunctionCallbackInfo<Value>& args);
++  static void PkgWriteBytecode();
 +  static void CpuFeaturesProbeTrue();
 +
    /** Get the version string. */
@@ -218,7 +218,7 @@
 +}
 +
 +
-+void V8::EncloseReadBytecode(const FunctionCallbackInfo<Value>& args) {
++void V8::PkgReadBytecode(const FunctionCallbackInfo<Value>& args) {
 +
 +  String::Utf8Value filename(args[0]);
 +  auto file = WFOpen(*filename, "rb");
@@ -256,7 +256,7 @@
 +}
 +
 +
-+void V8::EncloseWriteBytecode() {
++void V8::PkgWriteBytecode() {
 +
 +  // KLOPOV: dont log
 +  i::FLAG_log_code = false;
@@ -309,7 +309,7 @@
  }
  
  
-+Local<String> ScriptCompiler::EncloseParseToAst(Isolate* v8_isolate, Local<String> code) {
++Local<String> ScriptCompiler::PkgParseToAst(Isolate* v8_isolate, Local<String> code) {
 +
 +  auto isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
 +  auto factory = isolate->factory();
@@ -993,7 +993,7 @@
      Context::Scope context_scope(context);
  
 +if (ejs_write) {
-+  V8::EncloseWriteBytecode();
++  V8::PkgWriteBytecode();
 +  instance_data->set_exit_code(0);
 +} else {
 +
@@ -1062,27 +1062,27 @@
    return exit_code;
  }
  
-+void EncloseReadBytecode(const FunctionCallbackInfo<Value>& args) {
-+  V8::EncloseReadBytecode(args);
++void PkgReadBytecode(const FunctionCallbackInfo<Value>& args) {
++  V8::PkgReadBytecode(args);
 +}
 +
-+void EncloseParseToAst(const FunctionCallbackInfo<Value>& args) {
++void PkgParseToAst(const FunctionCallbackInfo<Value>& args) {
 +  auto env = Environment::GetCurrent(args);
 +  auto isolate = env->isolate();
 +  auto code = args[0]->ToString(isolate);
-+  auto s = v8::ScriptCompiler::EncloseParseToAst(isolate, code);
++  auto s = v8::ScriptCompiler::PkgParseToAst(isolate, code);
 +  args.GetReturnValue().Set(s);
 +}
 +
-+void EncloseInitialize(Local<Object> target, Local<Value> unused, Local<Context> context, void* p) {
++void PkgInitialize(Local<Object> target, Local<Value> unused, Local<Context> context, void* p) {
 +  auto env = Environment::GetCurrent(context);
-+  env->SetMethod(target, "read", EncloseReadBytecode);
-+  env->SetMethod(target, "parse", EncloseParseToAst);
++  env->SetMethod(target, "read", PkgReadBytecode);
++  env->SetMethod(target, "parse", PkgParseToAst);
 +};
  
  }  // namespace node
 +
-+NODE_MODULE_CONTEXT_AWARE_BUILTIN(enclose, node::EncloseInitialize)
++NODE_MODULE_CONTEXT_AWARE_BUILTIN(pkg, node::PkgInitialize)
 --- node/src/node.h
 +++ node/src/node.h
 @@ -182,11 +182,12 @@
@@ -1092,7 +1092,7 @@
  #endif
  
 -NODE_EXTERN int Start(int argc, char *argv[]);
-+void EncloseWriteBytecode();
++void PkgWriteBytecode();
 +NODE_EXTERN int Start(int argc, char *argv[], bool ejs_write);
  NODE_EXTERN void Init(int* argc,
                        const char** argv,
@@ -1110,7 +1110,7 @@
 +
 +  auto name = String::NewFromUtf8(env->isolate(), "_third_party_main");
 +  auto source = String::NewFromUtf8(env->isolate(),
-+    "var binding = process.binding('enclose');\n" \
++    "var binding = process.binding('pkg');\n" \
 +    "var result; try { result = binding.read(process.execPath); } catch(_) {}\n" \
 +    "if (!result) { console.error('Pkg: Failed to read bytecode.'); process.exit(2); }\n" \
 +    "result(process, require, console);\n"
