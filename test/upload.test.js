@@ -54,7 +54,8 @@ require('../lib/spawn.js').progress = function () {
 
 require('../lib/copy-file.js').copyFile = function (src, dest) {
   src = relative(src);
-  actions.push([ 'copyFile', src ].join(' ')); // dest is flaky
+  const shortDest = path.basename(path.dirname(dest)) + '/' + path.basename(dest);
+  actions.push([ 'copyFile', src, shortDest ].join(' ')); // full dest is flaky
   lastLocal = dest;
 };
 
@@ -113,7 +114,7 @@ test(async () => {
     '> Compiling Node.js from sources...',
     './configure --dest-cpu x64 {"cwd":"../temp/node"}',
     'make  {"cwd":"../temp/node"}',
-    'copyFile ../temp/node/out/Release/node',
+    'copyFile ../temp/node/out/Release/node 1337.2.3/built-v0.12.15-linux-x64',
     '> Uploading built-v0.12.15-linux-x64...',
     'getRelease v1337.2.0',
     'getReleaseDraft v1337.2.0',
@@ -143,7 +144,7 @@ test(async () => {
     '> Compiling Node.js from sources...',
     './configure --dest-cpu ia32 {"cwd":"../temp/node"}',
     'make  {"cwd":"../temp/node"}',
-    'copyFile ../temp/node/out/Release/node',
+    'copyFile ../temp/node/out/Release/node 1337.2.3/built-v0.12.15-linux-x86',
     '> Uploading built-v0.12.15-linux-x86...',
     'getRelease v1337.2.0',
     'getReleaseDraft v1337.2.0',
@@ -160,7 +161,7 @@ test(async () => {
     '> Compiling Node.js from sources...',
     './configure --dest-cpu x64 {"cwd":"../temp/node"}',
     'make  {"cwd":"../temp/node"}',
-    'copyFile ../temp/node/out/Release/node',
+    'copyFile ../temp/node/out/Release/node 1337.2.3/built-v4.4.7-linux-x64',
     '> Uploading built-v4.4.7-linux-x64...',
     'getRelease v1337.2.0',
     'getReleaseDraft v1337.2.0',
@@ -177,7 +178,7 @@ test(async () => {
     '> Compiling Node.js from sources...',
     './configure --dest-cpu ia32 {"cwd":"../temp/node"}',
     'make  {"cwd":"../temp/node"}',
-    'copyFile ../temp/node/out/Release/node',
+    'copyFile ../temp/node/out/Release/node 1337.2.3/built-v4.4.7-linux-x86',
     '> Uploading built-v4.4.7-linux-x86...',
     'getRelease v1337.2.0',
     'getReleaseDraft v1337.2.0',
@@ -193,7 +194,7 @@ test(async () => {
     '> Compiling Node.js from sources...',
     './configure --dest-cpu x64 {"cwd":"../temp/node"}',
     'make  {"cwd":"../temp/node"}',
-    'copyFile ../temp/node/out/Release/node',
+    'copyFile ../temp/node/out/Release/node 1337.2.3/built-v6.3.1-linux-x64',
     '> Uploading built-v6.3.1-linux-x64...',
     'getRelease v1337.2.0',
     'getReleaseDraft v1337.2.0',
@@ -209,7 +210,7 @@ test(async () => {
     '> Compiling Node.js from sources...',
     './configure --dest-cpu ia32 {"cwd":"../temp/node"}',
     'make  {"cwd":"../temp/node"}',
-    'copyFile ../temp/node/out/Release/node',
+    'copyFile ../temp/node/out/Release/node 1337.2.3/built-v6.3.1-linux-x86',
     '> Uploading built-v6.3.1-linux-x86...',
     'getRelease v1337.2.0',
     'getReleaseDraft v1337.2.0',
