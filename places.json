@@ -1,4 +1,4 @@
 {
-  "localPlace": "~/.pkg-cache/{version}/{from}-{nodeVersion}-{platform}-{arch}",
+  "localPlace": "~/.pkg-cache/{tag}/{from}-{nodeVersion}-{platform}-{arch}",
   "remotePlace": "uploaded-{nodeVersion}-{platform}-{arch}"
 }
