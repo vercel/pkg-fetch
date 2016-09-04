@@ -19,6 +19,17 @@ const assets = [];
 
 require('../package.json').version = '1337.2.3';
 
+const patchesJson = require('../patches/patches.json');
+const newPatchesJson = require('./patches.json');
+
+for (const nodeVersion in patchesJson) {
+  delete patchesJson[nodeVersion];
+}
+
+for (const nodeVersion in newPatchesJson) {
+  patchesJson[nodeVersion] = newPatchesJson[nodeVersion];
+}
+
 require('../lib/log.js').log = new LogMock(actions);
 
 require('../lib/temp-path.js').tempPath = function () {
