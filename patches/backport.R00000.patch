@@ -2,7 +2,7 @@ commit b324d0bb99045fcfe80397a978eb2ce29af4990f
 Author: igorklopov <igor@klopov.com>
 Date:   Mon Aug 17 11:31:50 2015 +0400
 
-    U2
+    some older revisions mixed together
 
 diff --git a/src/code-stubs.cc b/src/code-stubs.cc
 index 0e68ab8..92aca16 100644

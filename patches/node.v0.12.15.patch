@@ -1,19 +1,6 @@
 --- node/deps/v8/include/v8.h
 +++ node/deps/v8/include/v8.h
-@@ -1117,10 +1117,12 @@
- 
-     // Support the previous API for a transition period.
-     kProduceDataToCache
-   };
- 
-+  static Local<String> PkgParseToAst(Isolate* isolate, Local<String> code);
-+
-   /**
-    * Compiles the specified script (context-independent).
-    * Cached data as part of the source object can be optionally produced to be
-    * consumed later to speed up compilation of identical source scripts.
-    *
-@@ -4826,10 +4828,14 @@
+@@ -4826,10 +4826,14 @@
     */
    static void SetFlagsFromCommandLine(int* argc,
                                        char** argv,
@@ -42,23 +29,7 @@
  #include "src/base/platform/time.h"
  #include "src/base/utils/random-number-generator.h"
  #include "src/bootstrapper.h"
-@@ -31,24 +32,30 @@
- #include "src/icu_util.h"
- #include "src/json-parser.h"
- #include "src/messages.h"
- #include "src/natives.h"
- #include "src/parser.h"
-+#include "src/prettyprinter.h"
- #include "src/profile-generator-inl.h"
- #include "src/property.h"
- #include "src/property-details.h"
- #include "src/prototype.h"
-+#include "src/rewriter.h"
- #include "src/runtime.h"
- #include "src/runtime-profiler.h"
- #include "src/scanner-character-streams.h"
- #include "src/simulator.h"
- #include "src/snapshot.h"
+@@ -45,10 +46,14 @@
  #include "src/unicode-inl.h"
  #include "src/v8threads.h"
  #include "src/version.h"
@@ -73,7 +44,7 @@
  
  #define ENTER_V8(isolate)                                          \
    DCHECK((isolate)->IsInitialized());                              \
-@@ -391,10 +398,235 @@
+@@ -391,10 +396,235 @@
  void V8::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags) {
    i::FlagList::SetFlagsFromCommandLine(argc, argv, remove_flags);
  }
@@ -309,65 +280,6 @@
  
  RegisteredExtension::RegisteredExtension(Extension* extension)
      : extension_(extension) { }
-@@ -1831,10 +2066,40 @@
-   ScriptOrigin origin(file_name);
-   return Compile(source, &origin);
- }
- 
- 
-+Local<String> ScriptCompiler::PkgParseToAst(Isolate* v8_isolate, Local<String> code) {
-+
-+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-+  i::Factory* factory = isolate->factory();
-+  i::Handle<i::String> string = Utils::OpenHandle(*code); // TODO NewStringFromUtf8
-+  i::Handle<i::Script> script = factory->NewScript(string);
-+
-+  i::CompilationInfoWithZone parse_info(script);
-+  i::Parser parser(&parse_info);
-+  // parser.set_allow_harmony_arrow_functions(true);
-+  // parser.set_allow_harmony_sloppy(true);
-+  // parser.set_global();
-+  // parser.set_lazy(false);
-+  parser.set_allow_lazy(false);
-+  // parser.set_toplevel();
-+
-+  if (!parser.Parse()) {
-+    return String::Empty(v8_isolate);
-+  }
-+
-+  i::AstPrinter ap(parse_info.zone());
-+  const char* output = ap.PrintProgram(parse_info.function());
-+  Local<String> result = String::NewFromUtf8(
-+    v8_isolate, output, String::kNormalString, -1);
-+
-+  return result;
-+
-+}
-+
-+
- // --- E x c e p t i o n s ---
- 
- 
- v8::TryCatch::TryCatch()
-     : isolate_(i::Isolate::Current()),
---- node/deps/v8/src/codegen.cc
-+++ node/deps/v8/src/codegen.cc
-@@ -125,15 +125,10 @@
- #ifdef DEBUG
-   if (!info->IsStub() && print_source) {
-     PrintF("--- Source from AST ---\n%s\n",
-            PrettyPrinter(info->zone()).PrintProgram(info->function()));
-   }
--
--  if (!info->IsStub() && print_ast) {
--    PrintF("--- AST ---\n%s\n",
--           AstPrinter(info->zone()).PrintProgram(info->function()));
--  }
- #endif  // DEBUG
- }
- 
- 
- Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
 --- node/deps/v8/src/parser.cc
 +++ node/deps/v8/src/parser.cc
 @@ -4838,10 +4838,11 @@
@@ -382,338 +294,6 @@
    ast_value_factory_ = info()->ast_value_factory();
    if (ast_value_factory_ == NULL) {
      ast_value_factory_ =
---- node/deps/v8/src/prettyprinter.cc
-+++ node/deps/v8/src/prettyprinter.cc
-@@ -12,12 +12,10 @@
- #include "src/scopes.h"
- 
- namespace v8 {
- namespace internal {
- 
--#ifdef DEBUG
--
- PrettyPrinter::PrettyPrinter(Zone* zone) {
-   output_ = NULL;
-   size_ = 0;
-   pos_ = 0;
-   InitializeAstVisitor(zone);
-@@ -547,40 +545,64 @@
- 
- void PrettyPrinter::PrintLiteral(Handle<Object> value, bool quote) {
-   Object* object = *value;
-   if (object->IsString()) {
-     String* string = String::cast(object);
--    if (quote) Print("\"");
-+    Print("\"");
-     for (int i = 0; i < string->length(); i++) {
--      Print("%c", string->Get(i));
-+      uint16_t c16 = string->Get(i);
-+      if (c16 == 34) {
-+        Print("\\\""); // escape quote
-+      } else
-+      if (c16 == 92) {
-+        Print("\\\\"); // escape left slash
-+      } else
-+      if ((c16 >= 32) && (c16 <= 127)) {
-+        Print("%c", c16);
-+      } else {
-+        Print("?");
-+      }
-     }
--    if (quote) Print("\"");
-+    Print("\"");
-   } else if (object->IsNull()) {
-     Print("null");
-   } else if (object->IsTrue()) {
-     Print("true");
-   } else if (object->IsFalse()) {
-     Print("false");
-   } else if (object->IsUndefined()) {
--    Print("undefined");
-+    Print("null");
-   } else if (object->IsNumber()) {
--    Print("%g", object->Number());
-+    EmbeddedVector<char, 128> buf;
-+    int pos = SNPrintF(buf, "%g", object->Number());
-+    quote = false;
-+    for (int i = 0; i < pos; i++) {
-+      if ((buf[i] == 'N') || (buf[i] == 'n')) { // 1.#INF or inf or nan
-+        quote = true;
-+        break;
-+      }
-+    }
-+    if (quote) Print("\"");
-+    Print("%s", buf.start());
-+    if (quote) Print("\"");
-   } else if (object->IsJSObject()) {
-     // regular expression
-+    Print("\"");
-     if (object->IsJSFunction()) {
-       Print("JS-Function");
-     } else if (object->IsJSArray()) {
-       Print("JS-array[%u]", JSArray::cast(object)->length());
-     } else if (object->IsJSObject()) {
-       Print("JS-Object");
-     } else {
-       Print("?UNKNOWN?");
-     }
-+    Print("\"");
-   } else if (object->IsFixedArray()) {
--    Print("FixedArray");
-+    Print("\"FixedArray\"");
-   } else {
--    Print("<unknown literal %p>", object);
-+    Print("\"<unknown literal %p>\"", object);
-   }
- }
- 
- 
- void PrettyPrinter::PrintLiteral(const AstRawString* value, bool quote) {
-@@ -638,57 +660,73 @@
- 
- 
- //-----------------------------------------------------------------------------
- 
- 
--AstPrinter::AstPrinter(Zone* zone) : PrettyPrinter(zone), indent_(0) {
-+AstPrinter::AstPrinter(Zone* zone) : PrettyPrinter(zone), indent_(0), just_indented_(true) {
- }
- 
- 
- AstPrinter::~AstPrinter() {
-   DCHECK(indent_ == 0);
- }
- 
- 
--void AstPrinter::PrintIndented(const char* txt) {
--  for (int i = 0; i < indent_; i++) {
--    Print(". ");
-+void AstPrinter::PrintIndented(const char* txt, int bracket) {
-+//  for (int i = 0; i < indent_; i++) {
-+//    Print("  ");
-+//  }
-+  char temp[1024];
-+  int pos = 0;
-+  if ((bracket == 0) || (bracket == 1)) {
-+    if (just_indented_) {
-+      just_indented_ = false;
-+    } else {
-+      temp[pos++] = ',';
-+      temp[pos++] = ' ';
-+    }
-+  }
-+  int length = (int) strlen(txt);
-+  if (bracket == 0) {
-+    temp[pos++] = '\"';
-+  }
-+  for (int j = 0; j < length; j++) {
-+    if (txt[j] == ' ') {
-+      temp[pos++] = '_';
-+    } else {
-+      temp[pos++] = txt[j];
-+    }
-+  }
-+  if (bracket == 0) {
-+    temp[pos++] = '\"';
-   }
--  Print(txt);
-+  temp[pos++] = '\0';
-+  Print(temp);
- }
- 
- 
- void AstPrinter::PrintLiteralIndented(const char* info,
-                                       Handle<Object> value,
-                                       bool quote) {
-   PrintIndented(info);
--  Print(" ");
-+  Print(", ");
-   PrintLiteral(value, quote);
-   Print("\n");
- }
- 
- 
- void AstPrinter::PrintLiteralWithModeIndented(const char* info,
-                                               Variable* var,
-                                               Handle<Object> value) {
--  if (var == NULL) {
--    PrintLiteralIndented(info, value, true);
--  } else {
--    EmbeddedVector<char, 256> buf;
--    int pos = SNPrintF(buf, "%s (mode = %s", info,
--                       Variable::Mode2String(var->mode()));
--    SNPrintF(buf + pos, ")");
--    PrintLiteralIndented(buf.start(), value, true);
--  }
-+  PrintLiteralIndented(info, value, true);
- }
- 
- 
- void AstPrinter::PrintLabelsIndented(ZoneList<const AstRawString*>* labels) {
-   if (labels == NULL || labels->length() == 0) return;
-   PrintIndented("LABELS ");
--  PrintLabels(labels);
--  Print("\n");
-+  Print(", []\n");
- }
- 
- 
- void AstPrinter::PrintIndentedVisit(const char* s, AstNode* node) {
-   IndentedScope indent(this, s);
-@@ -696,17 +734,19 @@
- }
- 
- 
- const char* AstPrinter::PrintProgram(FunctionLiteral* program) {
-   Init();
-+  Print("[\n");
-   { IndentedScope indent(this, "FUNC");
-     PrintLiteralIndented("NAME", program->name(), true);
-     PrintLiteralIndented("INFERRED NAME", program->inferred_name(), true);
-     PrintParameters(program->scope());
-     PrintDeclarations(program->scope()->declarations());
-     PrintStatements(program->body());
-   }
-+  Print("]\n");
-   return Output();
- }
- 
- 
- void AstPrinter::PrintDeclarations(ZoneList<Declaration*>* declarations) {
-@@ -752,22 +792,17 @@
- 
- 
- // TODO(svenpanne) Start with IndentedScope.
- void AstPrinter::VisitVariableDeclaration(VariableDeclaration* node) {
-   PrintLiteralWithModeIndented(Variable::Mode2String(node->mode()),
--                               node->proxy()->var(),
--                               node->proxy()->name());
-+                               NULL, node->proxy()->name());
- }
- 
- 
- // TODO(svenpanne) Start with IndentedScope.
- void AstPrinter::VisitFunctionDeclaration(FunctionDeclaration* node) {
--  PrintIndented("FUNCTION ");
--  PrintLiteral(node->proxy()->name(), true);
--  Print(" = function ");
--  PrintLiteral(node->fun()->name(), false);
--  Print("\n");
-+  PrintIndentedVisit("FUNCTION", node->fun());
- }
- 
- 
- void AstPrinter::VisitModuleDeclaration(ModuleDeclaration* node) {
-   IndentedScope indent(this, "MODULE");
-@@ -955,14 +990,14 @@
- void AstPrinter::VisitFunctionLiteral(FunctionLiteral* node) {
-   IndentedScope indent(this, "FUNC LITERAL");
-   PrintLiteralIndented("NAME", node->name(), false);
-   PrintLiteralIndented("INFERRED NAME", node->inferred_name(), false);
-   PrintParameters(node->scope());
--  // We don't want to see the function literal in this case: it
--  // will be printed via PrintProgram when the code for it is
--  // generated.
--  // PrintStatements(node->body());
-+  PrintDeclarations(node->scope()->declarations());
-+  if (node->body() != NULL) {
-+    PrintStatements(node->body());
-+  }
- }
- 
- 
- void AstPrinter::VisitNativeFunctionLiteral(NativeFunctionLiteral* node) {
-   IndentedScope indent(this, "NATIVE FUNC LITERAL");
-@@ -1035,30 +1070,13 @@
- }
- 
- 
- // TODO(svenpanne) Start with IndentedScope.
- void AstPrinter::VisitVariableProxy(VariableProxy* node) {
--  Variable* var = node->var();
-   EmbeddedVector<char, 128> buf;
--  int pos = SNPrintF(buf, "VAR PROXY");
--  switch (var->location()) {
--    case Variable::UNALLOCATED:
--      break;
--    case Variable::PARAMETER:
--      SNPrintF(buf + pos, " parameter[%d]", var->index());
--      break;
--    case Variable::LOCAL:
--      SNPrintF(buf + pos, " local[%d]", var->index());
--      break;
--    case Variable::CONTEXT:
--      SNPrintF(buf + pos, " context[%d]", var->index());
--      break;
--    case Variable::LOOKUP:
--      SNPrintF(buf + pos, " lookup");
--      break;
--  }
--  PrintLiteralWithModeIndented(buf.start(), var, node->name());
-+  SNPrintF(buf, "VAR PROXY");
-+  PrintLiteralWithModeIndented(buf.start(), NULL, node->name());
- }
- 
- 
- void AstPrinter::VisitAssignment(Assignment* node) {
-   IndentedScope indent(this, Token::Name(node->op()));
-@@ -1143,8 +1161,6 @@
- 
- void AstPrinter::VisitThisFunction(ThisFunction* node) {
-   IndentedScope indent(this, "THIS-FUNCTION");
- }
- 
--#endif  // DEBUG
--
- } }  // namespace v8::internal
---- node/deps/v8/src/prettyprinter.h
-+++ node/deps/v8/src/prettyprinter.h
-@@ -9,12 +9,10 @@
- #include "src/ast.h"
- 
- namespace v8 {
- namespace internal {
- 
--#ifdef DEBUG
--
- class PrettyPrinter: public AstVisitor {
-  public:
-   explicit PrettyPrinter(Zone* zone);
-   virtual ~PrettyPrinter();
- 
-@@ -70,11 +68,11 @@
-   AST_NODE_LIST(DECLARE_VISIT)
- #undef DECLARE_VISIT
- 
-  private:
-   friend class IndentedScope;
--  void PrintIndented(const char* txt);
-+  void PrintIndented(const char* txt, int bracket = 0);
-   void PrintIndentedVisit(const char* s, AstNode* node);
- 
-   void PrintStatements(ZoneList<Statement*>* statements);
-   void PrintDeclarations(ZoneList<Declaration*>* declarations);
-   void PrintParameters(Scope* scope);
-@@ -84,16 +82,15 @@
-   void PrintLiteralWithModeIndented(const char* info,
-                                     Variable* var,
-                                     Handle<Object> value);
-   void PrintLabelsIndented(ZoneList<const AstRawString*>* labels);
- 
--  void inc_indent() { indent_++; }
--  void dec_indent() { indent_--; }
-+  void inc_indent() { PrintIndented("[", 1); indent_++; just_indented_ = true; }  // "[\n"
-+  void dec_indent() { indent_--; PrintIndented("]", 2); just_indented_ = false; } // "]\n"
- 
-   int indent_;
-+  bool just_indented_;
- };
- 
--#endif  // DEBUG
--
- } }  // namespace v8::internal
- 
- #endif  // V8_PRETTYPRINTER_H_
 --- node/deps/v8/src/serialize.cc
 +++ node/deps/v8/src/serialize.cc
 @@ -2167,12 +2167,11 @@
@@ -871,7 +451,7 @@
    }
  
    CHECK_NE(node_isolate, NULL);
-@@ -3843,7 +3846,26 @@
+@@ -3843,7 +3846,17 @@
    exec_argv = NULL;
  
    return code;
@@ -881,18 +461,9 @@
 +  V8::PkgReadBytecode(args);
 +}
 +
-+static void PkgParseToAst(const FunctionCallbackInfo<Value>& args) {
-+  Environment* env = Environment::GetCurrent(args.GetIsolate());
-+  Isolate* isolate = env->isolate();
-+  Local<String> code = args[0]->ToString();
-+  Local<String> s = v8::ScriptCompiler::PkgParseToAst(isolate, code);
-+  args.GetReturnValue().Set(s);
-+}
-+
 +void PkgInitialize(Local<Object> target, Local<Value> unused, Local<Context> context, void* p) {
 +  Environment* env = Environment::GetCurrent(context);
 +  NODE_SET_METHOD(target, "read", PkgReadBytecode);
-+  NODE_SET_METHOD(target, "parse", PkgParseToAst);
 +};
  
  }  // namespace node
