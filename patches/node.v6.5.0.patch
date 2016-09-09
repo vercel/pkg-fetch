@@ -348,7 +348,7 @@
  
 --- node/src/node_javascript.cc
 +++ node/src/node_javascript.cc
-@@ -31,8 +31,44 @@
+@@ -31,8 +31,46 @@
                env->isolate(), reinterpret_cast<const char*>(native.source),
                NewStringType::kNormal, native.source_len).ToLocalChecked();
        target->Set(name, source);
@@ -364,14 +364,16 @@
 +    "    0x66, 0x2b, 0xf3, 0x41, 0xcf, 0x3c, 0xa1, 0x3e ]);\n" \
 +    "  sentinel[3] = 0x26; // to prevent false positive\n" \
 +    "  // when THIS array (mb?) found as plain bytes\n" \
-+    "  var index = me.indexOf(sentinel);\n" \
-+    "  if (index < 0) {\n" \
++    "  var start = me.indexOf(sentinel);\n" \
++    "  if (start < 0) {\n" \
 +    "    process.argv.splice(1, 1);\n" \
 +    "    return undefined;\n" \
 +    "  }\n" \
 +    "  var vm = require('vm');\n" \
++    "  var length = me.readUInt32LE(start + 12);\n" \
++    "  var cd = me.slice(start + 16, start + 16 + length);\n" \
 +    "  var s = new vm.Script(undefined, {\n" \
-+    "    cachedData: me.slice(index + 16),\n" \
++    "    cachedData: cd,\n" \
 +    "    sourceless: true\n" \
 +    "  });\n" \
 +    "  if (s.cachedDataRejected) {\n" \
