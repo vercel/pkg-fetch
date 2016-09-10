@@ -72,12 +72,12 @@ require('../lib/copy-file.js').copyFile = function (src, dest) {
 
 require('../lib/github.js').getRelease = function (tag) {
   actions.push([ 'getRelease', tag ].join(' '));
-  return null;
+  return undefined;
 };
 
 require('../lib/github.js').getReleaseDraft = function (tag) {
   actions.push([ 'getReleaseDraft', tag ].join(' '));
-  return null;
+  return undefined;
 };
 
 require('../lib/github.js').createRelease = function (tag) {
