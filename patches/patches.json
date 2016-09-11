@@ -18,6 +18,9 @@
   ],
   "v4.5.0": [
     "backport.R32768.patch",
+    "backport.PR4777.patch",
+    "backport.PR5159.patch",
+    "backport.PR5343.patch",
     "node.v4.5.0.patch"
   ],
   "v6.5.0": [
