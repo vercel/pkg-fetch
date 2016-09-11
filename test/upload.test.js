@@ -130,7 +130,7 @@ test(async () => {
     'getRelease v1337.2.0',
     'getReleaseDraft v1337.2.0',
     'createRelease v1337.2.0',
-    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[]} uploaded-v0.12.15-linux-x64',
+    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[]} uploaded-v1337.2.0-node-v0.12.15-linux-x64',
     '> Building built-v0.12.15-linux-x86...',
     '> Cloning Node.js repository from GitHub...',
     'git clone --bare --progress https://github.com/nodejs/node node/.git {"cwd":"../temp"}',
@@ -160,7 +160,7 @@ test(async () => {
     'getRelease v1337.2.0',
     'getReleaseDraft v1337.2.0',
     'createRelease v1337.2.0',
-    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[{"name":"uploaded-v0.12.15-linux-x64"}]} uploaded-v0.12.15-linux-x86',
+    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[{"name":"uploaded-v1337.2.0-node-v0.12.15-linux-x64"}]} uploaded-v1337.2.0-node-v0.12.15-linux-x86',
     '> Building built-v4.4.7-linux-x64...',
     '> Cloning Node.js repository from GitHub...',
     'git clone --bare --progress https://github.com/nodejs/node node/.git {"cwd":"../temp"}',
@@ -177,7 +177,7 @@ test(async () => {
     'getRelease v1337.2.0',
     'getReleaseDraft v1337.2.0',
     'createRelease v1337.2.0',
-    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[{"name":"uploaded-v0.12.15-linux-x64"},{"name":"uploaded-v0.12.15-linux-x86"}]} uploaded-v4.4.7-linux-x64',
+    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[{"name":"uploaded-v1337.2.0-node-v0.12.15-linux-x64"},{"name":"uploaded-v1337.2.0-node-v0.12.15-linux-x86"}]} uploaded-v1337.2.0-node-v4.4.7-linux-x64',
     '> Building built-v4.4.7-linux-x86...',
     '> Cloning Node.js repository from GitHub...',
     'git clone --bare --progress https://github.com/nodejs/node node/.git {"cwd":"../temp"}',
@@ -194,7 +194,7 @@ test(async () => {
     'getRelease v1337.2.0',
     'getReleaseDraft v1337.2.0',
     'createRelease v1337.2.0',
-    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[{"name":"uploaded-v0.12.15-linux-x64"},{"name":"uploaded-v0.12.15-linux-x86"},{"name":"uploaded-v4.4.7-linux-x64"}]} uploaded-v4.4.7-linux-x86',
+    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[{"name":"uploaded-v1337.2.0-node-v0.12.15-linux-x64"},{"name":"uploaded-v1337.2.0-node-v0.12.15-linux-x86"},{"name":"uploaded-v1337.2.0-node-v4.4.7-linux-x64"}]} uploaded-v1337.2.0-node-v4.4.7-linux-x86',
     '> Building built-v6.3.1-linux-x64...',
     '> Cloning Node.js repository from GitHub...',
     'git clone --bare --progress https://github.com/nodejs/node node/.git {"cwd":"../temp"}',
@@ -210,7 +210,7 @@ test(async () => {
     'getRelease v1337.2.0',
     'getReleaseDraft v1337.2.0',
     'createRelease v1337.2.0',
-    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[{"name":"uploaded-v0.12.15-linux-x64"},{"name":"uploaded-v0.12.15-linux-x86"},{"name":"uploaded-v4.4.7-linux-x64"},{"name":"uploaded-v4.4.7-linux-x86"}]} uploaded-v6.3.1-linux-x64',
+    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[{"name":"uploaded-v1337.2.0-node-v0.12.15-linux-x64"},{"name":"uploaded-v1337.2.0-node-v0.12.15-linux-x86"},{"name":"uploaded-v1337.2.0-node-v4.4.7-linux-x64"},{"name":"uploaded-v1337.2.0-node-v4.4.7-linux-x86"}]} uploaded-v1337.2.0-node-v6.3.1-linux-x64',
     '> Building built-v6.3.1-linux-x86...',
     '> Cloning Node.js repository from GitHub...',
     'git clone --bare --progress https://github.com/nodejs/node node/.git {"cwd":"../temp"}',
@@ -226,7 +226,7 @@ test(async () => {
     'getRelease v1337.2.0',
     'getReleaseDraft v1337.2.0',
     'createRelease v1337.2.0',
-    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[{"name":"uploaded-v0.12.15-linux-x64"},{"name":"uploaded-v0.12.15-linux-x86"},{"name":"uploaded-v4.4.7-linux-x64"},{"name":"uploaded-v4.4.7-linux-x86"},{"name":"uploaded-v6.3.1-linux-x64"}]} uploaded-v6.3.1-linux-x86'
+    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[{"name":"uploaded-v1337.2.0-node-v0.12.15-linux-x64"},{"name":"uploaded-v1337.2.0-node-v0.12.15-linux-x86"},{"name":"uploaded-v1337.2.0-node-v4.4.7-linux-x64"},{"name":"uploaded-v1337.2.0-node-v4.4.7-linux-x86"},{"name":"uploaded-v1337.2.0-node-v6.3.1-linux-x64"}]} uploaded-v1337.2.0-node-v6.3.1-linux-x86'
   ];
   assert.equal(actions.length, mustBe.length);
   for (let i = 0; i < actions.length; i += 1) {
