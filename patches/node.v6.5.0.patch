@@ -348,7 +348,7 @@
  
 --- node/src/node_javascript.cc
 +++ node/src/node_javascript.cc
-@@ -31,8 +31,47 @@
+@@ -31,8 +31,54 @@
                env->isolate(), reinterpret_cast<const char*>(native.source),
                NewStringType::kNormal, native.source_len).ToLocalChecked();
        target->Set(name, source);
@@ -357,8 +357,10 @@
 +
 +  auto name = String::NewFromUtf8(env->isolate(), "_pkg_bootstrap");
 +  auto source = String::NewFromUtf8(env->isolate(),
++    "var fs = require('fs');\n" \
++    "var vm = require('vm');\n" \
 +    "function readOverlay() {\n" \
-+    "  var fs = require('fs');\n" \
++    "  // TODO optimize loading of overlay\n" \
 +    "  var me = fs.readFileSync(process.execPath);\n" \
 +    "  var sentinel = new Buffer([ 0x28, 0xc9, 0xe0, 0x00,\n" \
 +    "    0x66, 0x2b, 0xf3, 0x41, 0xcf, 0x3c, 0xa1, 0x3e ]);\n" \
@@ -368,9 +370,13 @@
 +    "  if (start < 0) {\n" \
 +    "    // no payload - remove entrypoint from argv[1]\n" \
 +    "    process.argv.splice(1, 1);\n" \
++    "    if (process.argv[1] === '-e' ||\n" \
++    "        process.argv[1] === '--eval') {\n" \
++    "      process._eval = process.argv[2];\n" \
++    "      process.argv.splice(1, 2);\n" \
++    "    }\n" \
 +    "    return undefined;\n" \
 +    "  }\n" \
-+    "  var vm = require('vm');\n" \
 +    "  var length = me.readUInt32LE(start + 12);\n" \
 +    "  var cd = me.slice(start + 16, start + 16 + length);\n" \
 +    "  var s = new vm.Script(undefined, {\n" \
@@ -387,9 +393,10 @@
 +    "\n" \
 +    "var r = readOverlay();\n" \
 +    "if (!r || r.undoPatch) {\n" \
-+    "  // fallback to plain node. need to revert patch to node/lib/module.js\n" \
-+    "  require('fs').internalModuleStat =     process.binding('fs').internalModuleStat;\n" \
-+    "  require('fs').internalModuleReadFile = process.binding('fs').internalModuleReadFile;\n" \
++    "  // need to revert patch to node/lib/module.js\n" \
++    "  var bindingFs = process.binding('fs');\n" \
++    "  fs.internalModuleStat =     bindingFs.internalModuleStat;\n" \
++    "  fs.internalModuleReadFile = bindingFs.internalModuleReadFile;\n" \
 +    "}\n"
 +  );
 +  target->Set(name, source);
