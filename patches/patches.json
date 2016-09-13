@@ -14,6 +14,8 @@
     "backport.R24824.patch",
     "backport.R25039.patch",
     "backport.R25444.patch",
+    "backport.PR4777.for.N0.patch",
+    "backport.PR5343.for.N0.patch",
     "node.v0.12.15.patch"
   ],
   "v4.5.0": [
