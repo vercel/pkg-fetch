@@ -48,11 +48,11 @@
 +
 +
 +void V8::FixSourcelessScript(Isolate* v8_isolate, Local<UnboundScript> script) {
-+  auto isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-+  auto object = i::Handle<i::HeapObject>::cast(Utils::OpenHandle(*script));
++  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
++  i::Handle<i::HeapObject> object = i::Handle<i::HeapObject>::cast(Utils::OpenHandle(*script));
 +  i::Handle<i::SharedFunctionInfo> function_info(
 +    i::SharedFunctionInfo::cast(*object), object->GetIsolate());
-+  auto s = reinterpret_cast<i::Script*>(function_info->script());
++  i::Script* s = reinterpret_cast<i::Script*>(function_info->script());
 +  s->set_source(isolate->heap()->undefined_value());
 +}
 +
@@ -76,28 +76,6 @@
    ast_value_factory_ = info()->ast_value_factory();
    if (ast_value_factory_ == NULL) {
      ast_value_factory_ =
---- node/deps/v8/src/serialize.cc
-+++ node/deps/v8/src/serialize.cc
-@@ -2167,12 +2167,18 @@
-             payload->begin(), static_cast<size_t>(payload->length()));
- }
- 
- 
- bool SerializedCodeData::IsSane(String* source) {
--  return GetHeaderValue(kCheckSumOffset) == CheckSum(source) &&
-+  bool x = GetHeaderValue(kCheckSumOffset) == CheckSum(source) &&
-          PayloadLength() >= SharedFunctionInfo::kSize;
-+  if (x) {
-+    fprintf(stderr, "IsSane: true\n");
-+  } else {
-+    fprintf(stderr, "IsSane: false\n");
-+  }
-+  return x;
- }
- 
- 
- int SerializedCodeData::CheckSum(String* string) {
-   int checksum = Version::Hash();
 --- node/lib/child_process.js
 +++ node/lib/child_process.js
 @@ -579,11 +579,11 @@
@@ -205,20 +183,20 @@
        process.nextTick(function() {
 --- node/src/node_contextify.cc
 +++ node/src/node_contextify.cc
-@@ -488,10 +488,11 @@
+@@ -487,10 +487,11 @@
      Local<String> code = args[0]->ToString();
      Local<String> filename = GetFilenameArg(args, 1);
      bool display_errors = GetDisplayErrorsArg(args, 1);
-     Local<Uint8Array> cached_data_buf = GetCachedData(args, 1);
+     Local<Value> cached_data_buf = GetCachedData(args, 1);
      bool produce_cached_data = GetProduceCachedData(args, 1);
-+    bool sourceless = GetSourceless(env, args, 1);
++    bool sourceless = GetSourceless(args, 1);
      if (try_catch.HasCaught()) {
        try_catch.ReThrow();
        return;
      }
  
-@@ -510,22 +511,37 @@
-     if (source.GetCachedData() != nullptr)
+@@ -509,22 +510,35 @@
+     if (source.GetCachedData() != NULL)
        compile_options = ScriptCompiler::kConsumeCodeCache;
      else if (produce_cached_data)
        compile_options = ScriptCompiler::kProduceCodeCache;
@@ -245,9 +223,7 @@
      }
 +
 +    if (sourceless && compile_options == ScriptCompiler::kConsumeCodeCache) {
-+      if (!source.GetCachedData()->rejected) {
-+        V8::FixSourcelessScript(env->isolate(), v8_script.ToLocalChecked());
-+      }
++      V8::FixSourcelessScript(env->isolate(), v8_script);
 +    }
 +
      contextify_script->script_.Reset(env->isolate(), v8_script);
@@ -255,7 +231,7 @@
      if (compile_options == ScriptCompiler::kConsumeCodeCache) {
        // no 'rejected' field in cachedData
      } else if (compile_options == ScriptCompiler::kProduceCodeCache) {
-@@ -734,10 +750,23 @@
+@@ -733,10 +747,23 @@
  
      return value->IsTrue();
    }
@@ -281,17 +257,31 @@
                            TryCatch& try_catch) {
 --- node/src/node_javascript.cc
 +++ node/src/node_javascript.cc
-@@ -53,8 +53,54 @@
+@@ -53,8 +53,68 @@
                                                    String::kNormalString,
                                                    natives[i].source_len);
        target->Set(name, source);
      }
    }
 +
-+  auto name = String::NewFromUtf8(env->isolate(), "_pkg_bootstrap");
-+  auto source = String::NewFromUtf8(env->isolate(),
++  Local<String> name = String::NewFromUtf8(env->isolate(), "_pkg_bootstrap");
++  Handle<String> source = String::NewFromUtf8(env->isolate(),
 +    "var fs = require('fs');\n" \
 +    "var vm = require('vm');\n" \
++    "function indexOf(buf, value) {\n" \
++    "  var match = -1;\n" \
++    "  for (var i = 0; i < buf.length; i++) {\n" \
++    "    if (buf[i] === value[match === -1 ? 0 : i - match]) {\n" \
++    "      match = match === -1 ? i : match;\n" \
++    "      if (i - match + 1 === value.length) {\n" \
++    "        return match;\n" \
++    "      }\n" \
++    "    } else {\n" \
++    "      match = -1;\n" \
++    "    }\n" \
++    "  }\n" \
++    "  return -1;\n" \
++    "}\n" \
 +    "function readOverlay() {\n" \
 +    "  // TODO optimize loading of overlay\n" \
 +    "  var me = fs.readFileSync(process.execPath);\n" \
@@ -299,7 +289,7 @@
 +    "    0x66, 0x2b, 0xf3, 0x41, 0xcf, 0x3c, 0xa1, 0x3e ]);\n" \
 +    "  sentinel[3] = 0x26; // to prevent false positive\n" \
 +    "  // when THIS array (mb?) found as plain bytes\n" \
-+    "  var start = me.indexOf(sentinel);\n" \
++    "  var start = indexOf(me, sentinel);\n" \
 +    "  if (start < 0) {\n" \
 +    "    // no payload - remove entrypoint from argv[1]\n" \
 +    "    process.argv.splice(1, 1);\n" \
