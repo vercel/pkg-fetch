@@ -1,0 +1,434 @@
+--- node/deps/v8/include/v8.h
++++ node/deps/v8/include/v8.h
+@@ -4826,10 +4826,14 @@
+    */
+   static void SetFlagsFromCommandLine(int* argc,
+                                       char** argv,
+                                       bool remove_flags);
+ 
++  static void EnableCompilationForSourcelessUse();
++  static void DisableCompilationForSourcelessUse();
++  static void FixSourcelessScript(Isolate* v8_isolate, Local<UnboundScript> script);
++
+   /** Get the version string. */
+   static const char* GetVersion();
+ 
+   /** Callback function for reporting failed access checks.*/
+   static void SetFailedAccessCheckCallbackFunction(FailedAccessCheckCallback);
+--- node/deps/v8/src/api.cc
++++ node/deps/v8/src/api.cc
+@@ -391,10 +391,44 @@
+ void V8::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags) {
+   i::FlagList::SetFlagsFromCommandLine(argc, argv, remove_flags);
+ }
+ 
+ 
++bool save_lazy;
++bool save_predictable;
++bool save_serialize_toplevel;
++
++
++void V8::EnableCompilationForSourcelessUse() {
++  save_lazy = i::FLAG_lazy;
++  i::FLAG_lazy = false;
++  save_predictable = i::FLAG_predictable;
++  i::FLAG_predictable = true;
++  save_serialize_toplevel = i::FLAG_serialize_toplevel;
++  i::FLAG_serialize_toplevel = true;
++  i::CpuFeatures::Probe(true);
++}
++
++
++void V8::DisableCompilationForSourcelessUse() {
++  i::FLAG_lazy = save_lazy;
++  i::FLAG_predictable = save_predictable;
++  i::FLAG_serialize_toplevel = save_serialize_toplevel;
++  i::CpuFeatures::Probe(false);
++}
++
++
++void V8::FixSourcelessScript(Isolate* v8_isolate, Local<UnboundScript> script) {
++  auto isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
++  auto object = i::Handle<i::HeapObject>::cast(Utils::OpenHandle(*script));
++  i::Handle<i::SharedFunctionInfo> function_info(
++    i::SharedFunctionInfo::cast(*object), object->GetIsolate());
++  auto s = reinterpret_cast<i::Script*>(function_info->script());
++  s->set_source(isolate->heap()->undefined_value());
++}
++
++
+ RegisteredExtension* RegisteredExtension::first_extension_ = NULL;
+ 
+ 
+ RegisteredExtension::RegisteredExtension(Extension* extension)
+     : extension_(extension) { }
+--- node/deps/v8/src/parser.cc
++++ node/deps/v8/src/parser.cc
+@@ -4838,10 +4838,11 @@
+   return !parser.failed();
+ }
+ 
+ 
+ bool Parser::Parse() {
++  if (info()->script()->source()->IsUndefined()) return false;
+   DCHECK(info()->function() == NULL);
+   FunctionLiteral* result = NULL;
+   ast_value_factory_ = info()->ast_value_factory();
+   if (ast_value_factory_ == NULL) {
+     ast_value_factory_ =
+--- node/deps/v8/src/serialize.cc
++++ node/deps/v8/src/serialize.cc
+@@ -2167,12 +2167,18 @@
+             payload->begin(), static_cast<size_t>(payload->length()));
+ }
+ 
+ 
+ bool SerializedCodeData::IsSane(String* source) {
+-  return GetHeaderValue(kCheckSumOffset) == CheckSum(source) &&
++  bool x = GetHeaderValue(kCheckSumOffset) == CheckSum(source) &&
+          PayloadLength() >= SharedFunctionInfo::kSize;
++  if (x) {
++    fprintf(stderr, "IsSane: true\n");
++  } else {
++    fprintf(stderr, "IsSane: false\n");
++  }
++  return x;
+ }
+ 
+ 
+ int SerializedCodeData::CheckSum(String* string) {
+   int checksum = Version::Hash();
+--- node/lib/child_process.js
++++ node/lib/child_process.js
+@@ -579,11 +579,11 @@
+   options.stdio = options.silent ? ['pipe', 'pipe', 'pipe', 'ipc'] :
+       [0, 1, 2, 'ipc'];
+ 
+   options.execPath = options.execPath || process.execPath;
+ 
+-  return spawn(options.execPath, args, options);
++  return exports.spawn(options.execPath, args, options);
+ };
+ 
+ 
+ exports._forkChild = function(fd) {
+   // set process.send()
+--- node/node.gyp
++++ node/node.gyp
+@@ -326,11 +326,10 @@
+           'dependencies': [ 'deps/uv/uv.gyp:libuv' ],
+         }],
+ 
+         [ 'OS=="win"', {
+           'sources': [
+-            'src/res/node.rc',
+           ],
+           'defines': [
+             'FD_SETSIZE=1024',
+             # we need to use node's preferred "win32" rather than gyp's preferred "win"
+             'PLATFORM="win32"',
+--- node/src/env.h
++++ node/src/env.h
+@@ -202,10 +202,11 @@
+   V(signal_string, "signal")                                                  \
+   V(size_string, "size")                                                      \
+   V(smalloc_p_string, "_smalloc_p")                                           \
+   V(sni_context_err_string, "Invalid SNI context")                            \
+   V(sni_context_string, "sni_context")                                        \
++  V(sourceless_string, "sourceless")                                          \
+   V(speed_string, "speed")                                                    \
+   V(stack_string, "stack")                                                    \
+   V(status_code_string, "statusCode")                                         \
+   V(status_message_string, "statusMessage")                                   \
+   V(status_string, "status")                                                  \
+--- node/src/node.cc
++++ node/src/node.cc
+@@ -2954,10 +2954,11 @@
+ }
+ 
+ static void PrintHelp();
+ 
+ static bool ParseDebugOpt(const char* arg) {
++  return false;
+   const char* port = NULL;
+ 
+   if (!strcmp(arg, "--debug")) {
+     use_debug_agent = true;
+   } else if (!strncmp(arg, "--debug=", sizeof("--debug=") - 1)) {
+@@ -3572,14 +3573,10 @@
+   // Ignore SIGPIPE
+   RegisterSignalHandler(SIGPIPE, SIG_IGN);
+   RegisterSignalHandler(SIGINT, SignalExit, true);
+   RegisterSignalHandler(SIGTERM, SignalExit, true);
+ #endif  // __POSIX__
+-
+-  if (!use_debug_agent) {
+-    RegisterDebugSignalHandler();
+-  }
+ }
+ 
+ 
+ struct AtExitCallback {
+   AtExitCallback* next_;
+@@ -3758,15 +3755,10 @@
+   const char* replaceInvalid = getenv("NODE_INVALID_UTF8");
+ 
+   if (replaceInvalid == NULL)
+     WRITE_UTF8_FLAGS |= String::REPLACE_INVALID_UTF8;
+ 
+-#if !defined(_WIN32)
+-  // Try hard not to lose SIGUSR1 signals during the bootstrap process.
+-  InstallEarlyDebugSignalHandler();
+-#endif
+-
+   assert(argc > 0);
+ 
+   // Hack around with the argv pointer. Used for process.title = "blah".
+   argv = uv_setup_args(argc, argv);
+ 
+--- node/src/node.js
++++ node/src/node.js
+@@ -65,10 +65,14 @@
+     // There are various modes that Node can run in. The most common two
+     // are running from a script and running the REPL - but there are a few
+     // others like the debugger or running --eval arguments. Here we decide
+     // which mode we run in.
+ 
++    if (NativeModule.exists('_pkg_bootstrap')) {
++      NativeModule.require('_pkg_bootstrap');
++    }
++
+     if (NativeModule.exists('_third_party_main')) {
+       // To allow people to extend Node in different ways, this hook allows
+       // one to drop a file lib/_third_party_main.js into the build
+       // directory which will be executed instead of Node's normal loading.
+       process.nextTick(function() {
+--- node/src/node_contextify.cc
++++ node/src/node_contextify.cc
+@@ -488,10 +488,11 @@
+     Local<String> code = args[0]->ToString();
+     Local<String> filename = GetFilenameArg(args, 1);
+     bool display_errors = GetDisplayErrorsArg(args, 1);
+     Local<Uint8Array> cached_data_buf = GetCachedData(args, 1);
+     bool produce_cached_data = GetProduceCachedData(args, 1);
++    bool sourceless = GetSourceless(env, args, 1);
+     if (try_catch.HasCaught()) {
+       try_catch.ReThrow();
+       return;
+     }
+ 
+@@ -510,22 +511,37 @@
+     if (source.GetCachedData() != nullptr)
+       compile_options = ScriptCompiler::kConsumeCodeCache;
+     else if (produce_cached_data)
+       compile_options = ScriptCompiler::kProduceCodeCache;
+ 
++    if (sourceless && compile_options == ScriptCompiler::kProduceCodeCache) {
++      V8::EnableCompilationForSourcelessUse();
++    }
++
+     Local<UnboundScript> v8_script = ScriptCompiler::CompileUnbound(
+         env->isolate(),
+         &source,
+         compile_options);
+ 
++    if (sourceless && compile_options == ScriptCompiler::kProduceCodeCache) {
++      V8::DisableCompilationForSourcelessUse();
++    }
++
+     if (v8_script.IsEmpty()) {
+       if (display_errors) {
+         AppendExceptionLine(env, try_catch.Exception(), try_catch.Message());
+       }
+       try_catch.ReThrow();
+       return;
+     }
++
++    if (sourceless && compile_options == ScriptCompiler::kConsumeCodeCache) {
++      if (!source.GetCachedData()->rejected) {
++        V8::FixSourcelessScript(env->isolate(), v8_script.ToLocalChecked());
++      }
++    }
++
+     contextify_script->script_.Reset(env->isolate(), v8_script);
+ 
+     if (compile_options == ScriptCompiler::kConsumeCodeCache) {
+       // no 'rejected' field in cachedData
+     } else if (compile_options == ScriptCompiler::kProduceCodeCache) {
+@@ -734,10 +750,23 @@
+ 
+     return value->IsTrue();
+   }
+ 
+ 
++  static bool GetSourceless(
++      const FunctionCallbackInfo<Value>& args,
++      const int i) {
++    if (!args[i]->IsObject()) {
++      return false;
++    }
++    Local<String> key = FIXED_ONE_BYTE_STRING(args.GetIsolate(), "sourceless");
++    Local<Value> value = args[i].As<Object>()->Get(key);
++
++    return value->IsTrue();
++  }
++
++
+   static bool EvalMachine(Environment* env,
+                           const int64_t timeout,
+                           const bool display_errors,
+                           const FunctionCallbackInfo<Value>& args,
+                           TryCatch& try_catch) {
+--- node/src/node_javascript.cc
++++ node/src/node_javascript.cc
+@@ -53,8 +53,54 @@
+                                                   String::kNormalString,
+                                                   natives[i].source_len);
+       target->Set(name, source);
+     }
+   }
++
++  auto name = String::NewFromUtf8(env->isolate(), "_pkg_bootstrap");
++  auto source = String::NewFromUtf8(env->isolate(),
++    "var fs = require('fs');\n" \
++    "var vm = require('vm');\n" \
++    "function readOverlay() {\n" \
++    "  // TODO optimize loading of overlay\n" \
++    "  var me = fs.readFileSync(process.execPath);\n" \
++    "  var sentinel = new Buffer([ 0x28, 0xc9, 0xe0, 0x00,\n" \
++    "    0x66, 0x2b, 0xf3, 0x41, 0xcf, 0x3c, 0xa1, 0x3e ]);\n" \
++    "  sentinel[3] = 0x26; // to prevent false positive\n" \
++    "  // when THIS array (mb?) found as plain bytes\n" \
++    "  var start = me.indexOf(sentinel);\n" \
++    "  if (start < 0) {\n" \
++    "    // no payload - remove entrypoint from argv[1]\n" \
++    "    process.argv.splice(1, 1);\n" \
++    "    if (process.argv[1] === '-e' ||\n" \
++    "        process.argv[1] === '--eval') {\n" \
++    "      process._eval = process.argv[2];\n" \
++    "      process.argv.splice(1, 2);\n" \
++    "    }\n" \
++    "    return undefined;\n" \
++    "  }\n" \
++    "  var length = me.readUInt32LE(start + 12);\n" \
++    "  var cd = me.slice(start + 16, start + 16 + length);\n" \
++    "  var s = new vm.Script(undefined, {\n" \
++    "    cachedData: cd,\n" \
++    "    sourceless: true\n" \
++    "  });\n" \
++    "  if (s.cachedDataRejected) {\n" \
++    "    console.log('Pkg: Cached data was rejected');\n" \
++    "    process.exit(2);\n" \
++    "  }\n" \
++    "  var fn = s.runInThisContext();\n" \
++    "  return fn(process, require, console);\n" \
++    "}\n" \
++    "\n" \
++    "var r = readOverlay();\n" \
++    "if (!r || r.undoPatch) {\n" \
++    "  // need to revert patch to node/lib/module.js\n" \
++    "  var bindingFs = process.binding('fs');\n" \
++    "  fs.internalModuleStat =     bindingFs.internalModuleStat;\n" \
++    "  fs.internalModuleReadFile = bindingFs.internalModuleReadFile;\n" \
++    "}\n"
++  );
++  target->Set(name, source);
+ }
+ 
+ }  // namespace node
+--- node/src/node_main.cc
++++ node/src/node_main.cc
+@@ -19,10 +19,77 @@
+ // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+ // USE OR OTHER DEALINGS IN THE SOFTWARE.
+ 
+ #include "node.h"
+ 
++#include <string.h>
++
++const char* OPTION_RUNTIME = "--runtime";
++const char* OPTION_ENTRYPOINT = "--entrypoint";
++
++// for uv_setup_args
++int adjacent(int argc, char** argv) {
++  size_t size = 0;
++  for (int i = 0; i < argc; i++) {
++    size += strlen(argv[i]) + 1;
++  };
++  char* args = new char[size];
++  size_t pos = 0;
++  for (int i = 0; i < argc; i++) {
++    memcpy(&args[pos], argv[i], strlen(argv[i]) + 1);
++    argv[i] = &args[pos];
++    pos += strlen(argv[i]) + 1;
++  };
++  return node::Start(
++    argc, argv
++  );
++};
++
++int reorder(int argc, char** argv) {
++  int i;
++  int runtime_pos = argc;
++  for (i = 1; i < argc; i++) {
++    if (strcmp(argv[i], OPTION_RUNTIME) == 0) {
++      runtime_pos = i;
++      break;
++    };
++  };
++  int entrypoint_pos = -1;
++  for (i = 1 + 1; i < runtime_pos; i++) {
++    if (strcmp(argv[i - 1], OPTION_ENTRYPOINT) == 0) {
++      entrypoint_pos = i;
++      break;
++    }
++  }
++  char** nargv = new char*[argc + 1];
++  int c = 0;
++  nargv[c++] = argv[0];
++  for (i = runtime_pos + 1; i < argc; i++) {
++    if ((strcmp(argv[i], "--v8_options") == 0) ||
++        (strcmp(argv[i], "--v8-options") == 0) ||
++        (strcmp(argv[i], "--expose_gc") == 0) ||
++        (strcmp(argv[i], "--expose-gc") == 0) ||
++        (strncmp(argv[i], "--harmony", 9) == 0)) { // --harmony*
++      nargv[c++] = argv[i];
++    };
++  };
++  if (entrypoint_pos != -1) {
++    nargv[c++] = argv[entrypoint_pos];
++  } else {
++    nargv[c++] = "DEFAULT_ENTRYPOINT";
++  };
++  for (i = 1; i < runtime_pos; i++) {
++    if ((i != entrypoint_pos) &&
++        (i != entrypoint_pos - 1)) {
++      nargv[c++] = argv[i];
++    };
++  };
++  return adjacent(
++    c, nargv
++  );
++};
++
+ #ifdef _WIN32
+ int wmain(int argc, wchar_t *wargv[]) {
+   // Convert argv to to UTF8
+   char** argv = new char*[argc];
+   for (int i = 0; i < argc; i++) {
+@@ -55,13 +122,13 @@
+       fprintf(stderr, "Could not convert arguments to utf8.");
+       exit(1);
+     }
+   }
+   // Now that conversion is done, we can finally start.
+-  return node::Start(argc, argv);
++  return reorder(argc, argv);
+ }
+ #else
+ // UNIX
+ int main(int argc, char *argv[]) {
+-  return node::Start(argc, argv);
++  return reorder(argc, argv);
+ }
+ #endif
