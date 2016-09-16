@@ -1,3 +1,3 @@
 const path = require('path');
-const rimraf = require('rimraf');
-rimraf.sync(path.join(__dirname, '../lib-es5/*'));
+const remove = require('fs-promise').remove;
+remove(path.join(__dirname, '../lib-es5/*'));
