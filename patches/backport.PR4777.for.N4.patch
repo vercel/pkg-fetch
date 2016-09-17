@@ -40,7 +40,7 @@ index 7b6ffc8..5c99f80 100644
    V(readable_string, "readable")                                              \
    V(received_shutdown_string, "receivedShutdown")                             \
 diff --git a/src/node_contextify.cc b/src/node_contextify.cc
-index 7404bbb..122b31e 100644
+index 7404bbb..8cd1293 100644
 --- a/src/node_contextify.cc
 +++ b/src/node_contextify.cc
 @@ -11,10 +11,11 @@
@@ -55,25 +55,13 @@ index 7404bbb..122b31e 100644
  using v8::Debug;
  using v8::EscapableHandleScope;
  using v8::External;
-@@ -38,10 +39,11 @@ using v8::PropertyCallbackInfo;
- using v8::Script;
- using v8::ScriptCompiler;
- using v8::ScriptOrigin;
- using v8::String;
- using v8::TryCatch;
-+using v8::Uint8Array;
- using v8::UnboundScript;
- using v8::V8;
- using v8::Value;
- using v8::WeakCallbackInfo;
- 
-@@ -474,28 +476,61 @@ class ContextifyScript : public BaseObject {
+@@ -474,28 +475,60 @@ class ContextifyScript : public BaseObject {
      Local<String> code = args[0]->ToString(env->isolate());
      Local<String> filename = GetFilenameArg(args, 1);
      Local<Integer> lineOffset = GetLineOffsetArg(args, 1);
      Local<Integer> columnOffset = GetColumnOffsetArg(args, 1);
      bool display_errors = GetDisplayErrorsArg(args, 1);
-+    MaybeLocal<Uint8Array> cached_data_buf = GetCachedData(env, args, 1);
++    MaybeLocal<Value> cached_data_buf = GetCachedData(env, args, 1);
 +    bool produce_cached_data = GetProduceCachedData(env, args, 1);
      if (try_catch.HasCaught()) {
        try_catch.ReThrow();
@@ -82,10 +70,9 @@ index 7404bbb..122b31e 100644
  
 +    ScriptCompiler::CachedData* cached_data = nullptr;
 +    if (!cached_data_buf.IsEmpty()) {
-+      ArrayBuffer::Contents contents =
-+          cached_data_buf.ToLocalChecked()->Buffer()->GetContents();
 +      cached_data = new ScriptCompiler::CachedData(
-+          static_cast<uint8_t*>(contents.Data()), contents.ByteLength());
++          reinterpret_cast<uint8_t*>(Buffer::Data(cached_data_buf)),
++          Buffer::Length(cached_data_buf));
 +    }
 +
      ScriptOrigin origin(filename, lineOffset, columnOffset);
@@ -132,32 +119,32 @@ index 7404bbb..122b31e 100644
  
    static bool InstanceOf(Environment* env, const Local<Value>& value) {
      return !value.IsEmpty() &&
-@@ -644,10 +679,47 @@ class ContextifyScript : public BaseObject {
+@@ -644,10 +677,47 @@ class ContextifyScript : public BaseObject {
        return defaultFilename;
      return value->ToString(args.GetIsolate());
    }
  
  
-+  static MaybeLocal<Uint8Array> GetCachedData(
++  static MaybeLocal<Value> GetCachedData(
 +      Environment* env,
 +      const FunctionCallbackInfo<Value>& args,
 +      const int i) {
 +    if (!args[i]->IsObject()) {
-+      return MaybeLocal<Uint8Array>();
++      return MaybeLocal<Value>();
 +    }
 +    Local<Value> value = args[i].As<Object>()->Get(env->cached_data_string());
 +    if (value->IsUndefined()) {
-+      return MaybeLocal<Uint8Array>();
++      return MaybeLocal<Value>();
 +    }
 +
-+    if (!value->IsUint8Array()) {
++    if (!Buffer::HasInstance(value)) {
 +      Environment::ThrowTypeError(
 +          args.GetIsolate(),
 +          "options.cachedData must be a Buffer instance");
-+      return MaybeLocal<Uint8Array>();
++      return MaybeLocal<Value>();
 +    }
 +
-+    return value.As<Uint8Array>();
++    return value;
 +  }
 +
 +

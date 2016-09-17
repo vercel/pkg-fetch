@@ -259,11 +259,11 @@
        process.nextTick(function() {
 --- node/src/node_contextify.cc
 +++ node/src/node_contextify.cc
-@@ -478,10 +478,11 @@
+@@ -477,10 +477,11 @@
      Local<Integer> lineOffset = GetLineOffsetArg(args, 1);
      Local<Integer> columnOffset = GetColumnOffsetArg(args, 1);
      bool display_errors = GetDisplayErrorsArg(args, 1);
-     MaybeLocal<Uint8Array> cached_data_buf = GetCachedData(env, args, 1);
+     MaybeLocal<Value> cached_data_buf = GetCachedData(env, args, 1);
      bool produce_cached_data = GetProduceCachedData(env, args, 1);
 +    bool sourceless = GetSourceless(env, args, 1);
      if (try_catch.HasCaught()) {
@@ -271,7 +271,7 @@
        return;
      }
  
-@@ -501,22 +502,37 @@
+@@ -499,22 +500,37 @@
      if (source.GetCachedData() != nullptr)
        compile_options = ScriptCompiler::kConsumeCodeCache;
      else if (produce_cached_data)
@@ -309,7 +309,7 @@
  
      if (compile_options == ScriptCompiler::kConsumeCodeCache) {
        args.This()->Set(
-@@ -723,10 +739,24 @@
+@@ -721,10 +737,24 @@
  
      return value->IsTrue();
    }
