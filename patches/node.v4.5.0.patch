@@ -87,7 +87,7 @@
 -  if (magic_number != ComputeMagicNumber(isolate)) return MAGIC_NUMBER_MISMATCH;
 +  if (magic_number != ComputeMagicNumber(isolate)) {
 +    base::OS::PrintError("Pkg: MAGIC_NUMBER_MISMATCH\n");
-+    // return MAGIC_NUMBER_MISMATCH; // test-50-config-json failes. and many others as well
++    return MAGIC_NUMBER_MISMATCH;
 +  }
    uint32_t version_hash = GetHeaderValue(kVersionHashOffset);
 -  uint32_t source_hash = GetHeaderValue(kSourceHashOffset);
