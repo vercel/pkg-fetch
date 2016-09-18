@@ -259,7 +259,7 @@
        process.nextTick(function() {
 --- node/src/node_contextify.cc
 +++ node/src/node_contextify.cc
-@@ -477,10 +477,11 @@
+@@ -478,10 +478,11 @@
      Local<Integer> lineOffset = GetLineOffsetArg(args, 1);
      Local<Integer> columnOffset = GetColumnOffsetArg(args, 1);
      bool display_errors = GetDisplayErrorsArg(args, 1);
@@ -271,7 +271,7 @@
        return;
      }
  
-@@ -499,22 +500,37 @@
+@@ -501,22 +502,37 @@
      if (source.GetCachedData() != nullptr)
        compile_options = ScriptCompiler::kConsumeCodeCache;
      else if (produce_cached_data)
@@ -309,7 +309,7 @@
  
      if (compile_options == ScriptCompiler::kConsumeCodeCache) {
        args.This()->Set(
-@@ -721,10 +737,24 @@
+@@ -723,10 +739,24 @@
  
      return value->IsTrue();
    }

@@ -7,10 +7,10 @@ PR-URL: https://github.com/nodejs/node/pull/5159
 Reviewed-By: Ben Noordhuis <info@bnoordhuis.nl>
 
 diff --git a/src/node_contextify.cc b/src/node_contextify.cc
-index 8cd1293..23b938a 100644
+index ecf9444..8769b53 100644
 --- a/src/node_contextify.cc
 +++ b/src/node_contextify.cc
-@@ -499,11 +499,11 @@ class ContextifyScript : public BaseObject {
+@@ -501,11 +501,11 @@ class ContextifyScript : public BaseObject {
      if (source.GetCachedData() != nullptr)
        compile_options = ScriptCompiler::kConsumeCodeCache;
      else if (produce_cached_data)
@@ -23,7 +23,7 @@ index 8cd1293..23b938a 100644
          compile_options);
  
      if (v8_script.IsEmpty()) {
-@@ -511,11 +511,12 @@ class ContextifyScript : public BaseObject {
+@@ -513,11 +513,12 @@ class ContextifyScript : public BaseObject {
          AppendExceptionLine(env, try_catch.Exception(), try_catch.Message());
        }
        try_catch.ReThrow();

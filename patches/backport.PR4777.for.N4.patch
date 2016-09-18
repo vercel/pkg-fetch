@@ -40,10 +40,18 @@ index 7b6ffc8..5c99f80 100644
    V(readable_string, "readable")                                              \
    V(received_shutdown_string, "receivedShutdown")                             \
 diff --git a/src/node_contextify.cc b/src/node_contextify.cc
-index 7404bbb..8cd1293 100644
+index 7404bbb..ecf9444 100644
 --- a/src/node_contextify.cc
 +++ b/src/node_contextify.cc
-@@ -11,10 +11,11 @@
+@@ -1,6 +1,7 @@
+ #include "node.h"
++#include "node_buffer.h"
+ #include "node_internals.h"
+ #include "node_watchdog.h"
+ #include "base-object.h"
+ #include "base-object-inl.h"
+ #include "env.h"
+@@ -11,10 +12,11 @@
  
  namespace node {
  
@@ -55,7 +63,7 @@ index 7404bbb..8cd1293 100644
  using v8::Debug;
  using v8::EscapableHandleScope;
  using v8::External;
-@@ -474,28 +475,60 @@ class ContextifyScript : public BaseObject {
+@@ -474,28 +476,61 @@ class ContextifyScript : public BaseObject {
      Local<String> code = args[0]->ToString(env->isolate());
      Local<String> filename = GetFilenameArg(args, 1);
      Local<Integer> lineOffset = GetLineOffsetArg(args, 1);
@@ -70,9 +78,10 @@ index 7404bbb..8cd1293 100644
  
 +    ScriptCompiler::CachedData* cached_data = nullptr;
 +    if (!cached_data_buf.IsEmpty()) {
++      auto cached_data_local = cached_data_buf.ToLocalChecked();
 +      cached_data = new ScriptCompiler::CachedData(
-+          reinterpret_cast<uint8_t*>(Buffer::Data(cached_data_buf)),
-+          Buffer::Length(cached_data_buf));
++          reinterpret_cast<uint8_t*>(Buffer::Data(cached_data_local)),
++          Buffer::Length(cached_data_local));
 +    }
 +
      ScriptOrigin origin(filename, lineOffset, columnOffset);
@@ -119,7 +128,7 @@ index 7404bbb..8cd1293 100644
  
    static bool InstanceOf(Environment* env, const Local<Value>& value) {
      return !value.IsEmpty() &&
-@@ -644,10 +677,47 @@ class ContextifyScript : public BaseObject {
+@@ -644,10 +679,47 @@ class ContextifyScript : public BaseObject {
        return defaultFilename;
      return value->ToString(args.GetIsolate());
    }

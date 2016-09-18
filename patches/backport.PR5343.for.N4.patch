@@ -29,10 +29,10 @@ index 5c99f80..c0b6dcd 100644
    V(oncertcb_string, "oncertcb")                                              \
    V(onclose_string, "_onclose")                                               \
 diff --git a/src/node_contextify.cc b/src/node_contextify.cc
-index 23b938a..5d312b7 100644
+index 8769b53..4f63c20 100644
 --- a/src/node_contextify.cc
 +++ b/src/node_contextify.cc
-@@ -520,15 +520,21 @@ class ContextifyScript : public BaseObject {
+@@ -522,15 +522,21 @@ class ContextifyScript : public BaseObject {
        args.This()->Set(
            env->cached_data_rejected_string(),
            Boolean::New(env->isolate(), source.GetCachedData()->rejected));
