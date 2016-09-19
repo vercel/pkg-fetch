@@ -328,7 +328,7 @@
  }  // namespace node
 --- node/src/node_main.cc
 +++ node/src/node_main.cc
-@@ -19,10 +19,77 @@
+@@ -19,10 +19,149 @@
  // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  // USE OR OTHER DEALINGS IN THE SOFTWARE.
  
@@ -336,36 +336,102 @@
  
 +#include <string.h>
 +
++uint8_t* GetBakeryFromFileOverlay(FILE* file, uint8_t** pbuffer, int* psize) {
++
++  int read;
++  uint32_t sentinel, padding, length;
++
++  *pbuffer = NULL;
++  *psize = 0;
++
++  // start of search
++  if (file == NULL || fseek(file, 6 * 1024 * 1024, SEEK_SET) != 0) {
++    fprintf(stderr, "Pkg: Error reading file.\n");
++    exit(1);
++  }
++
++  while (true) {
++    read = static_cast<int>(fread(&sentinel, 1, sizeof(sentinel), file));
++    if (read != sizeof(sentinel)) return NULL;
++    if (sentinel != 0x4818c4df) {
++      fseek(file, 64 - 4, SEEK_CUR);
++      continue;
++    }
++    fread(&length, 1, sizeof(length), file);
++    if ((sentinel^length) != 0x32dbc2af) { // 0x4818c4df^0x7ac30670
++      fseek(file, 64 - 8, SEEK_CUR);
++      continue;
++    }
++    fread(&sentinel, 1, sizeof(sentinel), file);
++    if (sentinel != 0x56558a76) {
++      fseek(file, 64 - 12, SEEK_CUR);
++      continue;
++    }
++    break;
++  }
++
++  fread(&length, 1, sizeof(length), file);
++  *psize = static_cast<int>(length);
++  uint8_t* dispose_me = static_cast<uint8_t*>(malloc(*psize));
++
++  for (int i = 0; i < *psize;) {
++    read = static_cast<int>(fread(&dispose_me[i], 1, *psize - i, file));
++    if (ferror(file) != 0) {
++      fprintf(stderr, "Pkg: Error reading from file.\n");
++      exit(1);
++    }
++    i += read;
++  }
++
++  *pbuffer = dispose_me;
++  return dispose_me;
++
++}
++
++
++uint8_t* ReadBakery(const char* filename) {
++  FILE* file = fopen(filename, "rb"); // TODO check
++  uint8_t* buffer; int size;
++  GetBakeryFromFileOverlay(file, &buffer, &size); // TODO dispose_me
++  return buffer;
++}
++
++
 +const char* OPTION_RUNTIME = "--runtime";
 +const char* OPTION_ENTRYPOINT = "--entrypoint";
++
 +
 +// for uv_setup_args
 +int adjacent(int argc, char** argv) {
 +  size_t size = 0;
 +  for (int i = 0; i < argc; i++) {
 +    size += strlen(argv[i]) + 1;
-+  };
++  }
 +  char* args = new char[size];
 +  size_t pos = 0;
 +  for (int i = 0; i < argc; i++) {
 +    memcpy(&args[pos], argv[i], strlen(argv[i]) + 1);
 +    argv[i] = &args[pos];
 +    pos += strlen(argv[i]) + 1;
-+  };
++  }
 +  return node::Start(
 +    argc, argv
 +  );
-+};
++}
++
 +
 +int reorder(int argc, char** argv) {
 +  int i;
 +  int runtime_pos = argc;
-+  for (i = 1; i < argc; i++) {
-+    if (strcmp(argv[i], OPTION_RUNTIME) == 0) {
-+      runtime_pos = i;
-+      break;
-+    };
-+  };
++  char* bakery = (char*) ReadBakery(argv[0]);
++  if (!bakery) {
++    for (i = 1; i < argc; i++) {
++      if (strcmp(argv[i], OPTION_RUNTIME) == 0) {
++        runtime_pos = i;
++        break;
++      }
++    }
++  }
 +  int entrypoint_pos = -1;
 +  for (i = 1 + 1; i < runtime_pos; i++) {
 +    if (strcmp(argv[i - 1], OPTION_ENTRYPOINT) == 0) {
@@ -373,40 +439,46 @@
 +      break;
 +    }
 +  }
-+  char** nargv = new char*[argc + 1];
++  char** nargv = new char*[argc + 64];
 +  int c = 0;
 +  nargv[c++] = argv[0];
-+  for (i = runtime_pos + 1; i < argc; i++) {
-+    if ((strcmp(argv[i], "--v8_options") == 0) ||
-+        (strcmp(argv[i], "--v8-options") == 0) ||
-+        (strcmp(argv[i], "--expose_gc") == 0) ||
-+        (strcmp(argv[i], "--expose-gc") == 0) ||
-+        (strncmp(argv[i], "--harmony", 9) == 0)) { // --harmony*
-+      nargv[c++] = argv[i];
-+    };
-+  };
++  if (!bakery) {
++    while (true) {
++      size_t width = strlen(bakery);
++      if (width == 0) break;
++      nargv[c++] = bakery;
++      bakery += width + 1;
++    }
++  } else {
++    for (i = runtime_pos + 1; i < argc; i++) {
++      if (strncmp(argv[i], "--harmony", 2) == 0) {
++        nargv[c++] = argv[i];
++      }
++    }
++  }
 +  if (entrypoint_pos != -1) {
 +    nargv[c++] = argv[entrypoint_pos];
 +  } else {
 +    nargv[c++] = "DEFAULT_ENTRYPOINT";
-+  };
++  }
 +  for (i = 1; i < runtime_pos; i++) {
 +    if ((i != entrypoint_pos) &&
 +        (i != entrypoint_pos - 1)) {
 +      nargv[c++] = argv[i];
-+    };
-+  };
++    }
++  }
 +  return adjacent(
 +    c, nargv
 +  );
-+};
++}
++
 +
  #ifdef _WIN32
  int wmain(int argc, wchar_t *wargv[]) {
    // Convert argv to to UTF8
    char** argv = new char*[argc];
    for (int i = 0; i < argc; i++) {
-@@ -55,13 +122,13 @@
+@@ -55,13 +194,13 @@
        fprintf(stderr, "Could not convert arguments to utf8.");
        exit(1);
      }
