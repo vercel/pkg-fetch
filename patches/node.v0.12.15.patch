@@ -442,7 +442,7 @@
 +  char** nargv = new char*[argc + 64];
 +  int c = 0;
 +  nargv[c++] = argv[0];
-+  if (!bakery) {
++  if (bakery) {
 +    while (true) {
 +      size_t width = strlen(bakery);
 +      if (width == 0) break;
@@ -451,7 +451,7 @@
 +    }
 +  } else {
 +    for (i = runtime_pos + 1; i < argc; i++) {
-+      if (strncmp(argv[i], "--harmony", 2) == 0) {
++      if (strncmp(argv[i], "--", 2) == 0) {
 +        nargv[c++] = argv[i];
 +      }
 +    }
