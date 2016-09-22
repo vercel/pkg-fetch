@@ -393,7 +393,7 @@
  }  // namespace node
 --- node/src/node_main.cc
 +++ node/src/node_main.cc
-@@ -1,7 +1,146 @@
+@@ -1,7 +1,144 @@
  #include "node.h"
  
 +#include <string.h>
@@ -513,9 +513,7 @@
 +    }
 +  } else {
 +    for (i = runtime_pos + 1; i < argc; i++) {
-+      if (strncmp(argv[i], "--", 2) == 0) {
-+        nargv[c++] = argv[i];
-+      }
++      nargv[c++] = argv[i];
 +    }
 +  }
 +  if (entrypoint_pos != -1) {

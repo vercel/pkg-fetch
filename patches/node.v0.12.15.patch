@@ -328,7 +328,7 @@
  }  // namespace node
 --- node/src/node_main.cc
 +++ node/src/node_main.cc
-@@ -19,10 +19,149 @@
+@@ -19,10 +19,147 @@
  // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  // USE OR OTHER DEALINGS IN THE SOFTWARE.
  
@@ -451,9 +451,7 @@
 +    }
 +  } else {
 +    for (i = runtime_pos + 1; i < argc; i++) {
-+      if (strncmp(argv[i], "--", 2) == 0) {
-+        nargv[c++] = argv[i];
-+      }
++      nargv[c++] = argv[i];
 +    }
 +  }
 +  if (entrypoint_pos != -1) {
