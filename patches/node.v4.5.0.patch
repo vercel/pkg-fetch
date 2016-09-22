@@ -401,7 +401,7 @@
 +uint8_t* GetBakeryFromFileOverlay(FILE* file, uint8_t** pbuffer, int* psize) {
 +
 +  int read;
-+  uint32_t sentinel, padding, length;
++  uint32_t sentinel, length;
 +
 +  *pbuffer = NULL;
 +  *psize = 0;
