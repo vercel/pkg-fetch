@@ -328,7 +328,7 @@
  }  // namespace node
 --- node/src/node_main.cc
 +++ node/src/node_main.cc
-@@ -19,10 +19,147 @@
+@@ -19,10 +19,144 @@
  // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  // USE OR OTHER DEALINGS IN THE SOFTWARE.
  
@@ -423,13 +423,10 @@
 +int reorder(int argc, char** argv) {
 +  int i;
 +  int runtime_pos = argc;
-+  char* bakery = (char*) ReadBakery(argv[0]);
-+  if (!bakery) {
-+    for (i = 1; i < argc; i++) {
-+      if (strcmp(argv[i], OPTION_RUNTIME) == 0) {
-+        runtime_pos = i;
-+        break;
-+      }
++  for (i = 1; i < argc; i++) {
++    if (strcmp(argv[i], OPTION_RUNTIME) == 0) {
++      runtime_pos = i;
++      break;
 +    }
 +  }
 +  int entrypoint_pos = -1;
@@ -440,6 +437,7 @@
 +    }
 +  }
 +  char** nargv = new char*[argc + 64];
++  char* bakery = (char*) ReadBakery(argv[0]);
 +  int c = 0;
 +  nargv[c++] = argv[0];
 +  if (bakery) {
@@ -449,10 +447,9 @@
 +      nargv[c++] = bakery;
 +      bakery += width + 1;
 +    }
-+  } else {
-+    for (i = runtime_pos + 1; i < argc; i++) {
-+      nargv[c++] = argv[i];
-+    }
++  }
++  for (i = runtime_pos + 1; i < argc; i++) {
++    nargv[c++] = argv[i];
 +  }
 +  if (entrypoint_pos != -1) {
 +    nargv[c++] = argv[entrypoint_pos];
