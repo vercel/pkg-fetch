@@ -27,5 +27,9 @@
   ],
   "v6.5.0": [
     "node.v6.5.0.patch"
-  ]
+  ],
+  "v7.0.0": {
+    "commit": "92c1d9622bd9df3226aa833a9da6af9ef9ef5146",
+    "patches": [ "node.v7.0.0.patch" ]
+  }
 }
