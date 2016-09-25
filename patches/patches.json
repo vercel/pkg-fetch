@@ -25,8 +25,8 @@
     "backport.PR5343.for.N4.patch",
     "node.v4.5.0.patch"
   ],
-  "v6.5.0": [
-    "node.v6.5.0.patch"
+  "v6.6.0": [
+    "node.v6.6.0.patch"
   ],
   "v7.0.0": {
     "commit": "0c6455278da681d20fa8297f4a1c301cb78506f5",

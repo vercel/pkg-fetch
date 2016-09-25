@@ -91,10 +91,6 @@
 +  }
    uint32_t version_hash = GetHeaderValue(kVersionHashOffset);
 -  uint32_t source_hash = GetHeaderValue(kSourceHashOffset);
-+  if (version_hash != Version::Hash()) {
-+    base::OS::PrintError("Pkg: VERSION_MISMATCH\n");
-+    return VERSION_MISMATCH;
-+  }
    uint32_t cpu_features = GetHeaderValue(kCpuFeaturesOffset);
    uint32_t flags_hash = GetHeaderValue(kFlagHashOffset);
    uint32_t c1 = GetHeaderValue(kChecksum1Offset);
@@ -102,6 +98,10 @@
 -  if (version_hash != Version::Hash()) return VERSION_MISMATCH;
 -  if (source_hash != SourceHash(source)) return SOURCE_MISMATCH;
 -  if (cpu_features != static_cast<uint32_t>(CpuFeatures::SupportedFeatures())) {
++  if (version_hash != Version::Hash()) {
++    base::OS::PrintError("Pkg: VERSION_MISMATCH\n");
++    return VERSION_MISMATCH;
++  }
 +  uint32_t host_features = static_cast<uint32_t>(CpuFeatures::SupportedFeatures());
 +  if (cpu_features & (~host_features)) {
 +    base::OS::PrintError("Pkg: CPU_FEATURES_MISMATCH\n");
@@ -187,7 +187,7 @@
            'defines': [
 --- node/src/env.h
 +++ node/src/env.h
-@@ -192,10 +192,11 @@
+@@ -193,10 +193,11 @@
    V(shell_string, "shell")                                                    \
    V(signal_string, "signal")                                                  \
    V(size_string, "size")                                                      \
@@ -201,7 +201,7 @@
    V(subject_string, "subject")                                                \
 --- node/src/node.cc
 +++ node/src/node.cc
-@@ -3515,10 +3515,11 @@
+@@ -3516,10 +3516,11 @@
  
  
  static void PrintHelp();
@@ -213,7 +213,7 @@
    if (!strcmp(arg, "--debug")) {
      use_debug_agent = true;
    } else if (!strncmp(arg, "--debug=", sizeof("--debug=") - 1)) {
-@@ -4184,15 +4185,10 @@
+@@ -4186,15 +4187,10 @@
  }
  
  
@@ -229,7 +229,7 @@
      struct stat ignored;
      if (fstat(fd, &ignored) == 0)
        continue;
-@@ -4202,12 +4198,10 @@
+@@ -4204,12 +4200,10 @@
        ABORT();
      if (fd != open("/dev/null", O_RDWR))
        ABORT();
@@ -242,7 +242,7 @@
    memset(&act, 0, sizeof(act));
  
    // The hard-coded upper limit is because NSIG is not very reliable; on Linux,
-@@ -4328,14 +4322,10 @@
+@@ -4330,14 +4324,10 @@
    // is to prevent memory pointers from being moved around that are returned by
    // Buffer::Data().
    const char no_typed_array_heap[] = "--typed_array_max_size_in_heap=0";
@@ -274,7 +274,7 @@
 @@ -489,10 +490,11 @@
      Local<Integer> lineOffset = GetLineOffsetArg(args, 1);
      Local<Integer> columnOffset = GetColumnOffsetArg(args, 1);
-     bool display_errors = GetDisplayErrorsArg(args, 1);
+     bool display_errors = GetDisplayErrorsArg(env, args, 1);
      MaybeLocal<Uint8Array> cached_data_buf = GetCachedData(env, args, 1);
      bool produce_cached_data = GetProduceCachedData(env, args, 1);
 +    bool sourceless = GetSourceless(env, args, 1);
@@ -321,7 +321,7 @@
  
      if (compile_options == ScriptCompiler::kConsumeCodeCache) {
        args.This()->Set(
-@@ -792,10 +809,24 @@
+@@ -790,10 +807,24 @@
  
      return value->IsTrue();
    }
@@ -547,7 +547,7 @@
  
  int wmain(int argc, wchar_t *wargv[]) {
    if (!IsWindows7OrGreater()) {
-@@ -43,17 +182,17 @@
+@@ -43,17 +177,17 @@
        exit(1);
      }
    }
