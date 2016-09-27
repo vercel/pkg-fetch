@@ -268,20 +268,6 @@
 +  Handle<String> source = String::NewFromUtf8(env->isolate(),
 +    "var fs = require('fs');\n" \
 +    "var vm = require('vm');\n" \
-+    "function indexOf(buf, value) {\n" \
-+    "  var match = -1;\n" \
-+    "  for (var i = 0; i < buf.length; i++) {\n" \
-+    "    if (buf[i] === value[match === -1 ? 0 : i - match]) {\n" \
-+    "      match = match === -1 ? i : match;\n" \
-+    "      if (i - match + 1 === value.length) {\n" \
-+    "        return match;\n" \
-+    "      }\n" \
-+    "    } else {\n" \
-+    "      match = -1;\n" \
-+    "    }\n" \
-+    "  }\n" \
-+    "  return -1;\n" \
-+    "}\n" \
 +    "function readOverlay() {\n" \
 +    "  // TODO optimize loading of overlay\n" \
 +    "  var me = fs.readFileSync(process.execPath);\n" \
