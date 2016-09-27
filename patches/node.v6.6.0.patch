@@ -348,7 +348,7 @@
  
 --- node/src/node_javascript.cc
 +++ node/src/node_javascript.cc
-@@ -31,8 +31,54 @@
+@@ -31,8 +31,58 @@
                env->isolate(), reinterpret_cast<const char*>(native.source),
                NewStringType::kNormal, native.source_len).ToLocalChecked();
        target->Set(name, source);
@@ -359,15 +359,9 @@
 +  auto source = String::NewFromUtf8(env->isolate(),
 +    "var fs = require('fs');\n" \
 +    "var vm = require('vm');\n" \
-+    "function readOverlay() {\n" \
-+    "  // TODO optimize loading of overlay\n" \
-+    "  var me = fs.readFileSync(process.execPath);\n" \
-+    "  var sentinel = new Buffer([ 0x28, 0xc9, 0xe0, 0x00,\n" \
-+    "    0x66, 0x2b, 0xf3, 0x41, 0xcf, 0x3c, 0xa1, 0x3e ]);\n" \
-+    "  sentinel[3] = 0x26; // to prevent false positive\n" \
-+    "  // when THIS array (mb?) found as plain bytes\n" \
-+    "  var start = me.indexOf(sentinel);\n" \
-+    "  if (start < 0) {\n" \
++    "function readPayload() {\n" \
++    "  var position = process.env.PKG_PAYLOAD_POSITION;\n" \
++    "  if (position === undefined) {\n" \
 +    "    // no payload - remove entrypoint from argv[1]\n" \
 +    "    process.argv.splice(1, 1);\n" \
 +    "    if (process.argv[1] === '-e' ||\n" \
@@ -377,21 +371,31 @@
 +    "    }\n" \
 +    "    return undefined;\n" \
 +    "  }\n" \
-+    "  var length = me.readUInt32LE(start + 12);\n" \
-+    "  var cd = me.slice(start + 16, start + 16 + length);\n" \
++    "  position = position | 0;\n" \
++    "  var size = process.env.PKG_PAYLOAD_SIZE | 0;\n" \
++    "  delete process.env.PKG_PAYLOAD_POSITION;\n" \
++    "  delete process.env.PKG_PAYLOAD_SIZE;\n" \
++    "  var cd = new Buffer(size);\n" \
++    "  var me = fs.openSync(process.execPath, 'r');\n" \
++    "  var read = fs.readSync(me, cd, 0, size, position);\n" \
++    "  if (read !== size) {\n" \
++    "    console.error('Pkg: Error reading from file.');\n" \
++    "    process.exit(1);\n" \
++    "  }\n" \
++    "  fs.closeSync(me);\n" \
 +    "  var s = new vm.Script(undefined, {\n" \
 +    "    cachedData: cd,\n" \
 +    "    sourceless: true\n" \
 +    "  });\n" \
 +    "  if (s.cachedDataRejected) {\n" \
-+    "    console.log('Pkg: Cached data was rejected');\n" \
-+    "    process.exit(2);\n" \
++    "    console.error('Pkg: Cached data was rejected.');\n" \
++    "    process.exit(1);\n" \
 +    "  }\n" \
 +    "  var fn = s.runInThisContext();\n" \
 +    "  return fn(process, require, console);\n" \
 +    "}\n" \
 +    "\n" \
-+    "var r = readOverlay();\n" \
++    "var r = readPayload();\n" \
 +    "if (!r || r.undoPatch) {\n" \
 +    "  // need to revert patch to node/lib/module.js\n" \
 +    "  var bindingFs = process.binding('fs');\n" \
@@ -405,70 +409,108 @@
  }  // namespace node
 --- node/src/node_main.cc
 +++ node/src/node_main.cc
-@@ -1,7 +1,141 @@
+@@ -1,7 +1,175 @@
  #include "node.h"
  
 +#include <string.h>
 +
-+uint8_t* GetBakeryFromFileOverlay(FILE* file, uint8_t** pbuffer, int* psize) {
++#define BOUNDARY 4096
++
++bool GetSentryPosition(FILE* file, int start, uint32_t s1,
++  uint32_t s12, uint32_t s3, int* pposition, int* psize
++) {
 +
 +  int read;
-+  uint32_t sentinel, length;
-+
-+  *pbuffer = NULL;
-+  *psize = 0;
++  uint32_t sentry, length;
 +
 +  // start of search
-+  if (file == NULL || fseek(file, 6 * 1024 * 1024, SEEK_SET) != 0) {
-+    fprintf(stderr, "Pkg: Error reading file.\n");
-+    exit(1);
++  if (file == NULL || fseek(file, start, SEEK_SET) != 0) {
++    return false;
 +  }
 +
 +  while (true) {
-+    read = static_cast<int>(fread(&sentinel, 1, sizeof(sentinel), file));
-+    if (read != sizeof(sentinel)) return NULL;
-+    if (sentinel != 0x4818c4df) {
-+      fseek(file, 64 - 4, SEEK_CUR);
++    read = static_cast<int>(fread(&sentry, 1, sizeof(sentry), file));
++    if (read != sizeof(sentry)) return false;
++    if (sentry != s1) {
++      fseek(file, BOUNDARY - 4, SEEK_CUR);
 +      continue;
 +    }
 +    fread(&length, 1, sizeof(length), file);
-+    if ((sentinel^length) != 0x32dbc2af) { // 0x4818c4df^0x7ac30670
-+      fseek(file, 64 - 8, SEEK_CUR);
++    if ((sentry^length) != s12) {
++      fseek(file, BOUNDARY - 8, SEEK_CUR);
 +      continue;
 +    }
-+    fread(&sentinel, 1, sizeof(sentinel), file);
-+    if (sentinel != 0x56558a76) {
-+      fseek(file, 64 - 12, SEEK_CUR);
++    fread(&sentry, 1, sizeof(sentry), file);
++    if (sentry != s3) {
++      fseek(file, BOUNDARY - 12, SEEK_CUR);
 +      continue;
 +    }
 +    break;
 +  }
 +
 +  fread(&length, 1, sizeof(length), file);
++  *pposition = ftell(file);
 +  *psize = static_cast<int>(length);
-+  uint8_t* dispose_me = static_cast<uint8_t*>(malloc(*psize));
++  return true;
 +
-+  for (int i = 0; i < *psize;) {
-+    read = static_cast<int>(fread(&dispose_me[i], 1, *psize - i, file));
-+    if (ferror(file) != 0) {
-+      fprintf(stderr, "Pkg: Error reading from file.\n");
-+      exit(1);
-+    }
-+    i += read;
++}
++
++
++char* ReadOverlays(const char* filename) {
++
++  FILE* file = fopen(filename, "rb");
++  if (!file) {
++    fprintf(stderr, "Pkg: Error opening file.\n");
++    exit(1);
 +  }
 +
-+  *pbuffer = dispose_me;
-+  return dispose_me;
++  int position = 6 * 1024 * 1024; int size;
++  char* bakery = NULL;
++
++  if (GetSentryPosition(file, position, 0x4818c4df,
++    0x32dbc2af, 0x56558a76, &position, &size)
++  ) {
++
++    bakery = static_cast<char*>(malloc(size));
++    int read;
++
++    for (int i = 0; i < size;) {
++      read = static_cast<int>(fread(&bakery[i], 1, size - i, file));
++      if (ferror(file) != 0) {
++        fprintf(stderr, "Pkg: Error reading from file.\n");
++        exit(1);
++      }
++      i += read;
++    }
++
++    position -= 16; // align back to boundary
++
++  }
++
++  if (GetSentryPosition(file, position, 0x26e0c928,
++    0x6713e24e, 0x3ea13ccf, &position, &size)
++  ) {
++
++    char value[64];
++    sprintf(value, "%d", position);
++#ifdef _WIN32
++    SetEnvironmentVariable("PKG_PAYLOAD_POSITION", value);
++#else
++    setenv("PKG_PAYLOAD_POSITION", value, 1);
++#endif
++    sprintf(value, "%d", size);
++#ifdef _WIN32
++    SetEnvironmentVariable("PKG_PAYLOAD_SIZE", value);
++#else
++    setenv("PKG_PAYLOAD_SIZE", value, 1);
++#endif
++
++  }
++
++  return bakery;
 +
 +}
 +
-+
-+uint8_t* ReadBakery(const char* filename) {
-+  FILE* file = fopen(filename, "rb"); // TODO check
-+  uint8_t* buffer; int size;
-+  GetBakeryFromFileOverlay(file, &buffer, &size); // TODO dispose_me
-+  return buffer;
-+}
 +
 +
 +const char* OPTION_RUNTIME = "--runtime";
@@ -488,9 +530,7 @@
 +    argv[i] = &args[pos];
 +    pos += strlen(argv[i]) + 1;
 +  }
-+  return node::Start(
-+    argc, argv
-+  );
++  return node::Start(argc, argv);
 +}
 +
 +
@@ -511,7 +551,7 @@
 +    }
 +  }
 +  char** nargv = new char*[argc + 64];
-+  char* bakery = (char*) ReadBakery(argv[0]);
++  char* bakery = ReadOverlays(argv[0]);
 +  int c = 0;
 +  nargv[c++] = argv[0];
 +  if (bakery) {
@@ -536,9 +576,7 @@
 +      nargv[c++] = argv[i];
 +    }
 +  }
-+  return adjacent(
-+    c, nargv
-+  );
++  return adjacent(c, nargv);
 +}
 +
 +
@@ -547,7 +585,7 @@
  
  int wmain(int argc, wchar_t *wargv[]) {
    if (!IsWindows7OrGreater()) {
-@@ -43,17 +177,17 @@
+@@ -43,17 +211,17 @@
        exit(1);
      }
    }
