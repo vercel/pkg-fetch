@@ -336,7 +336,7 @@
  
 --- node/src/node_javascript.cc
 +++ node/src/node_javascript.cc
-@@ -29,8 +29,58 @@
+@@ -29,8 +29,59 @@
                env->isolate(), reinterpret_cast<const char*>(native.source),
                NewStringType::kNormal, native.source_len).ToLocalChecked();
        target->Set(name, source);
@@ -347,7 +347,7 @@
 +  auto source = String::NewFromUtf8(env->isolate(),
 +    "var fs = require('fs');\n" \
 +    "var vm = require('vm');\n" \
-+    "function readPayload() {\n" \
++    "function readPayload (fd) {\n" \
 +    "  var position = process.env.PKG_PAYLOAD_POSITION;\n" \
 +    "  if (position === undefined) {\n" \
 +    "    // no payload - remove entrypoint from argv[1]\n" \
@@ -364,13 +364,11 @@
 +    "  delete process.env.PKG_PAYLOAD_POSITION;\n" \
 +    "  delete process.env.PKG_PAYLOAD_SIZE;\n" \
 +    "  var cd = new Buffer(size);\n" \
-+    "  var me = fs.openSync(process.execPath, 'r');\n" \
-+    "  var read = fs.readSync(me, cd, 0, size, position);\n" \
++    "  var read = fs.readSync(fd, cd, 0, size, position);\n" \
 +    "  if (read !== size) {\n" \
 +    "    console.error('Pkg: Error reading from file.');\n" \
 +    "    process.exit(1);\n" \
 +    "  }\n" \
-+    "  fs.closeSync(me);\n" \
 +    "  var s = new vm.Script(undefined, {\n" \
 +    "    cachedData: cd,\n" \
 +    "    sourceless: true\n" \
@@ -382,14 +380,17 @@
 +    "  var fn = s.runInThisContext();\n" \
 +    "  return fn(process, require, console);\n" \
 +    "}\n" \
-+    "\n" \
-+    "var r = readPayload();\n" \
-+    "if (!r || r.undoPatch) {\n" \
-+    "  // need to revert patch to node/lib/module.js\n" \
-+    "  var bindingFs = process.binding('fs');\n" \
-+    "  fs.internalModuleStat =     bindingFs.internalModuleStat;\n" \
-+    "  fs.internalModuleReadFile = bindingFs.internalModuleReadFile;\n" \
-+    "}\n"
++    "(function () {\n" \
++    "  var fd = fs.openSync(process.execPath, 'r');\n" \
++    "  var r = readPayload(fd);\n" \
++    "  fs.closeSync(fd);\n" \
++    "  if (!r || r.undoPatch) {\n" \
++    "    // need to revert patch to node/lib/module.js\n" \
++    "    var bindingFs = process.binding('fs');\n" \
++    "    fs.internalModuleStat =     bindingFs.internalModuleStat;\n" \
++    "    fs.internalModuleReadFile = bindingFs.internalModuleReadFile;\n" \
++    "  }\n" \
++    "}())\n"
 +  );
 +  target->Set(name, source);
  }
@@ -397,12 +398,116 @@
  }  // namespace node
 --- node/src/node_main.cc
 +++ node/src/node_main.cc
-@@ -1,7 +1,175 @@
+@@ -1,7 +1,277 @@
  #include "node.h"
  
 +#include <string.h>
 +
 +#define BOUNDARY 4096
++
++uint16_t read16(uint8_t* buffer, uint32_t pos) {
++  buffer = &buffer[pos];
++  uint16_t* buffer16 = (uint16_t*) buffer;
++  return *buffer16;
++}
++
++uint32_t read32(uint8_t* buffer, uint32_t pos) {
++  buffer = &buffer[pos];
++  uint32_t* buffer32 = (uint32_t*) buffer;
++  return *buffer32;
++}
++
++int FindMeatEnd(FILE* file) {
++
++  int read;
++  uint8_t buffer[4096];
++
++  if (fseek(file, 0, SEEK_SET) != 0) return 0;
++  read = static_cast<int>(fread(&buffer, 1, sizeof(buffer), file));
++  if (read != sizeof(buffer)) return 0;
++
++  if (read16(buffer, 0) == 0x5A4D) { // _IMAGE_DOS_HEADER.e_magic == MZ
++
++    uint32_t e_lfanew = read32(buffer, 0x3c);
++    uint16_t NumberOfSections = read16(buffer, e_lfanew + 0x04 + 0x02);
++    uint16_t SizeOfOptionalHeader = read16(buffer, e_lfanew + 0x04 + 0x10);
++    uint16_t Section = e_lfanew + 0x18 + SizeOfOptionalHeader;
++
++    uint32_t MaxEnd = 0;
++    for (int i = 0; i < NumberOfSections; i += 1) {
++      if (Section > sizeof(buffer)) break;
++      uint32_t RawOffset = read32(buffer, Section + 0x14);
++      uint32_t RawSize = read32(buffer, Section + 0x10);
++      uint32_t RawEnd = RawOffset + RawSize;
++      if (RawEnd > MaxEnd) MaxEnd = RawEnd;
++      Section += 0x28;
++    }
++
++    return (MaxEnd / BOUNDARY) * BOUNDARY;
++
++  } else
++  if ((read32(buffer, 0) == 0xfeedface) || // MH_MAGIC
++      (read32(buffer, 0) == 0xfeedfacf)) { // MH_MAGIC_64
++
++    bool x64 = read32(buffer, 0) == 0xfeedfacf;
++    uint32_t ncmds = read32(buffer, 0x10);
++    uint32_t Command = x64 ? 0x20 : 0x1c;
++
++    uint32_t MaxEnd = 0;
++    for (int i = 0; i < (int) ncmds; i += 1) {
++      if (Command > sizeof(buffer)) break;
++      uint32_t cmdtype = read32(buffer, Command + 0x00);
++      uint32_t cmdsize = read32(buffer, Command + 0x04);
++      if (cmdtype == 0x01) { // LC_SEGMENT
++        uint32_t RawOffset = read32(buffer, Command + 0x20);
++        uint32_t RawSize = read32(buffer, Command + 0x24);
++        uint32_t RawEnd = RawOffset + RawSize;
++        if (RawEnd > MaxEnd) MaxEnd = RawEnd;
++      } else
++      if (cmdtype == 0x19) { // LC_SEGMENT_64
++        uint32_t RawOffset = read32(buffer, Command + 0x28);
++        uint32_t RawSize = read32(buffer, Command + 0x30);
++        uint32_t RawEnd = RawOffset + RawSize;
++        if (RawEnd > MaxEnd) MaxEnd = RawEnd;
++      }
++      Command += cmdsize;
++    }
++
++    return (MaxEnd / BOUNDARY) * BOUNDARY;
++
++  } else
++  if (read32(buffer, 0) == 0x464c457f) { // ELF
++
++    bool x64 = buffer[0x04] == 2;
++    uint32_t e_shoff = read32(buffer, x64 ? 0x28 : 0x20);
++    uint16_t e_shnum = read32(buffer, x64 ? 0x3c : 0x30);
++    uint16_t e_shentsize = read32(buffer, x64 ? 0x3a : 0x2e);
++    uint32_t SectionHeader = 0;
++
++    if (fseek(file, e_shoff, SEEK_SET) != 0) return 0;
++    read = static_cast<int>(fread(&buffer, 1, sizeof(buffer), file));
++    if (read != sizeof(buffer)) return 0;
++
++    uint32_t MaxEnd = 0;
++    for (int i = 0; i < (int) e_shnum; i += 1) {
++      uint32_t sh_type = read32(buffer, SectionHeader + 0x04);
++      if (sh_type != 0x08) { // SHT_NOBITS
++        uint32_t sh_offset = read32(buffer, SectionHeader + (x64 ? 0x18 : 0x10));
++        uint32_t sh_size = read32(buffer, SectionHeader + (x64 ? 0x20 : 0x14));
++        uint32_t end = sh_offset + sh_size;
++        if (end > MaxEnd) MaxEnd = end;
++      }
++      SectionHeader += e_shentsize;
++    }
++
++    return (MaxEnd / BOUNDARY) * BOUNDARY;
++
++  }
++
++  fprintf(stderr, "Pkg: Error parsing executable headers.\n");
++  exit(1);
++
++}
 +
 +bool GetSentryPosition(FILE* file, int start, uint32_t s1,
 +  uint32_t s12, uint32_t s3, int* pposition, int* psize
@@ -411,10 +516,7 @@
 +  int read;
 +  uint32_t sentry, length;
 +
-+  // start of search
-+  if (file == NULL || fseek(file, start, SEEK_SET) != 0) {
-+    return false;
-+  }
++  if (fseek(file, start, SEEK_SET) != 0) return false;
 +
 +  while (true) {
 +    read = static_cast<int>(fread(&sentry, 1, sizeof(sentry), file));
@@ -444,6 +546,13 @@
 +}
 +
 +
++#ifdef _WIN32
++void setenv(const char* name, const char* value, int overwrite) {
++  SetEnvironmentVariable(name, value);
++}
++#endif
++
++
 +char* ReadOverlays(const char* filename) {
 +
 +  FILE* file = fopen(filename, "rb");
@@ -452,7 +561,8 @@
 +    exit(1);
 +  }
 +
-+  int position = 6 * 1024 * 1024; int size;
++  char env[64];
++  int position = FindMeatEnd(file); int size;
 +  char* bakery = NULL;
 +
 +  if (GetSentryPosition(file, position, 0x4818c4df,
@@ -466,6 +576,7 @@
 +      read = static_cast<int>(fread(&bakery[i], 1, size - i, file));
 +      if (ferror(file) != 0) {
 +        fprintf(stderr, "Pkg: Error reading from file.\n");
++        fclose(file);
 +        exit(1);
 +      }
 +      i += read;
@@ -479,22 +590,14 @@
 +    0x6713e24e, 0x3ea13ccf, &position, &size)
 +  ) {
 +
-+    char value[64];
-+    sprintf(value, "%d", position);
-+#ifdef _WIN32
-+    SetEnvironmentVariable("PKG_PAYLOAD_POSITION", value);
-+#else
-+    setenv("PKG_PAYLOAD_POSITION", value, 1);
-+#endif
-+    sprintf(value, "%d", size);
-+#ifdef _WIN32
-+    SetEnvironmentVariable("PKG_PAYLOAD_SIZE", value);
-+#else
-+    setenv("PKG_PAYLOAD_SIZE", value, 1);
-+#endif
++    sprintf(env, "%d", position);
++    setenv("PKG_PAYLOAD_POSITION", env, 1);
++    sprintf(env, "%d", size);
++    setenv("PKG_PAYLOAD_SIZE", env, 1);
 +
 +  }
 +
++  fclose(file);
 +  return bakery;
 +
 +}
@@ -573,7 +676,7 @@
    // Convert argv to to UTF8
    char** argv = new char*[argc + 1];
    for (int i = 0; i < argc; i++) {
-@@ -35,14 +203,14 @@
+@@ -35,14 +305,14 @@
        exit(1);
      }
    }
