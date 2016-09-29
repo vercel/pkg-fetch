@@ -410,7 +410,7 @@
  }  // namespace node
 --- node/src/node_main.cc
 +++ node/src/node_main.cc
-@@ -1,7 +1,247 @@
+@@ -1,7 +1,276 @@
  #include "node.h"
  
 +#include <string.h>
@@ -418,13 +418,15 @@
 +#define BOUNDARY 4096
 +
 +uint16_t read16(uint8_t* buffer, uint32_t pos) {
++  buffer = &buffer[pos];
 +  uint16_t* buffer16 = (uint16_t*) buffer;
-+  return buffer16[pos >> 1];
++  return *buffer16;
 +}
 +
 +uint32_t read32(uint8_t* buffer, uint32_t pos) {
++  buffer = &buffer[pos];
 +  uint32_t* buffer32 = (uint32_t*) buffer;
-+  return buffer32[pos >> 2];
++  return *buffer32;
 +}
 +
 +int FindMeatEnd(FILE* file) {
@@ -481,6 +483,33 @@
 +        if (RawEnd > MaxEnd) MaxEnd = RawEnd;
 +      }
 +      Command += cmdsize;
++    }
++
++    return (MaxEnd / BOUNDARY) * BOUNDARY;
++
++  } else
++  if (read32(buffer, 0) == 0x464c457f) { // ELF
++
++    bool x64 = buffer[0x04] == 2;
++    uint32_t e_shoff = read32(buffer, x64 ? 0x28 : 0x20);
++    uint16_t e_shnum = read32(buffer, x64 ? 0x3c : 0x30);
++    uint16_t e_shentsize = read32(buffer, x64 ? 0x3a : 0x2e);
++    uint32_t SectionHeader = 0;
++
++    if (fseek(file, e_shoff, SEEK_SET) != 0) return 0;
++    read = static_cast<int>(fread(&buffer, 1, sizeof(buffer), file));
++    if (read != sizeof(buffer)) return 0;
++
++    uint32_t MaxEnd = 0;
++    for (int i = 0; i < (int) e_shnum; i += 1) {
++      uint32_t sh_type = read32(buffer, SectionHeader + 0x04);
++      if (sh_type != 0x08) { // SHT_NOBITS
++        uint32_t sh_offset = read32(buffer, SectionHeader + (x64 ? 0x18 : 0x10));
++        uint32_t sh_size = read32(buffer, SectionHeader + (x64 ? 0x20 : 0x14));
++        uint32_t end = sh_offset + sh_size;
++        if (end > MaxEnd) MaxEnd = end;
++      }
++      SectionHeader += e_shentsize;
 +    }
 +
 +    return (MaxEnd / BOUNDARY) * BOUNDARY;
@@ -658,7 +687,7 @@
  
  int wmain(int argc, wchar_t *wargv[]) {
    if (!IsWindows7OrGreater()) {
-@@ -43,17 +283,17 @@
+@@ -43,17 +312,17 @@
        exit(1);
      }
    }
