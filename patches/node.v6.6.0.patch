@@ -410,38 +410,77 @@
  }  // namespace node
 --- node/src/node_main.cc
 +++ node/src/node_main.cc
-@@ -1,7 +1,208 @@
+@@ -1,7 +1,247 @@
  #include "node.h"
  
 +#include <string.h>
 +
 +#define BOUNDARY 4096
 +
++uint16_t read16(uint8_t* buffer, uint32_t pos) {
++  uint16_t* buffer16 = (uint16_t*) buffer;
++  return buffer16[pos >> 1];
++}
++
++uint32_t read32(uint8_t* buffer, uint32_t pos) {
++  uint32_t* buffer32 = (uint32_t*) buffer;
++  return buffer32[pos >> 2];
++}
++
 +int FindMeatEnd(FILE* file) {
 +
 +  int read;
-+  uint8_t buffer[1024];
-+  uint16_t* buffer16 = (uint16_t*) &buffer;
-+  uint32_t* buffer32 = (uint32_t*) &buffer;
++  uint8_t buffer[4096];
 +
 +  if (fseek(file, 0, SEEK_SET) != 0) return 0;
 +  read = static_cast<int>(fread(&buffer, 1, sizeof(buffer), file));
 +  if (read != sizeof(buffer)) return 0;
 +
-+  if (buffer16[0 >> 1] == 0x5A4D) { // _IMAGE_DOS_HEADER.e_magic == MZ
++  if (read16(buffer, 0) == 0x5A4D) { // _IMAGE_DOS_HEADER.e_magic == MZ
 +
-+    uint32_t e_lfanew = buffer32[0x3c >> 2];
-+    uint16_t NumberOfSections = buffer16[(e_lfanew + 0x04 + 0x02) >> 1];
-+    uint16_t SizeOfOptionalHeader = buffer16[(e_lfanew + 0x04 + 0x10) >> 1];
++    uint32_t e_lfanew = read32(buffer, 0x3c);
++    uint16_t NumberOfSections = read16(buffer, e_lfanew + 0x04 + 0x02);
++    uint16_t SizeOfOptionalHeader = read16(buffer, e_lfanew + 0x04 + 0x10);
 +    uint16_t Section = e_lfanew + 0x18 + SizeOfOptionalHeader;
 +
 +    uint32_t MaxEnd = 0;
 +    for (int i = 0; i < NumberOfSections; i += 1) {
-+      uint32_t RawOffset = buffer32[(Section + 0x14) >> 2];
-+      uint32_t RawSize = buffer32[(Section + 0x10) >> 2];
++      if (Section > sizeof(buffer)) break;
++      uint32_t RawOffset = read32(buffer, Section + 0x14);
++      uint32_t RawSize = read32(buffer, Section + 0x10);
 +      uint32_t RawEnd = RawOffset + RawSize;
 +      if (RawEnd > MaxEnd) MaxEnd = RawEnd;
 +      Section += 0x28;
++    }
++
++    return (MaxEnd / BOUNDARY) * BOUNDARY;
++
++  } else
++  if ((read32(buffer, 0) == 0xfeedface) || // MH_MAGIC
++      (read32(buffer, 0) == 0xfeedfacf)) { // MH_MAGIC_64
++
++    bool x64 = read32(buffer, 0) == 0xfeedfacf;
++    uint32_t ncmds = read32(buffer, 0x10);
++    uint32_t Command = x64 ? 0x20 : 0x1c;
++
++    uint32_t MaxEnd = 0;
++    for (int i = 0; i < (int) ncmds; i += 1) {
++      if (Command > sizeof(buffer)) break;
++      uint32_t cmdtype = read32(buffer, Command + 0x00);
++      uint32_t cmdsize = read32(buffer, Command + 0x04);
++      if (cmdtype == 0x01) { // LC_SEGMENT
++        uint32_t RawOffset = read32(buffer, Command + 0x20);
++        uint32_t RawSize = read32(buffer, Command + 0x24);
++        uint32_t RawEnd = RawOffset + RawSize;
++        if (RawEnd > MaxEnd) MaxEnd = RawEnd;
++      } else
++      if (cmdtype == 0x19) { // LC_SEGMENT_64
++        uint32_t RawOffset = read32(buffer, Command + 0x28);
++        uint32_t RawSize = read32(buffer, Command + 0x30);
++        uint32_t RawEnd = RawOffset + RawSize;
++        if (RawEnd > MaxEnd) MaxEnd = RawEnd;
++      }
++      Command += cmdsize;
 +    }
 +
 +    return (MaxEnd / BOUNDARY) * BOUNDARY;
@@ -619,7 +658,7 @@
  
  int wmain(int argc, wchar_t *wargv[]) {
    if (!IsWindows7OrGreater()) {
-@@ -43,17 +244,17 @@
+@@ -43,17 +283,17 @@
        exit(1);
      }
    }
