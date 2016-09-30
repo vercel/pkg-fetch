@@ -14,25 +14,13 @@
     "backport.R24824.patch",
     "backport.R25039.patch",
     "backport.R25444.patch",
-    "backport.PR4777.for.N0.patch",
-    "backport.PR5343.for.N0.patch",
     "node.v0.12.15.patch"
   ],
-  "v4.5.0": [
-    "backport.R32768.patch",
-    "backport.PR4777.for.N4.patch",
-    "backport.PR5159.for.N4.patch",
-    "backport.PR5343.for.N4.patch",
-    "node.v4.5.0.patch"
+  "v4.4.7": [
+    "backport.R32768.v8=4.5.patch",
+    "node.v4.4.7.patch"
   ],
-  "v6.6.0": [
-    "node.v6.6.0.patch"
-  ],
-  "v7.0.0": {
-    "commit": "0c6455278da681d20fa8297f4a1c301cb78506f5",
-    "patches": [
-      "node.v7.0.0.patch",
-      "ignition.patch"
-    ]
-  }
+  "v6.3.1": [
+    "node.v6.3.1.patch"
+  ]
 }

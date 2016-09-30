@@ -6,10 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import test from 'ava';
 
-if (process.platform !== 'linux' ||
-    process.arch !== 'x64') {
-  throw new Error('Run the test only on linux-x64');
-}
+process.env.GITHUB_USERNAME = 'suppress upload error';
 
 function relative (p) {
   const p2 = path.relative(__dirname, p);
@@ -20,7 +17,18 @@ const actions = [];
 let lastLocal;
 const assets = [];
 
-require('../package.json').version = '1337.0.1';
+require('../package.json').version = '1337.2.3';
+
+const patchesJson = require('../patches/patches.json');
+const newPatchesJson = require('./patches.json');
+
+for (const nodeVersion in patchesJson) {
+  delete patchesJson[nodeVersion];
+}
+
+for (const nodeVersion in newPatchesJson) {
+  patchesJson[nodeVersion] = newPatchesJson[nodeVersion];
+}
 
 require('../lib/log.js').log = new LogMock(actions);
 
@@ -57,13 +65,19 @@ require('../lib/spawn.js').progress = function () {
 
 require('../lib/copy-file.js').copyFile = function (src, dest) {
   src = relative(src);
-  actions.push([ 'copyFile', src ].join(' ')); // dest is flaky
+  const shortDest = path.basename(path.dirname(dest)) + '/' + path.basename(dest);
+  actions.push([ 'copyFile', src, shortDest ].join(' ')); // full dest is flaky
   lastLocal = dest;
 };
 
 require('../lib/github.js').getRelease = function (tag) {
   actions.push([ 'getRelease', tag ].join(' '));
-  return null;
+  return undefined;
+};
+
+require('../lib/github.js').getReleaseDraft = function (tag) {
+  actions.push([ 'getReleaseDraft', tag ].join(' '));
+  return undefined;
 };
 
 require('../lib/github.js').createRelease = function (tag) {
@@ -78,10 +92,16 @@ require('../lib/github.js').uploadAsset = function (local, release, name) {
 };
 
 test(async () => {
+  if (process.platform !== 'linux' ||
+      process.arch !== 'x64') {
+    console.log('RUN THE TEST ONLY ON LINUX-X64');
+    return;
+  }
+
   const { main } = require('../lib/upload.js');
   await main();
   const mustBe = [
-    '> Building base-v0.12.15-linux-x64...',
+    '> Building built-v0.12.15-linux-x64...',
     '> Cloning Node.js repository from GitHub...',
     'git clone --bare --progress https://github.com/nodejs/node node/.git {"cwd":"../temp"}',
     '> Checking out v0.12.15',
@@ -105,12 +125,13 @@ test(async () => {
     '> Compiling Node.js from sources...',
     './configure --dest-cpu x64 {"cwd":"../temp/node"}',
     'make  {"cwd":"../temp/node"}',
-    'copyFile ../temp/node/out/Release/node',
-    '> Uploading base-v0.12.15-linux-x64...',
-    'getRelease v1337.0.1',
-    'createRelease v1337.0.1',
-    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[]} base-v0.12.15-linux-x64',
-    '> Building base-v0.12.15-linux-x86...',
+    'copyFile ../temp/node/out/Release/node v1337.2/built-v0.12.15-linux-x64',
+    '> Uploading built-v0.12.15-linux-x64...',
+    'getRelease v1337.2',
+    'getReleaseDraft v1337.2',
+    'createRelease v1337.2',
+    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[]} uploaded-v1337.2-node-v0.12.15-linux-x64',
+    '> Building built-v0.12.15-linux-x86...',
     '> Cloning Node.js repository from GitHub...',
     'git clone --bare --progress https://github.com/nodejs/node node/.git {"cwd":"../temp"}',
     '> Checking out v0.12.15',
@@ -134,12 +155,13 @@ test(async () => {
     '> Compiling Node.js from sources...',
     './configure --dest-cpu ia32 {"cwd":"../temp/node"}',
     'make  {"cwd":"../temp/node"}',
-    'copyFile ../temp/node/out/Release/node',
-    '> Uploading base-v0.12.15-linux-x86...',
-    'getRelease v1337.0.1',
-    'createRelease v1337.0.1',
-    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[{"name":"base-v0.12.15-linux-x64"}]} base-v0.12.15-linux-x86',
-    '> Building base-v4.4.7-linux-x64...',
+    'copyFile ../temp/node/out/Release/node v1337.2/built-v0.12.15-linux-x86',
+    '> Uploading built-v0.12.15-linux-x86...',
+    'getRelease v1337.2',
+    'getReleaseDraft v1337.2',
+    'createRelease v1337.2',
+    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[{"name":"uploaded-v1337.2-node-v0.12.15-linux-x64"}]} uploaded-v1337.2-node-v0.12.15-linux-x86',
+    '> Building built-v4.4.7-linux-x64...',
     '> Cloning Node.js repository from GitHub...',
     'git clone --bare --progress https://github.com/nodejs/node node/.git {"cwd":"../temp"}',
     '> Checking out v4.4.7',
@@ -150,12 +172,13 @@ test(async () => {
     '> Compiling Node.js from sources...',
     './configure --dest-cpu x64 {"cwd":"../temp/node"}',
     'make  {"cwd":"../temp/node"}',
-    'copyFile ../temp/node/out/Release/node',
-    '> Uploading base-v4.4.7-linux-x64...',
-    'getRelease v1337.0.1',
-    'createRelease v1337.0.1',
-    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[{"name":"base-v0.12.15-linux-x64"},{"name":"base-v0.12.15-linux-x86"}]} base-v4.4.7-linux-x64',
-    '> Building base-v4.4.7-linux-x86...',
+    'copyFile ../temp/node/out/Release/node v1337.2/built-v4.4.7-linux-x64',
+    '> Uploading built-v4.4.7-linux-x64...',
+    'getRelease v1337.2',
+    'getReleaseDraft v1337.2',
+    'createRelease v1337.2',
+    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[{"name":"uploaded-v1337.2-node-v0.12.15-linux-x64"},{"name":"uploaded-v1337.2-node-v0.12.15-linux-x86"}]} uploaded-v1337.2-node-v4.4.7-linux-x64',
+    '> Building built-v4.4.7-linux-x86...',
     '> Cloning Node.js repository from GitHub...',
     'git clone --bare --progress https://github.com/nodejs/node node/.git {"cwd":"../temp"}',
     '> Checking out v4.4.7',
@@ -166,12 +189,13 @@ test(async () => {
     '> Compiling Node.js from sources...',
     './configure --dest-cpu ia32 {"cwd":"../temp/node"}',
     'make  {"cwd":"../temp/node"}',
-    'copyFile ../temp/node/out/Release/node',
-    '> Uploading base-v4.4.7-linux-x86...',
-    'getRelease v1337.0.1',
-    'createRelease v1337.0.1',
-    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[{"name":"base-v0.12.15-linux-x64"},{"name":"base-v0.12.15-linux-x86"},{"name":"base-v4.4.7-linux-x64"}]} base-v4.4.7-linux-x86',
-    '> Building base-v6.3.1-linux-x64...',
+    'copyFile ../temp/node/out/Release/node v1337.2/built-v4.4.7-linux-x86',
+    '> Uploading built-v4.4.7-linux-x86...',
+    'getRelease v1337.2',
+    'getReleaseDraft v1337.2',
+    'createRelease v1337.2',
+    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[{"name":"uploaded-v1337.2-node-v0.12.15-linux-x64"},{"name":"uploaded-v1337.2-node-v0.12.15-linux-x86"},{"name":"uploaded-v1337.2-node-v4.4.7-linux-x64"}]} uploaded-v1337.2-node-v4.4.7-linux-x86',
+    '> Building built-v6.3.1-linux-x64...',
     '> Cloning Node.js repository from GitHub...',
     'git clone --bare --progress https://github.com/nodejs/node node/.git {"cwd":"../temp"}',
     '> Checking out v6.3.1',
@@ -181,12 +205,13 @@ test(async () => {
     '> Compiling Node.js from sources...',
     './configure --dest-cpu x64 {"cwd":"../temp/node"}',
     'make  {"cwd":"../temp/node"}',
-    'copyFile ../temp/node/out/Release/node',
-    '> Uploading base-v6.3.1-linux-x64...',
-    'getRelease v1337.0.1',
-    'createRelease v1337.0.1',
-    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[{"name":"base-v0.12.15-linux-x64"},{"name":"base-v0.12.15-linux-x86"},{"name":"base-v4.4.7-linux-x64"},{"name":"base-v4.4.7-linux-x86"}]} base-v6.3.1-linux-x64',
-    '> Building base-v6.3.1-linux-x86...',
+    'copyFile ../temp/node/out/Release/node v1337.2/built-v6.3.1-linux-x64',
+    '> Uploading built-v6.3.1-linux-x64...',
+    'getRelease v1337.2',
+    'getReleaseDraft v1337.2',
+    'createRelease v1337.2',
+    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[{"name":"uploaded-v1337.2-node-v0.12.15-linux-x64"},{"name":"uploaded-v1337.2-node-v0.12.15-linux-x86"},{"name":"uploaded-v1337.2-node-v4.4.7-linux-x64"},{"name":"uploaded-v1337.2-node-v4.4.7-linux-x86"}]} uploaded-v1337.2-node-v6.3.1-linux-x64',
+    '> Building built-v6.3.1-linux-x86...',
     '> Cloning Node.js repository from GitHub...',
     'git clone --bare --progress https://github.com/nodejs/node node/.git {"cwd":"../temp"}',
     '> Checking out v6.3.1',
@@ -196,11 +221,12 @@ test(async () => {
     '> Compiling Node.js from sources...',
     './configure --dest-cpu ia32 {"cwd":"../temp/node"}',
     'make  {"cwd":"../temp/node"}',
-    'copyFile ../temp/node/out/Release/node',
-    '> Uploading base-v6.3.1-linux-x86...',
-    'getRelease v1337.0.1',
-    'createRelease v1337.0.1',
-    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[{"name":"base-v0.12.15-linux-x64"},{"name":"base-v0.12.15-linux-x86"},{"name":"base-v4.4.7-linux-x64"},{"name":"base-v4.4.7-linux-x86"},{"name":"base-v6.3.1-linux-x64"}]} base-v6.3.1-linux-x86'
+    'copyFile ../temp/node/out/Release/node v1337.2/built-v6.3.1-linux-x86',
+    '> Uploading built-v6.3.1-linux-x86...',
+    'getRelease v1337.2',
+    'getReleaseDraft v1337.2',
+    'createRelease v1337.2',
+    'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[{"name":"uploaded-v1337.2-node-v0.12.15-linux-x64"},{"name":"uploaded-v1337.2-node-v0.12.15-linux-x86"},{"name":"uploaded-v1337.2-node-v4.4.7-linux-x64"},{"name":"uploaded-v1337.2-node-v4.4.7-linux-x86"},{"name":"uploaded-v1337.2-node-v6.3.1-linux-x64"}]} uploaded-v1337.2-node-v6.3.1-linux-x86'
   ];
   assert.equal(actions.length, mustBe.length);
   for (let i = 0; i < actions.length; i += 1) {

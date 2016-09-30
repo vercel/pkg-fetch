@@ -1,6 +1,6 @@
 --- node/deps/v8/include/v8.h
 +++ node/deps/v8/include/v8.h
-@@ -4826,10 +4826,14 @@
+@@ -6608,10 +6608,14 @@
     */
    static void SetFlagsFromCommandLine(int* argc,
                                        char** argv,
@@ -14,10 +14,10 @@
    static const char* GetVersion();
  
    /** Callback function for reporting failed access checks.*/
-   static void SetFailedAccessCheckCallbackFunction(FailedAccessCheckCallback);
+   V8_INLINE static V8_DEPRECATED(
 --- node/deps/v8/src/api.cc
 +++ node/deps/v8/src/api.cc
-@@ -391,10 +391,44 @@
+@@ -632,10 +632,44 @@
  void V8::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags) {
    i::FlagList::SetFlagsFromCommandLine(argc, argv, remove_flags);
  }
@@ -48,11 +48,11 @@
 +
 +
 +void V8::FixSourcelessScript(Isolate* v8_isolate, Local<UnboundScript> script) {
-+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-+  i::Handle<i::HeapObject> object = i::Handle<i::HeapObject>::cast(Utils::OpenHandle(*script));
++  auto isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
++  auto object = i::Handle<i::HeapObject>::cast(Utils::OpenHandle(*script));
 +  i::Handle<i::SharedFunctionInfo> function_info(
 +    i::SharedFunctionInfo::cast(*object), object->GetIsolate());
-+  i::Script* s = reinterpret_cast<i::Script*>(function_info->script());
++  auto s = reinterpret_cast<i::Script*>(function_info->script());
 +  s->set_source(isolate->heap()->undefined_value());
 +}
 +
@@ -62,25 +62,71 @@
  
  RegisteredExtension::RegisteredExtension(Extension* extension)
      : extension_(extension) { }
---- node/deps/v8/src/parser.cc
-+++ node/deps/v8/src/parser.cc
-@@ -4838,10 +4838,11 @@
-   return !parser.failed();
+--- node/deps/v8/src/parsing/parser.cc
++++ node/deps/v8/src/parsing/parser.cc
+@@ -5241,10 +5241,11 @@
+   DCHECK(info->literal() == NULL);
+   FunctionLiteral* result = NULL;
+   // Ok to use Isolate here; this function is only called in the main thread.
+   DCHECK(parsing_on_main_thread_);
+   Isolate* isolate = info->isolate();
++  if (info->script()->source()->IsUndefined(isolate)) return false;
+   pre_parse_timer_ = isolate->counters()->pre_parse();
+   if (FLAG_trace_parse || allow_natives() || extension_ != NULL) {
+     // If intrinsics are allowed, the Parser cannot operate independent of the
+     // V8 heap because of Runtime. Tell the string table to internalize strings
+     // and values right after they're created.
+--- node/deps/v8/src/snapshot/code-serializer.cc
++++ node/deps/v8/src/snapshot/code-serializer.cc
+@@ -335,24 +335,36 @@
  }
  
+ SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
+     Isolate* isolate, uint32_t expected_source_hash) const {
+   uint32_t magic_number = GetMagicNumber();
+-  if (magic_number != ComputeMagicNumber(isolate)) return MAGIC_NUMBER_MISMATCH;
++  if (magic_number != ComputeMagicNumber(isolate)) {
++    base::OS::PrintError("Pkg: MAGIC_NUMBER_MISMATCH\n");
++    return MAGIC_NUMBER_MISMATCH;
++  }
+   uint32_t version_hash = GetHeaderValue(kVersionHashOffset);
+-  uint32_t source_hash = GetHeaderValue(kSourceHashOffset);
+   uint32_t cpu_features = GetHeaderValue(kCpuFeaturesOffset);
+   uint32_t flags_hash = GetHeaderValue(kFlagHashOffset);
+   uint32_t c1 = GetHeaderValue(kChecksum1Offset);
+   uint32_t c2 = GetHeaderValue(kChecksum2Offset);
+-  if (version_hash != Version::Hash()) return VERSION_MISMATCH;
+-  if (source_hash != expected_source_hash) return SOURCE_MISMATCH;
+-  if (cpu_features != static_cast<uint32_t>(CpuFeatures::SupportedFeatures())) {
++  if (version_hash != Version::Hash()) {
++    base::OS::PrintError("Pkg: VERSION_MISMATCH\n");
++    return VERSION_MISMATCH;
++  }
++  uint32_t host_features = static_cast<uint32_t>(CpuFeatures::SupportedFeatures());
++  if (cpu_features & (~host_features)) {
++    base::OS::PrintError("Pkg: CPU_FEATURES_MISMATCH\n");
+     return CPU_FEATURES_MISMATCH;
+   }
+-  if (flags_hash != FlagList::Hash()) return FLAGS_MISMATCH;
+-  if (!Checksum(DataWithoutHeader()).Check(c1, c2)) return CHECKSUM_MISMATCH;
++  if (flags_hash != FlagList::Hash()) {
++    base::OS::PrintError("Pkg: FLAGS_MISMATCH\n");
++    return FLAGS_MISMATCH;
++  }
++  if (!Checksum(DataWithoutHeader()).Check(c1, c2)) {
++    base::OS::PrintError("Pkg: CHECKSUM_MISMATCH\n");
++    return CHECKSUM_MISMATCH;
++  }
+   return CHECK_SUCCESS;
+ }
  
- bool Parser::Parse() {
-+  if (info()->script()->source()->IsUndefined()) return false;
-   DCHECK(info()->function() == NULL);
-   FunctionLiteral* result = NULL;
-   ast_value_factory_ = info()->ast_value_factory();
-   if (ast_value_factory_ == NULL) {
-     ast_value_factory_ =
+ uint32_t SerializedCodeData::SourceHash(Handle<String> source) {
+   return source->length();
 --- node/lib/child_process.js
 +++ node/lib/child_process.js
-@@ -579,11 +579,11 @@
-   options.stdio = options.silent ? ['pipe', 'pipe', 'pipe', 'ipc'] :
-       [0, 1, 2, 'ipc'];
+@@ -58,11 +58,11 @@
+     throw new TypeError('Forked processes must have an IPC channel');
+   }
  
    options.execPath = options.execPath || process.execPath;
  
@@ -91,82 +137,9 @@
  
  exports._forkChild = function(fd) {
    // set process.send()
---- node/node.gyp
-+++ node/node.gyp
-@@ -326,11 +326,10 @@
-           'dependencies': [ 'deps/uv/uv.gyp:libuv' ],
-         }],
- 
-         [ 'OS=="win"', {
-           'sources': [
--            'src/res/node.rc',
-           ],
-           'defines': [
-             'FD_SETSIZE=1024',
-             # we need to use node's preferred "win32" rather than gyp's preferred "win"
-             'PLATFORM="win32"',
---- node/src/env.h
-+++ node/src/env.h
-@@ -202,10 +202,11 @@
-   V(signal_string, "signal")                                                  \
-   V(size_string, "size")                                                      \
-   V(smalloc_p_string, "_smalloc_p")                                           \
-   V(sni_context_err_string, "Invalid SNI context")                            \
-   V(sni_context_string, "sni_context")                                        \
-+  V(sourceless_string, "sourceless")                                          \
-   V(speed_string, "speed")                                                    \
-   V(stack_string, "stack")                                                    \
-   V(status_code_string, "statusCode")                                         \
-   V(status_message_string, "statusMessage")                                   \
-   V(status_string, "status")                                                  \
---- node/src/node.cc
-+++ node/src/node.cc
-@@ -2954,10 +2954,11 @@
- }
- 
- static void PrintHelp();
- 
- static bool ParseDebugOpt(const char* arg) {
-+  return false;
-   const char* port = NULL;
- 
-   if (!strcmp(arg, "--debug")) {
-     use_debug_agent = true;
-   } else if (!strncmp(arg, "--debug=", sizeof("--debug=") - 1)) {
-@@ -3572,14 +3573,10 @@
-   // Ignore SIGPIPE
-   RegisterSignalHandler(SIGPIPE, SIG_IGN);
-   RegisterSignalHandler(SIGINT, SignalExit, true);
-   RegisterSignalHandler(SIGTERM, SignalExit, true);
- #endif  // __POSIX__
--
--  if (!use_debug_agent) {
--    RegisterDebugSignalHandler();
--  }
- }
- 
- 
- struct AtExitCallback {
-   AtExitCallback* next_;
-@@ -3758,15 +3755,10 @@
-   const char* replaceInvalid = getenv("NODE_INVALID_UTF8");
- 
-   if (replaceInvalid == NULL)
-     WRITE_UTF8_FLAGS |= String::REPLACE_INVALID_UTF8;
- 
--#if !defined(_WIN32)
--  // Try hard not to lose SIGUSR1 signals during the bootstrap process.
--  InstallEarlyDebugSignalHandler();
--#endif
--
-   assert(argc > 0);
- 
-   // Hack around with the argv pointer. Used for process.title = "blah".
-   argv = uv_setup_args(argc, argv);
- 
---- node/src/node.js
-+++ node/src/node.js
-@@ -65,10 +65,14 @@
+--- node/lib/internal/bootstrap_node.js
++++ node/lib/internal/bootstrap_node.js
+@@ -60,10 +60,14 @@
      // There are various modes that Node can run in. The most common two
      // are running from a script and running the REPL - but there are a few
      // others like the debugger or running --eval arguments. Here we decide
@@ -181,22 +154,137 @@
        // one to drop a file lib/_third_party_main.js into the build
        // directory which will be executed instead of Node's normal loading.
        process.nextTick(function() {
+--- node/lib/module.js
++++ node/lib/module.js
+@@ -6,12 +6,12 @@
+ const internalUtil = require('internal/util');
+ const vm = require('vm');
+ const assert = require('assert').ok;
+ const fs = require('fs');
+ const path = require('path');
+-const internalModuleReadFile = process.binding('fs').internalModuleReadFile;
+-const internalModuleStat = process.binding('fs').internalModuleStat;
++const internalModuleReadFile = require('fs').internalModuleReadFile;
++const internalModuleStat = require('fs').internalModuleStat;
+ const preserveSymlinks = !!process.binding('config').preserveSymlinks;
+ 
+ // If obj.hasOwnProperty has been overridden, then calling
+ // obj.hasOwnProperty(prop) will break.
+ // See: https://github.com/joyent/node/issues/1707
+--- node/node.gyp
++++ node/node.gyp
+@@ -492,11 +492,10 @@
+         }],
+ 
+         [ 'OS=="win"', {
+           'sources': [
+             'src/backtrace_win32.cc',
+-            'src/res/node.rc',
+           ],
+           'defines!': [
+             'NODE_PLATFORM="win"',
+           ],
+           'defines': [
+--- node/src/env.h
++++ node/src/env.h
+@@ -193,10 +193,11 @@
+   V(shell_string, "shell")                                                    \
+   V(signal_string, "signal")                                                  \
+   V(size_string, "size")                                                      \
+   V(sni_context_err_string, "Invalid SNI context")                            \
+   V(sni_context_string, "sni_context")                                        \
++  V(sourceless_string, "sourceless")                                          \
+   V(speed_string, "speed")                                                    \
+   V(stack_string, "stack")                                                    \
+   V(status_string, "status")                                                  \
+   V(stdio_string, "stdio")                                                    \
+   V(subject_string, "subject")                                                \
+--- node/src/node.cc
++++ node/src/node.cc
+@@ -3433,10 +3433,11 @@
+ 
+ 
+ static void PrintHelp();
+ 
+ static bool ParseDebugOpt(const char* arg) {
++  return false;
+   const char* port = nullptr;
+ 
+   if (!strcmp(arg, "--debug")) {
+     use_debug_agent = true;
+   } else if (!strncmp(arg, "--debug=", sizeof("--debug=") - 1)) {
+@@ -4101,15 +4102,10 @@
+ }
+ 
+ 
+ inline void PlatformInit() {
+ #ifdef __POSIX__
+-  sigset_t sigmask;
+-  sigemptyset(&sigmask);
+-  sigaddset(&sigmask, SIGUSR1);
+-  const int err = pthread_sigmask(SIG_SETMASK, &sigmask, nullptr);
+-
+   // Make sure file descriptors 0-2 are valid before we start logging anything.
+   for (int fd = STDIN_FILENO; fd <= STDERR_FILENO; fd += 1) {
+     struct stat ignored;
+     if (fstat(fd, &ignored) == 0)
+       continue;
+@@ -4119,12 +4115,10 @@
+       ABORT();
+     if (fd != open("/dev/null", O_RDWR))
+       ABORT();
+   }
+ 
+-  CHECK_EQ(err, 0);
+-
+   // Restore signal dispositions, the parent process may have changed them.
+   struct sigaction act;
+   memset(&act, 0, sizeof(act));
+ 
+   // The hard-coded upper limit is because NSIG is not very reliable; on Linux,
+@@ -4245,14 +4239,10 @@
+   // is to prevent memory pointers from being moved around that are returned by
+   // Buffer::Data().
+   const char no_typed_array_heap[] = "--typed_array_max_size_in_heap=0";
+   V8::SetFlagsFromString(no_typed_array_heap, sizeof(no_typed_array_heap) - 1);
+ 
+-  if (!use_debug_agent) {
+-    RegisterDebugSignalHandler();
+-  }
+-
+   // We should set node_is_initialized here instead of in node::Start,
+   // otherwise embedders using node::Init to initialize everything will not be
+   // able to set it and native modules will not load for them.
+   node_is_initialized = true;
+ }
 --- node/src/node_contextify.cc
 +++ node/src/node_contextify.cc
-@@ -487,10 +487,11 @@
-     Local<String> code = args[0]->ToString();
-     Local<String> filename = GetFilenameArg(args, 1);
-     bool display_errors = GetDisplayErrorsArg(args, 1);
-     Local<Value> cached_data_buf = GetCachedData(args, 1);
-     bool produce_cached_data = GetProduceCachedData(args, 1);
-+    bool sourceless = GetSourceless(args, 1);
+@@ -38,10 +38,11 @@
+ using v8::ScriptOrigin;
+ using v8::String;
+ using v8::TryCatch;
+ using v8::Uint8Array;
+ using v8::UnboundScript;
++using v8::V8;
+ using v8::Value;
+ using v8::WeakCallbackInfo;
+ 
+ 
+ class ContextifyContext {
+@@ -496,10 +497,11 @@
+     Local<Integer> lineOffset = GetLineOffsetArg(args, 1);
+     Local<Integer> columnOffset = GetColumnOffsetArg(args, 1);
+     bool display_errors = GetDisplayErrorsArg(env, args, 1);
+     MaybeLocal<Uint8Array> cached_data_buf = GetCachedData(env, args, 1);
+     bool produce_cached_data = GetProduceCachedData(env, args, 1);
++    bool sourceless = GetSourceless(env, args, 1);
      if (try_catch.HasCaught()) {
        try_catch.ReThrow();
        return;
      }
  
-@@ -509,22 +510,35 @@
-     if (source.GetCachedData() != NULL)
+@@ -520,22 +522,37 @@
+     if (source.GetCachedData() != nullptr)
        compile_options = ScriptCompiler::kConsumeCodeCache;
      else if (produce_cached_data)
        compile_options = ScriptCompiler::kProduceCodeCache;
@@ -205,7 +293,7 @@
 +      V8::EnableCompilationForSourcelessUse();
 +    }
 +
-     Local<UnboundScript> v8_script = ScriptCompiler::CompileUnbound(
+     MaybeLocal<UnboundScript> v8_script = ScriptCompiler::CompileUnboundScript(
          env->isolate(),
          &source,
          compile_options);
@@ -216,56 +304,59 @@
 +
      if (v8_script.IsEmpty()) {
        if (display_errors) {
-         AppendExceptionLine(env, try_catch.Exception(), try_catch.Message());
+         DecorateErrorStack(env, try_catch);
        }
        try_catch.ReThrow();
        return;
      }
 +
 +    if (sourceless && compile_options == ScriptCompiler::kConsumeCodeCache) {
-+      V8::FixSourcelessScript(env->isolate(), v8_script);
++      if (!source.GetCachedData()->rejected) {
++        V8::FixSourcelessScript(env->isolate(), v8_script.ToLocalChecked());
++      }
 +    }
 +
-     contextify_script->script_.Reset(env->isolate(), v8_script);
+     contextify_script->script_.Reset(env->isolate(),
+                                      v8_script.ToLocalChecked());
  
      if (compile_options == ScriptCompiler::kConsumeCodeCache) {
-       // no 'rejected' field in cachedData
-     } else if (compile_options == ScriptCompiler::kProduceCodeCache) {
-@@ -733,10 +747,23 @@
+       args.This()->Set(
+@@ -797,10 +814,24 @@
  
      return value->IsTrue();
    }
  
  
 +  static bool GetSourceless(
++      Environment* env,
 +      const FunctionCallbackInfo<Value>& args,
 +      const int i) {
 +    if (!args[i]->IsObject()) {
 +      return false;
 +    }
-+    Local<String> key = FIXED_ONE_BYTE_STRING(args.GetIsolate(), "sourceless");
-+    Local<Value> value = args[i].As<Object>()->Get(key);
++    Local<Value> value =
++        args[i].As<Object>()->Get(env->sourceless_string());
 +
 +    return value->IsTrue();
 +  }
 +
 +
-   static bool EvalMachine(Environment* env,
-                           const int64_t timeout,
-                           const bool display_errors,
-                           const FunctionCallbackInfo<Value>& args,
-                           TryCatch& try_catch) {
+   static Local<Integer> GetLineOffsetArg(
+                                       const FunctionCallbackInfo<Value>& args,
+                                       const int i) {
+     Local<Integer> defaultLineOffset = Integer::New(args.GetIsolate(), 0);
+ 
 --- node/src/node_javascript.cc
 +++ node/src/node_javascript.cc
-@@ -53,8 +53,59 @@
-                                                   String::kNormalString,
-                                                   natives[i].source_len);
+@@ -31,8 +31,59 @@
+               env->isolate(), reinterpret_cast<const char*>(native.source),
+               NewStringType::kNormal, native.source_len).ToLocalChecked();
        target->Set(name, source);
      }
    }
 +
-+  Local<String> name = String::NewFromUtf8(env->isolate(), "_pkg_bootstrap");
-+  Handle<String> source = String::NewFromUtf8(env->isolate(),
++  auto name = String::NewFromUtf8(env->isolate(), "_pkg_bootstrap");
++  auto source = String::NewFromUtf8(env->isolate(),
 +    "var fs = require('fs');\n" \
 +    "var vm = require('vm');\n" \
 +    "function readPayload (fd) {\n" \
@@ -319,10 +410,7 @@
  }  // namespace node
 --- node/src/node_main.cc
 +++ node/src/node_main.cc
-@@ -19,10 +19,280 @@
- // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
- // USE OR OTHER DEALINGS IN THE SOFTWARE.
- 
+@@ -1,7 +1,277 @@
  #include "node.h"
  
 +#include <string.h>
@@ -596,15 +684,15 @@
 +
 +
  #ifdef _WIN32
+ #include <VersionHelpers.h>
+ #include <WinError.h>
+ 
  int wmain(int argc, wchar_t *wargv[]) {
-   // Convert argv to to UTF8
-   char** argv = new char*[argc];
-   for (int i = 0; i < argc; i++) {
-@@ -55,13 +325,13 @@
-       fprintf(stderr, "Could not convert arguments to utf8.");
+@@ -44,17 +314,17 @@
        exit(1);
      }
    }
+   argv[argc] = nullptr;
    // Now that conversion is done, we can finally start.
 -  return node::Start(argc, argv);
 +  return reorder(argc, argv);
@@ -612,6 +700,10 @@
  #else
  // UNIX
  int main(int argc, char *argv[]) {
+   // Disable stdio buffering, it interacts poorly with printf()
+   // calls elsewhere in the program (e.g., any logging from V8.)
+   setvbuf(stdout, nullptr, _IONBF, 0);
+   setvbuf(stderr, nullptr, _IONBF, 0);
 -  return node::Start(argc, argv);
 +  return reorder(argc, argv);
  }
