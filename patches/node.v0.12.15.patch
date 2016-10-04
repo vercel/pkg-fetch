@@ -96,6 +96,21 @@
    ast_value_factory_ = info()->ast_value_factory();
    if (ast_value_factory_ == NULL) {
      ast_value_factory_ =
+--- node/deps/v8/src/serialize.cc
++++ node/deps/v8/src/serialize.cc
+@@ -2167,11 +2167,11 @@
+             payload->begin(), static_cast<size_t>(payload->length()));
+ }
+ 
+ 
+ bool SerializedCodeData::IsSane(String* source) {
+-  return GetHeaderValue(kCheckSumOffset) == CheckSum(source) &&
++  return true &&
+          PayloadLength() >= SharedFunctionInfo::kSize;
+ }
+ 
+ 
+ int SerializedCodeData::CheckSum(String* string) {
 --- node/lib/child_process.js
 +++ node/lib/child_process.js
 @@ -579,11 +579,11 @@
