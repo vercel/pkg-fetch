@@ -430,7 +430,7 @@
  }  // namespace node
 --- node/src/node_main.cc
 +++ node/src/node_main.cc
-@@ -1,7 +1,277 @@
+@@ -1,7 +1,282 @@
  #include "node.h"
  
 +#include <string.h>
@@ -585,9 +585,14 @@
 +#endif
 +
 +
-+char* ReadOverlays(const char* filename) {
++char* ReadOverlays(const void* filename) {
 +
-+  FILE* file = fopen(filename, "rb");
++#ifdef _WIN32
++  FILE* file = _wfopen((wchar_t*) filename, L"rb");
++#else
++  FILE* file = fopen((char*) filename, "rb");
++#endif
++
 +  if (!file) {
 +    fprintf(stderr, "Pkg: Error opening file.\n");
 +    exit(1);
@@ -657,7 +662,7 @@
 +}
 +
 +
-+int reorder(int argc, char** argv) {
++int reorder(int argc, char** argv, void* wargv0) {
 +  int i;
 +  int runtime_pos = argc;
 +  for (i = 1; i < argc; i++) {
@@ -674,7 +679,7 @@
 +    }
 +  }
 +  char** nargv = new char*[argc + 64];
-+  char* bakery = ReadOverlays(argv[0]);
++  char* bakery = ReadOverlays(wargv0);
 +  int c = 0;
 +  nargv[c++] = argv[0];
 +  if (bakery) {
@@ -708,14 +713,14 @@
  
  int wmain(int argc, wchar_t *wargv[]) {
    if (!IsWindows7OrGreater()) {
-@@ -43,17 +313,17 @@
+@@ -43,17 +318,17 @@
        exit(1);
      }
    }
    argv[argc] = nullptr;
    // Now that conversion is done, we can finally start.
 -  return node::Start(argc, argv);
-+  return reorder(argc, argv);
++  return reorder(argc, argv, wargv[0]);
  }
  #else
  // UNIX
@@ -725,6 +730,6 @@
    setvbuf(stdout, nullptr, _IONBF, 0);
    setvbuf(stderr, nullptr, _IONBF, 0);
 -  return node::Start(argc, argv);
-+  return reorder(argc, argv);
++  return reorder(argc, argv, argv[0]);
  }
  #endif
