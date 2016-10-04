@@ -98,8 +98,7 @@ require('../lib/github.js').uploadAsset = function (local, release, name) {
 test(async () => {
   if (process.platform !== 'linux' ||
       process.arch !== 'x64') {
-    console.log('RUN THE TEST ONLY ON LINUX-X64');
-    return;
+    throw new Error('RUN THE TEST ONLY ON LINUX-X64');
   }
 
   const { main } = require('../lib/upload.js');
