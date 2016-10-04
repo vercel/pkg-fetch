@@ -17,7 +17,7 @@
    static void SetFailedAccessCheckCallbackFunction(FailedAccessCheckCallback);
 --- node/deps/v8/src/api.cc
 +++ node/deps/v8/src/api.cc
-@@ -391,10 +391,44 @@
+@@ -391,10 +391,46 @@
  void V8::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags) {
    i::FlagList::SetFlagsFromCommandLine(argc, argv, remove_flags);
  }
@@ -35,6 +35,7 @@
 +  i::FLAG_predictable = true;
 +  save_serialize_toplevel = i::FLAG_serialize_toplevel;
 +  i::FLAG_serialize_toplevel = true;
++  i::CpuFeatures::Reinitialize();
 +  i::CpuFeatures::Probe(true);
 +}
 +
@@ -43,6 +44,7 @@
 +  i::FLAG_lazy = save_lazy;
 +  i::FLAG_predictable = save_predictable;
 +  i::FLAG_serialize_toplevel = save_serialize_toplevel;
++  i::CpuFeatures::Reinitialize();
 +  i::CpuFeatures::Probe(false);
 +}
 +
@@ -62,6 +64,24 @@
  
  RegisteredExtension::RegisteredExtension(Extension* extension)
      : extension_(extension) { }
+--- node/deps/v8/src/assembler.h
++++ node/deps/v8/src/assembler.h
+@@ -196,10 +196,15 @@
+   static void PrintFeatures();
+ 
+   // Flush instruction cache.
+   static void FlushICache(void* start, size_t size);
+ 
++  static void Reinitialize() {
++    supported_ = 0;
++    initialized_ = false;
++  }
++
+  private:
+   // Platform-dependent implementation.
+   static void ProbeImpl(bool cross_compile);
+ 
+   static unsigned supported_;
 --- node/deps/v8/src/parser.cc
 +++ node/deps/v8/src/parser.cc
 @@ -4838,10 +4838,11 @@
