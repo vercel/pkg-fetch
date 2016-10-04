@@ -367,7 +367,7 @@
 +      Section += 0x28;
 +    }
 +
-+    return (MaxEnd / BOUNDARY) * BOUNDARY;
++    return MaxEnd;
 +
 +  } else
 +  if ((read32(buffer, 0) == 0xfeedface) || // MH_MAGIC
@@ -397,7 +397,7 @@
 +      Command += cmdsize;
 +    }
 +
-+    return (MaxEnd / BOUNDARY) * BOUNDARY;
++    return MaxEnd;
 +
 +  } else
 +  if (read32(buffer, 0) == 0x464c457f) { // ELF
@@ -424,7 +424,7 @@
 +      SectionHeader += e_shentsize;
 +    }
 +
-+    return (MaxEnd / BOUNDARY) * BOUNDARY;
++    return MaxEnd;
 +
 +  }
 +
@@ -486,7 +486,7 @@
 +  }
 +
 +  char env[64];
-+  int position = FindMeatEnd(file); int size;
++  int position = (FindMeatEnd(file) / BOUNDARY) * BOUNDARY; int size;
 +  char* bakery = NULL;
 +
 +  if (GetSentryPosition(file, position, 0x4818c4df,
