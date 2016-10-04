@@ -63,6 +63,10 @@ require('../lib/spawn.js').spawn = function (cmd, args, opts) {
 require('../lib/spawn.js').progress = function () {
 };
 
+require('../lib/verify.js').verify = function () {
+  actions.push('verify');
+};
+
 require('../lib/copy-file.js').copyFile = function (src, dest) {
   src = relative(src);
   const shortDest = path.basename(path.dirname(dest)) + '/' + path.basename(dest);
@@ -126,6 +130,8 @@ test(async () => {
     './configure --dest-cpu x64 {"cwd":"../temp/node"}',
     'make  {"cwd":"../temp/node"}',
     'copyFile ../temp/node/out/Release/node v1337.2/built-v0.12.15-linux-x64',
+    '> Verifying built-v0.12.15-linux-x64...',
+    'verify',
     '> Uploading built-v0.12.15-linux-x64...',
     'getRelease v1337.2',
     'getReleaseDraft v1337.2',
@@ -156,6 +162,8 @@ test(async () => {
     './configure --dest-cpu ia32 {"cwd":"../temp/node"}',
     'make  {"cwd":"../temp/node"}',
     'copyFile ../temp/node/out/Release/node v1337.2/built-v0.12.15-linux-x86',
+    '> Verifying built-v0.12.15-linux-x86...',
+    'verify',
     '> Uploading built-v0.12.15-linux-x86...',
     'getRelease v1337.2',
     'getReleaseDraft v1337.2',
@@ -173,6 +181,8 @@ test(async () => {
     './configure --dest-cpu x64 {"cwd":"../temp/node"}',
     'make  {"cwd":"../temp/node"}',
     'copyFile ../temp/node/out/Release/node v1337.2/built-v4.4.7-linux-x64',
+    '> Verifying built-v4.4.7-linux-x64...',
+    'verify',
     '> Uploading built-v4.4.7-linux-x64...',
     'getRelease v1337.2',
     'getReleaseDraft v1337.2',
@@ -190,6 +200,8 @@ test(async () => {
     './configure --dest-cpu ia32 {"cwd":"../temp/node"}',
     'make  {"cwd":"../temp/node"}',
     'copyFile ../temp/node/out/Release/node v1337.2/built-v4.4.7-linux-x86',
+    '> Verifying built-v4.4.7-linux-x86...',
+    'verify',
     '> Uploading built-v4.4.7-linux-x86...',
     'getRelease v1337.2',
     'getReleaseDraft v1337.2',
@@ -206,6 +218,8 @@ test(async () => {
     './configure --dest-cpu x64 {"cwd":"../temp/node"}',
     'make  {"cwd":"../temp/node"}',
     'copyFile ../temp/node/out/Release/node v1337.2/built-v6.3.1-linux-x64',
+    '> Verifying built-v6.3.1-linux-x64...',
+    'verify',
     '> Uploading built-v6.3.1-linux-x64...',
     'getRelease v1337.2',
     'getReleaseDraft v1337.2',
@@ -222,14 +236,16 @@ test(async () => {
     './configure --dest-cpu ia32 {"cwd":"../temp/node"}',
     'make  {"cwd":"../temp/node"}',
     'copyFile ../temp/node/out/Release/node v1337.2/built-v6.3.1-linux-x86',
+    '> Verifying built-v6.3.1-linux-x86...',
+    'verify',
     '> Uploading built-v6.3.1-linux-x86...',
     'getRelease v1337.2',
     'getReleaseDraft v1337.2',
     'createRelease v1337.2',
     'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[{"name":"uploaded-v1337.2-node-v0.12.15-linux-x64"},{"name":"uploaded-v1337.2-node-v0.12.15-linux-x86"},{"name":"uploaded-v1337.2-node-v4.4.7-linux-x64"},{"name":"uploaded-v1337.2-node-v4.4.7-linux-x86"},{"name":"uploaded-v1337.2-node-v6.3.1-linux-x64"}]} uploaded-v1337.2-node-v6.3.1-linux-x86'
   ];
-  assert.equal(actions.length, mustBe.length);
   for (let i = 0; i < actions.length; i += 1) {
     assert.equal(actions[i], mustBe[i]);
   }
+  assert.equal(actions.length, mustBe.length);
 });
