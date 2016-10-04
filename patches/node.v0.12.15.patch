@@ -354,13 +354,14 @@
  }  // namespace node
 --- node/src/node_main.cc
 +++ node/src/node_main.cc
-@@ -19,10 +19,280 @@
+@@ -19,10 +19,298 @@
  // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  // USE OR OTHER DEALINGS IN THE SOFTWARE.
  
  #include "node.h"
  
 +#include <string.h>
++#include "uv.h"
 +
 +#define BOUNDARY 4096
 +
@@ -512,9 +513,26 @@
 +#endif
 +
 +
-+char* ReadOverlays(const char* filename) {
++char* ReadOverlays() {
 +
-+  FILE* file = fopen(filename, "rb");
++  char exepath[1024];
++  size_t exepath_size = sizeof(exepath);
++  if (uv_exepath(exepath, &exepath_size)) {
++    fprintf(stderr, "Pkg: Error obtaining exepath.\n");
++    exit(1);
++  }
++
++  FILE* file;
++#ifdef _WIN32
++  WCHAR exepath_w[2048];
++  if (!MultiByteToWideChar(CP_UTF8, 0, exepath, -1, exepath_w, sizeof(exepath_w))) {
++    fprintf(stderr, "Pkg: Error converting to WideChar.\n");
++    exit(1);
++  }
++  file = _wfopen(exepath_w, L"rb");
++#else
++  file = fopen(exepath, "rb");
++#endif
 +  if (!file) {
 +    fprintf(stderr, "Pkg: Error opening file.\n");
 +    exit(1);
@@ -601,7 +619,7 @@
 +    }
 +  }
 +  char** nargv = new char*[argc + 64];
-+  char* bakery = ReadOverlays(argv[0]);
++  char* bakery = ReadOverlays();
 +  int c = 0;
 +  nargv[c++] = argv[0];
 +  if (bakery) {
@@ -635,7 +653,7 @@
    // Convert argv to to UTF8
    char** argv = new char*[argc];
    for (int i = 0; i < argc; i++) {
-@@ -55,13 +325,13 @@
+@@ -55,13 +343,13 @@
        fprintf(stderr, "Could not convert arguments to utf8.");
        exit(1);
      }

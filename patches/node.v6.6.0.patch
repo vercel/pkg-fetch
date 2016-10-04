@@ -430,10 +430,11 @@
  }  // namespace node
 --- node/src/node_main.cc
 +++ node/src/node_main.cc
-@@ -1,7 +1,277 @@
+@@ -1,7 +1,295 @@
  #include "node.h"
  
 +#include <string.h>
++#include "uv.h"
 +
 +#define BOUNDARY 4096
 +
@@ -585,9 +586,26 @@
 +#endif
 +
 +
-+char* ReadOverlays(const char* filename) {
++char* ReadOverlays() {
 +
-+  FILE* file = fopen(filename, "rb");
++  char exepath[1024];
++  size_t exepath_size = sizeof(exepath);
++  if (uv_exepath(exepath, &exepath_size)) {
++    fprintf(stderr, "Pkg: Error obtaining exepath.\n");
++    exit(1);
++  }
++
++  FILE* file;
++#ifdef _WIN32
++  WCHAR exepath_w[2048];
++  if (!MultiByteToWideChar(CP_UTF8, 0, exepath, -1, exepath_w, sizeof(exepath_w))) {
++    fprintf(stderr, "Pkg: Error converting to WideChar.\n");
++    exit(1);
++  }
++  file = _wfopen(exepath_w, L"rb");
++#else
++  file = fopen(exepath, "rb");
++#endif
 +  if (!file) {
 +    fprintf(stderr, "Pkg: Error opening file.\n");
 +    exit(1);
@@ -674,7 +692,7 @@
 +    }
 +  }
 +  char** nargv = new char*[argc + 64];
-+  char* bakery = ReadOverlays(argv[0]);
++  char* bakery = ReadOverlays();
 +  int c = 0;
 +  nargv[c++] = argv[0];
 +  if (bakery) {
@@ -708,7 +726,7 @@
  
  int wmain(int argc, wchar_t *wargv[]) {
    if (!IsWindows7OrGreater()) {
-@@ -43,17 +313,17 @@
+@@ -43,17 +331,17 @@
        exit(1);
      }
    }
