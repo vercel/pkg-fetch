@@ -1,4 +1,8 @@
+# build output
 /lib-es5
+
+# dependencies
 /node_modules
+
+# logs
 npm-debug.log
-*.*~
