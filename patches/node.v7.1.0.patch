@@ -84,7 +84,7 @@
    static void FlushICache(void* start, size_t size);
 --- node/deps/v8/src/parsing/parser.cc
 +++ node/deps/v8/src/parsing/parser.cc
-@@ -5241,10 +5241,11 @@
+@@ -5237,10 +5237,11 @@
    DCHECK(info->literal() == NULL);
    FunctionLiteral* result = NULL;
    // Ok to use Isolate here; this function is only called in the main thread.
@@ -159,7 +159,7 @@
    // set process.send()
 --- node/lib/internal/bootstrap_node.js
 +++ node/lib/internal/bootstrap_node.js
-@@ -60,10 +60,14 @@
+@@ -62,10 +62,14 @@
      // There are various modes that Node can run in. The most common two
      // are running from a script and running the REPL - but there are a few
      // others like the debugger or running --eval arguments. Here we decide
@@ -176,8 +176,8 @@
        process.nextTick(function() {
 --- node/lib/module.js
 +++ node/lib/module.js
-@@ -6,12 +6,12 @@
- const internalUtil = require('internal/util');
+@@ -5,12 +5,12 @@
+ const internalModule = require('internal/module');
  const vm = require('vm');
  const assert = require('assert').ok;
  const fs = require('fs');
@@ -193,7 +193,7 @@
  // See: https://github.com/joyent/node/issues/1707
 --- node/node.gyp
 +++ node/node.gyp
-@@ -492,11 +492,10 @@
+@@ -494,11 +494,10 @@
          }],
  
          [ 'OS=="win"', {
@@ -207,7 +207,7 @@
            'defines': [
 --- node/src/env.h
 +++ node/src/env.h
-@@ -193,10 +193,11 @@
+@@ -192,10 +192,11 @@
    V(shell_string, "shell")                                                    \
    V(signal_string, "signal")                                                  \
    V(size_string, "size")                                                      \
@@ -221,7 +221,7 @@
    V(subject_string, "subject")                                                \
 --- node/src/node.cc
 +++ node/src/node.cc
-@@ -3433,10 +3433,11 @@
+@@ -3439,10 +3439,11 @@
  
  
  static void PrintHelp();
@@ -233,7 +233,7 @@
    if (!strcmp(arg, "--debug")) {
      use_debug_agent = true;
    } else if (!strncmp(arg, "--debug=", sizeof("--debug=") - 1)) {
-@@ -4101,15 +4102,10 @@
+@@ -4111,15 +4112,10 @@
  }
  
  
@@ -249,7 +249,7 @@
      struct stat ignored;
      if (fstat(fd, &ignored) == 0)
        continue;
-@@ -4119,12 +4115,10 @@
+@@ -4129,12 +4125,10 @@
        ABORT();
      if (fd != open("/dev/null", O_RDWR))
        ABORT();
@@ -262,7 +262,7 @@
    memset(&act, 0, sizeof(act));
  
    // The hard-coded upper limit is because NSIG is not very reliable; on Linux,
-@@ -4245,14 +4239,10 @@
+@@ -4268,14 +4262,10 @@
    // is to prevent memory pointers from being moved around that are returned by
    // Buffer::Data().
    const char no_typed_array_heap[] = "--typed_array_max_size_in_heap=0";
@@ -292,12 +292,12 @@
  
  class ContextifyContext {
 @@ -496,10 +497,11 @@
-     Local<Integer> lineOffset = GetLineOffsetArg(args, 1);
-     Local<Integer> columnOffset = GetColumnOffsetArg(args, 1);
-     bool display_errors = GetDisplayErrorsArg(env, args, 1);
-     MaybeLocal<Uint8Array> cached_data_buf = GetCachedData(env, args, 1);
-     bool produce_cached_data = GetProduceCachedData(env, args, 1);
-+    bool sourceless = GetSourceless(env, args, 1);
+     Local<Integer> lineOffset = GetLineOffsetArg(env, options);
+     Local<Integer> columnOffset = GetColumnOffsetArg(env, options);
+     bool display_errors = GetDisplayErrorsArg(env, options);
+     MaybeLocal<Uint8Array> cached_data_buf = GetCachedData(env, options);
+     bool produce_cached_data = GetProduceCachedData(env, options);
++    bool sourceless = GetSourceless(env, options);
      if (try_catch.HasCaught()) {
        try_catch.ReThrow();
        return;
@@ -341,42 +341,40 @@
  
      if (compile_options == ScriptCompiler::kConsumeCodeCache) {
        args.This()->Set(
-@@ -797,10 +814,24 @@
+@@ -782,10 +799,21 @@
  
      return value->IsTrue();
    }
  
  
-+  static bool GetSourceless(
-+      Environment* env,
-+      const FunctionCallbackInfo<Value>& args,
-+      const int i) {
-+    if (!args[i]->IsObject()) {
++  static bool GetSourceless(Environment* env, Local<Value> options) {
++    if (!options->IsObject()) {
 +      return false;
 +    }
 +    Local<Value> value =
-+        args[i].As<Object>()->Get(env->sourceless_string());
++        options.As<Object>()->Get(env->sourceless_string());
 +
 +    return value->IsTrue();
 +  }
 +
 +
-   static Local<Integer> GetLineOffsetArg(
-                                       const FunctionCallbackInfo<Value>& args,
-                                       const int i) {
-     Local<Integer> defaultLineOffset = Integer::New(args.GetIsolate(), 0);
+   static Local<Integer> GetLineOffsetArg(Environment* env,
+                                          Local<Value> options) {
+     Local<Integer> defaultLineOffset = Integer::New(env->isolate(), 0);
  
+     if (!options->IsObject()) {
 --- node/src/node_javascript.cc
 +++ node/src/node_javascript.cc
-@@ -31,8 +31,59 @@
-               env->isolate(), reinterpret_cast<const char*>(native.source),
-               NewStringType::kNormal, native.source_len).ToLocalChecked();
-       target->Set(name, source);
-     }
-   }
+@@ -44,8 +44,59 @@
+             env->isolate(), &id##_external_data).ToLocalChecked();            \
+     CHECK(target->Set(context, key, value).FromJust());                       \
+   } while (0);
+   NODE_NATIVES_MAP(V)
+ #undef V
 +
-+  auto name = String::NewFromUtf8(env->isolate(), "_pkg_bootstrap");
-+  auto source = String::NewFromUtf8(env->isolate(),
++  auto key = String::NewFromOneByte(env->isolate(), reinterpret_cast<const uint8_t*>(
++    "_pkg_bootstrap"), NewStringType::kNormal, -1).ToLocalChecked();
++  auto value = String::NewFromOneByte(env->isolate(), reinterpret_cast<const uint8_t*>(
 +    "var fs = require('fs');\n" \
 +    "var vm = require('vm');\n" \
 +    "function readPayload (fd) {\n" \
@@ -422,9 +420,8 @@
 +    "    fs.internalModuleStat =     bindingFs.internalModuleStat;\n" \
 +    "    fs.internalModuleReadFile = bindingFs.internalModuleReadFile;\n" \
 +    "  }\n" \
-+    "}())\n"
-+  );
-+  target->Set(name, source);
++    "}())\n"), NewStringType::kNormal, -1).ToLocalChecked();
++  CHECK(target->Set(context, key, value).FromJust());
  }
  
  }  // namespace node

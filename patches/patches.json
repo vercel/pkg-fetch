@@ -28,11 +28,8 @@
   "v6.6.0": [
     "node.v6.6.0.patch"
   ],
-  "v7.0.0": {
-    "commit": "0c6455278da681d20fa8297f4a1c301cb78506f5",
-    "patches": [
-      "node.v7.0.0.patch",
-      "ignition.patch"
-    ]
+  "v7.1.0": {
+    "node.v7.1.0.patch",
+    "ignition.patch"
   }
 }
