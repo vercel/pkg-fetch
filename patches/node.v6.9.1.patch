@@ -84,7 +84,7 @@
    static void FlushICache(void* start, size_t size);
 --- node/deps/v8/src/parsing/parser.cc
 +++ node/deps/v8/src/parsing/parser.cc
-@@ -5054,10 +5054,11 @@
+@@ -5060,10 +5060,11 @@
    return false;
  }
  
@@ -193,7 +193,7 @@
  // See: https://github.com/joyent/node/issues/1707
 --- node/node.gyp
 +++ node/node.gyp
-@@ -491,11 +491,10 @@
+@@ -492,11 +492,10 @@
          }],
  
          [ 'OS=="win"', {
@@ -221,7 +221,7 @@
    V(subject_string, "subject")                                                \
 --- node/src/node.cc
 +++ node/src/node.cc
-@@ -3516,10 +3516,11 @@
+@@ -3524,10 +3524,11 @@
  
  
  static void PrintHelp();
@@ -233,7 +233,7 @@
    if (!strcmp(arg, "--debug")) {
      use_debug_agent = true;
    } else if (!strncmp(arg, "--debug=", sizeof("--debug=") - 1)) {
-@@ -4186,15 +4187,10 @@
+@@ -4198,15 +4199,10 @@
  }
  
  
@@ -249,7 +249,7 @@
      struct stat ignored;
      if (fstat(fd, &ignored) == 0)
        continue;
-@@ -4204,12 +4200,10 @@
+@@ -4216,12 +4212,10 @@
        ABORT();
      if (fd != open("/dev/null", O_RDWR))
        ABORT();
@@ -262,7 +262,7 @@
    memset(&act, 0, sizeof(act));
  
    // The hard-coded upper limit is because NSIG is not very reliable; on Linux,
-@@ -4330,14 +4324,10 @@
+@@ -4342,14 +4336,10 @@
    // is to prevent memory pointers from being moved around that are returned by
    // Buffer::Data().
    const char no_typed_array_heap[] = "--typed_array_max_size_in_heap=0";
@@ -291,19 +291,19 @@
  
  
  class ContextifyContext {
-@@ -489,10 +490,11 @@
-     Local<Integer> lineOffset = GetLineOffsetArg(args, 1);
-     Local<Integer> columnOffset = GetColumnOffsetArg(args, 1);
-     bool display_errors = GetDisplayErrorsArg(env, args, 1);
-     MaybeLocal<Uint8Array> cached_data_buf = GetCachedData(env, args, 1);
-     bool produce_cached_data = GetProduceCachedData(env, args, 1);
-+    bool sourceless = GetSourceless(env, args, 1);
+@@ -498,10 +499,11 @@
+     Local<Integer> lineOffset = GetLineOffsetArg(env, options);
+     Local<Integer> columnOffset = GetColumnOffsetArg(env, options);
+     bool display_errors = GetDisplayErrorsArg(env, options);
+     MaybeLocal<Uint8Array> cached_data_buf = GetCachedData(env, options);
+     bool produce_cached_data = GetProduceCachedData(env, options);
++    bool sourceless = GetSourceless(env, options);
      if (try_catch.HasCaught()) {
        try_catch.ReThrow();
        return;
      }
  
-@@ -513,22 +515,37 @@
+@@ -522,22 +524,37 @@
      if (source.GetCachedData() != nullptr)
        compile_options = ScriptCompiler::kConsumeCodeCache;
      else if (produce_cached_data)
@@ -341,41 +341,39 @@
  
      if (compile_options == ScriptCompiler::kConsumeCodeCache) {
        args.This()->Set(
-@@ -790,10 +807,24 @@
+@@ -784,10 +801,21 @@
  
      return value->IsTrue();
    }
  
  
-+  static bool GetSourceless(
-+      Environment* env,
-+      const FunctionCallbackInfo<Value>& args,
-+      const int i) {
-+    if (!args[i]->IsObject()) {
++  static bool GetSourceless(Environment* env, Local<Value> options) {
++    if (!options->IsObject()) {
 +      return false;
 +    }
 +    Local<Value> value =
-+        args[i].As<Object>()->Get(env->sourceless_string());
++        options.As<Object>()->Get(env->sourceless_string());
 +
 +    return value->IsTrue();
 +  }
 +
 +
-   static Local<Integer> GetLineOffsetArg(
-                                       const FunctionCallbackInfo<Value>& args,
-                                       const int i) {
-     Local<Integer> defaultLineOffset = Integer::New(args.GetIsolate(), 0);
+   static Local<Integer> GetLineOffsetArg(Environment* env,
+                                          Local<Value> options) {
+     Local<Integer> defaultLineOffset = Integer::New(env->isolate(), 0);
  
+     if (!options->IsObject()) {
 --- node/src/node_javascript.cc
 +++ node/src/node_javascript.cc
-@@ -31,8 +31,59 @@
+@@ -31,8 +31,60 @@
                env->isolate(), reinterpret_cast<const char*>(native.source),
                NewStringType::kNormal, native.source_len).ToLocalChecked();
        target->Set(name, source);
      }
    }
 +
-+  auto name = String::NewFromUtf8(env->isolate(), "_pkg_bootstrap");
++  auto name = String::NewFromUtf8(env->isolate(),
++    "_pkg_bootstrap");
 +  auto source = String::NewFromUtf8(env->isolate(),
 +    "var fs = require('fs');\n" \
 +    "var vm = require('vm');\n" \
