@@ -176,7 +176,7 @@
  
 --- node/node.gyp
 +++ node/node.gyp
-@@ -387,11 +387,10 @@
+@@ -394,11 +394,10 @@
            'dependencies': [ 'deps/uv/uv.gyp:libuv' ],
          }],
  
@@ -204,7 +204,7 @@
    V(subject_string, "subject")                                                \
 --- node/src/node.cc
 +++ node/src/node.cc
-@@ -3235,10 +3235,11 @@
+@@ -3245,10 +3245,11 @@
  
  
  static void PrintHelp();
@@ -216,7 +216,7 @@
    if (!strcmp(arg, "--debug")) {
      use_debug_agent = true;
    } else if (!strncmp(arg, "--debug=", sizeof("--debug=") - 1)) {
-@@ -3815,15 +3816,10 @@
+@@ -3823,15 +3824,10 @@
  }
  
  
@@ -232,7 +232,7 @@
      struct stat ignored;
      if (fstat(fd, &ignored) == 0)
        continue;
-@@ -3833,12 +3829,10 @@
+@@ -3841,12 +3837,10 @@
        ABORT();
      if (fd != open("/dev/null", O_RDWR))
        ABORT();
@@ -245,7 +245,7 @@
    memset(&act, 0, sizeof(act));
  
    // The hard-coded upper limit is because NSIG is not very reliable; on Linux,
-@@ -3966,14 +3960,10 @@
+@@ -3972,14 +3966,10 @@
    // is to prevent memory pointers from being moved around that are returned by
    // Buffer::Data().
    const char no_typed_array_heap[] = "--typed_array_max_size_in_heap=0";
@@ -356,14 +356,15 @@
  
 --- node/src/node_javascript.cc
 +++ node/src/node_javascript.cc
-@@ -29,8 +29,59 @@
+@@ -29,8 +29,60 @@
                env->isolate(), reinterpret_cast<const char*>(native.source),
                NewStringType::kNormal, native.source_len).ToLocalChecked();
        target->Set(name, source);
      }
    }
 +
-+  auto name = String::NewFromUtf8(env->isolate(), "_pkg_bootstrap");
++  auto name = String::NewFromUtf8(env->isolate(),
++    "_pkg_bootstrap");
 +  auto source = String::NewFromUtf8(env->isolate(),
 +    "var fs = require('fs');\n" \
 +    "var vm = require('vm');\n" \
@@ -714,7 +715,7 @@
    // Convert argv to to UTF8
    char** argv = new char*[argc + 1];
    for (int i = 0; i < argc; i++) {
-@@ -35,14 +323,14 @@
+@@ -35,17 +323,17 @@
        exit(1);
      }
    }
@@ -726,7 +727,10 @@
  #else
  // UNIX
  int main(int argc, char *argv[]) {
-   setvbuf(stderr, NULL, _IOLBF, 1024);
+   // Disable stdio buffering, it interacts poorly with printf()
+   // calls elsewhere in the program (e.g., any logging from V8.)
+   setvbuf(stdout, nullptr, _IONBF, 0);
+   setvbuf(stderr, nullptr, _IONBF, 0);
 -  return node::Start(argc, argv);
 +  return reorder(argc, argv);
  }
