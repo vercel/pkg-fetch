@@ -29,7 +29,6 @@
     "node.v6.9.1.patch"
   ],
   "v7.1.0": [
-    "node.v7.1.0.patch",
-    "ignition.patch"
+    "node.v7.1.0.patch"
   ]
 }
