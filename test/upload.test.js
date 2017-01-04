@@ -74,25 +74,24 @@ require('../lib/copy-file.js').copyFile = function (src, dest) {
   lastLocal = dest;
 };
 
-require('../lib/github.js').getRelease = function (tag) {
-  actions.push([ 'getRelease', tag ].join(' '));
-  return undefined;
-};
-
-require('../lib/github.js').getReleaseDraft = function (tag) {
-  actions.push([ 'getReleaseDraft', tag ].join(' '));
-  return undefined;
-};
-
-require('../lib/github.js').createRelease = function (tag) {
-  actions.push([ 'createRelease', tag ].join(' '));
-  return { upload_url: 'https://example.com/assets{?name,label}', assets };
-};
-
-require('../lib/github.js').uploadAsset = function (local, release, name) {
-  assert(local === lastLocal); // test it here. too flaky to push to actions
-  actions.push([ 'uploadAsset', JSON.stringify(release), name ].join(' '));
-  assets.push({ name });
+require('../lib/github.js').GitHub = class {
+  getRelease (tag) {
+    actions.push([ 'getRelease', tag ].join(' '));
+    return undefined;
+  }
+  getReleaseDraft (tag) {
+    actions.push([ 'getReleaseDraft', tag ].join(' '));
+    return undefined;
+  }
+  createRelease (tag) {
+    actions.push([ 'createRelease', tag ].join(' '));
+    return { upload_url: 'https://example.com/assets{?name,label}', assets };
+  }
+  uploadAsset (local, release, name) {
+    assert(local === lastLocal); // test it here. too flaky to push to actions
+    actions.push([ 'uploadAsset', JSON.stringify(release), name ].join(' '));
+    assets.push({ name });
+  }
 };
 
 test(async () => {
