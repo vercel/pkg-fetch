@@ -25,8 +25,8 @@
     "backport.PR5343.for.N4.patch",
     "node.v4.6.2.patch"
   ],
-  "v6.9.1": [
-    "node.v6.9.1.patch"
+  "v6.10.0": [
+    "node.v6.10.0.patch"
   ],
   "v7.6.0": [
     "node.v7.6.0.patch"

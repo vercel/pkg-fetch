@@ -84,7 +84,7 @@
    static void FlushICache(void* start, size_t size);
 --- node/deps/v8/src/parsing/parser.cc
 +++ node/deps/v8/src/parsing/parser.cc
-@@ -5060,10 +5060,11 @@
+@@ -5058,10 +5058,11 @@
    return false;
  }
  
@@ -207,7 +207,7 @@
            'defines': [
 --- node/src/env.h
 +++ node/src/env.h
-@@ -193,10 +193,11 @@
+@@ -195,10 +195,11 @@
    V(shell_string, "shell")                                                    \
    V(signal_string, "signal")                                                  \
    V(size_string, "size")                                                      \
@@ -221,7 +221,7 @@
    V(subject_string, "subject")                                                \
 --- node/src/node.cc
 +++ node/src/node.cc
-@@ -3524,10 +3524,11 @@
+@@ -3560,10 +3560,11 @@
  
  
  static void PrintHelp();
@@ -233,7 +233,7 @@
    if (!strcmp(arg, "--debug")) {
      use_debug_agent = true;
    } else if (!strncmp(arg, "--debug=", sizeof("--debug=") - 1)) {
-@@ -4198,15 +4199,10 @@
+@@ -4234,15 +4235,10 @@
  }
  
  
@@ -249,7 +249,7 @@
      struct stat ignored;
      if (fstat(fd, &ignored) == 0)
        continue;
-@@ -4216,12 +4212,10 @@
+@@ -4252,12 +4248,10 @@
        ABORT();
      if (fd != open("/dev/null", O_RDWR))
        ABORT();
@@ -262,7 +262,7 @@
    memset(&act, 0, sizeof(act));
  
    // The hard-coded upper limit is because NSIG is not very reliable; on Linux,
-@@ -4342,14 +4336,10 @@
+@@ -4378,14 +4372,10 @@
    // is to prevent memory pointers from being moved around that are returned by
    // Buffer::Data().
    const char no_typed_array_heap[] = "--typed_array_max_size_in_heap=0";
@@ -365,16 +365,16 @@
      if (!options->IsObject()) {
 --- node/src/node_javascript.cc
 +++ node/src/node_javascript.cc
-@@ -31,8 +31,60 @@
-               env->isolate(), reinterpret_cast<const char*>(native.source),
-               NewStringType::kNormal, native.source_len).ToLocalChecked();
-       target->Set(name, source);
-     }
-   }
+@@ -44,8 +44,59 @@
+             env->isolate(), &id##_external_data).ToLocalChecked();            \
+     CHECK(target->Set(context, key, value).FromJust());                       \
+   } while (0);
+   NODE_NATIVES_MAP(V)
+ #undef V
 +
-+  auto name = String::NewFromUtf8(env->isolate(),
-+    "_pkg_bootstrap");
-+  auto source = String::NewFromUtf8(env->isolate(),
++  auto key = String::NewFromOneByte(env->isolate(), reinterpret_cast<const uint8_t*>(
++    "_pkg_bootstrap"), NewStringType::kNormal, -1).ToLocalChecked();
++  auto value = String::NewFromOneByte(env->isolate(), reinterpret_cast<const uint8_t*>(
 +    "var fs = require('fs');\n" \
 +    "var vm = require('vm');\n" \
 +    "function readPayload (fd) {\n" \
@@ -420,9 +420,8 @@
 +    "    fs.internalModuleStat =     bindingFs.internalModuleStat;\n" \
 +    "    fs.internalModuleReadFile = bindingFs.internalModuleReadFile;\n" \
 +    "  }\n" \
-+    "}())\n"
-+  );
-+  target->Set(name, source);
++    "}())\n"), NewStringType::kNormal, -1).ToLocalChecked();
++  CHECK(target->Set(context, key, value).FromJust());
  }
  
  }  // namespace node
