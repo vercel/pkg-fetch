@@ -176,7 +176,7 @@
  
 --- node/node.gyp
 +++ node/node.gyp
-@@ -394,11 +394,10 @@
+@@ -452,11 +452,10 @@
            'dependencies': [ 'deps/uv/uv.gyp:libuv' ],
          }],
  
@@ -190,7 +190,7 @@
            'defines': [
 --- node/src/env.h
 +++ node/src/env.h
-@@ -192,10 +192,11 @@
+@@ -197,10 +197,11 @@
    V(session_id_string, "sessionId")                                           \
    V(signal_string, "signal")                                                  \
    V(size_string, "size")                                                      \
@@ -204,7 +204,7 @@
    V(subject_string, "subject")                                                \
 --- node/src/node.cc
 +++ node/src/node.cc
-@@ -3245,10 +3245,11 @@
+@@ -3320,10 +3320,11 @@
  
  
  static void PrintHelp();
@@ -216,7 +216,7 @@
    if (!strcmp(arg, "--debug")) {
      use_debug_agent = true;
    } else if (!strncmp(arg, "--debug=", sizeof("--debug=") - 1)) {
-@@ -3823,15 +3824,10 @@
+@@ -3935,15 +3936,10 @@
  }
  
  
@@ -232,7 +232,7 @@
      struct stat ignored;
      if (fstat(fd, &ignored) == 0)
        continue;
-@@ -3841,12 +3837,10 @@
+@@ -3953,12 +3949,10 @@
        ABORT();
      if (fd != open("/dev/null", O_RDWR))
        ABORT();
@@ -245,7 +245,7 @@
    memset(&act, 0, sizeof(act));
  
    // The hard-coded upper limit is because NSIG is not very reliable; on Linux,
-@@ -3972,14 +3966,10 @@
+@@ -4084,14 +4078,10 @@
    // is to prevent memory pointers from being moved around that are returned by
    // Buffer::Data().
    const char no_typed_array_heap[] = "--typed_array_max_size_in_heap=0";
@@ -262,7 +262,7 @@
  }
 --- node/src/node.js
 +++ node/src/node.js
-@@ -51,10 +51,14 @@
+@@ -52,10 +52,14 @@
      // There are various modes that Node can run in. The most common two
      // are running from a script and running the REPL - but there are a few
      // others like the debugger or running --eval arguments. Here we decide

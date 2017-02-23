@@ -18,12 +18,12 @@
     "backport.PR5343.for.N0.patch",
     "node.v0.12.15.patch"
   ],
-  "v4.6.2": [
+  "v4.8.0": [
     "backport.R32768.patch",
     "backport.PR4777.for.N4.patch",
     "backport.PR5159.for.N4.patch",
     "backport.PR5343.for.N4.patch",
-    "node.v4.6.2.patch"
+    "node.v4.8.0.patch"
   ],
   "v6.10.0": [
     "node.v6.10.0.patch"
