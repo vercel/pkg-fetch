@@ -1,5 +1,5 @@
 {
-  "v0.12.15": [
+  "v0.12.18": [
     "backport.R00000.patch",
     "backport.R24002.patch",
     "backport.R24204.patch",
@@ -16,7 +16,7 @@
     "backport.R25444.patch",
     "backport.PR4777.for.N0.patch",
     "backport.PR5343.for.N0.patch",
-    "node.v0.12.15.patch"
+    "node.v0.12.18.patch"
   ],
   "v4.8.0": [
     "backport.R32768.patch",
