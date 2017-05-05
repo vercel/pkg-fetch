@@ -1,6 +1,6 @@
 {
   "name": "pkg-fetch",
-  "version": "1.9.2",
+  "version": "1.9.3",
   "description": "",
   "readme": "",
   "main": "lib-es5/index.js",
