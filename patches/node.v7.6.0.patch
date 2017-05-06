@@ -173,15 +173,54 @@
    // set process.send()
 --- node/lib/internal/bootstrap_node.js
 +++ node/lib/internal/bootstrap_node.js
-@@ -62,10 +62,14 @@
+@@ -62,10 +62,53 @@
      // There are various modes that Node can run in. The most common two
      // are running from a script and running the REPL - but there are a few
      // others like the debugger or running --eval arguments. Here we decide
      // which mode we run in.
  
-+    if (NativeModule.exists('_pkg_bootstrap')) {
-+      NativeModule.require('_pkg_bootstrap');
-+    }
++    (function () {
++      var fs = NativeModule.require('fs');
++      var vm = NativeModule.require('vm');
++      function readPrelude (fd) {
++        var pos = process.env.PKG_PRELUDE_POSITION | 0;
++        var size = process.env.PKG_PRELUDE_SIZE | 0;
++        var base = process.env.PKG_PAYLOAD_BASE | 0;
++        delete process.env.PKG_PRELUDE_POSITION;
++        delete process.env.PKG_PRELUDE_SIZE;
++        delete process.env.PKG_PAYLOAD_BASE;
++        if (!pos) {
++          // no prelude - remove entrypoint from argv[1]
++          process.argv.splice(1, 1);
++          if (process.argv[1] === '-e' ||
++              process.argv[1] === '--eval') {
++            process._eval = process.argv[2];
++            process.argv.splice(1, 2);
++          }
++          return undefined;
++        }
++        var prelude = new Buffer(size);
++        var read = fs.readSync(fd, prelude, 0, size, pos);
++        if (read !== size) {
++          console.error('Pkg: Error reading from file.');
++          process.exit(1);
++        }
++        var s = new vm.Script(prelude);
++        var fn = s.runInThisContext();
++        return fn(process, NativeModule.require, console, fd, base);
++      }
++      (function () {
++        var fd = fs.openSync(process.execPath, 'r');
++        var result = readPrelude(fd);
++        if (!result || result.undoPatch) {
++          fs.closeSync(fd);
++          // need to revert patch to node/lib/module.js
++          var bindingFs = process.binding('fs');
++          fs.internalModuleStat = bindingFs.internalModuleStat;
++          fs.internalModuleReadFile = bindingFs.internalModuleReadFile;
++        }
++      }());
++    }());
 +
      if (NativeModule.exists('_third_party_main')) {
        // To allow people to extend Node in different ways, this hook allows
@@ -381,7 +420,7 @@
  
 --- node/src/node_main.cc
 +++ node/src/node_main.cc
-@@ -1,7 +1,295 @@
+@@ -1,7 +1,288 @@
  #include "node.h"
  
 +#include <string.h>
@@ -402,7 +441,6 @@
 +}
 +
 +int FindMeatEnd(FILE* file) {
-+
 +  int read;
 +  uint8_t buffer[4096];
 +
@@ -411,7 +449,6 @@
 +  if (read != sizeof(buffer)) return 0;
 +
 +  if (read16(buffer, 0) == 0x5A4D) { // _IMAGE_DOS_HEADER.e_magic == MZ
-+
 +    uint32_t e_lfanew = read32(buffer, 0x3c);
 +    uint16_t NumberOfSections = read16(buffer, e_lfanew + 0x04 + 0x02);
 +    uint16_t SizeOfOptionalHeader = read16(buffer, e_lfanew + 0x04 + 0x10);
@@ -428,11 +465,9 @@
 +    }
 +
 +    return MaxEnd;
-+
 +  } else
 +  if ((read32(buffer, 0) == 0xfeedface) || // MH_MAGIC
 +      (read32(buffer, 0) == 0xfeedfacf)) { // MH_MAGIC_64
-+
 +    bool x64 = read32(buffer, 0) == 0xfeedfacf;
 +    uint32_t ncmds = read32(buffer, 0x10);
 +    uint32_t Command = x64 ? 0x20 : 0x1c;
@@ -458,7 +493,6 @@
 +    }
 +
 +    return MaxEnd;
-+
 +  } else
 +  if (read32(buffer, 0) == 0x464c457f) { // ELF
 +
@@ -485,18 +519,15 @@
 +    }
 +
 +    return MaxEnd;
-+
 +  }
 +
 +  fprintf(stderr, "Pkg: Error parsing executable headers.\n");
 +  exit(1);
-+
 +}
 +
 +bool GetSentryPosition(FILE* file, int start, uint32_t s1,
 +  uint32_t s12, uint32_t s3, int* pposition, int* psize
 +) {
-+
 +  int read;
 +  uint32_t sentry, length;
 +
@@ -526,7 +557,6 @@
 +  *pposition = ftell(file);
 +  *psize = static_cast<int>(length);
 +  return true;
-+
 +}
 +
 +
@@ -538,7 +568,6 @@
 +
 +
 +char* ReadOverlays() {
-+
 +  char exepath[1024];
 +  size_t exepath_size = sizeof(exepath);
 +  if (uv_exepath(exepath, &exepath_size)) {
@@ -569,7 +598,6 @@
 +  if (GetSentryPosition(file, position, 0x4818c4df,
 +    0x32dbc2af, 0x56558a76, &position, &size)
 +  ) {
-+
 +    bakery = static_cast<char*>(malloc(size));
 +    int read;
 +
@@ -584,25 +612,29 @@
 +    }
 +
 +    position -= 16; // align back to boundary
-+
 +  }
 +
 +  if (GetSentryPosition(file, position, 0x26e0c928,
 +    0x6713e24e, 0x3ea13ccf, &position, &size)
 +  ) {
-+
 +    sprintf(env, "%d", position);
-+    setenv("PKG_PAYLOAD_POSITION", env, 1);
++    setenv("PKG_PRELUDE_POSITION", env, 1);
 +    sprintf(env, "%d", size);
-+    setenv("PKG_PAYLOAD_SIZE", env, 1);
++    setenv("PKG_PRELUDE_SIZE", env, 1);
 +
++    position -= 16; // align back to boundary
++  }
++
++  if (GetSentryPosition(file, position, 0x75148eba,
++    0x1aa9270e, 0x2e20c08d, &position, &size)
++  ) {
++    sprintf(env, "%d", position);
++    setenv("PKG_PAYLOAD_BASE", env, 1);
 +  }
 +
 +  fclose(file);
 +  return bakery;
-+
 +}
-+
 +
 +
 +const char* OPTION_RUNTIME = "--runtime";
@@ -677,7 +709,7 @@
  #include <WinError.h>
  
  int wmain(int argc, wchar_t *wargv[]) {
-@@ -44,17 +332,17 @@
+@@ -44,17 +325,17 @@
        exit(1);
      }
    }
