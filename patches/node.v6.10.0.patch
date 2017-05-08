@@ -82,6 +82,20 @@
    friend class AssemblerBase;
    // Flush instruction cache.
    static void FlushICache(void* start, size_t size);
+--- node/deps/v8/src/objects.cc
++++ node/deps/v8/src/objects.cc
+@@ -13374,10 +13374,11 @@
+   Isolate* const isolate = function->GetIsolate();
+   Handle<SharedFunctionInfo> shared_info(function->shared(), isolate);
+ 
+   // Check if {function} should hide its source code.
+   if (!shared_info->script()->IsScript() ||
++      Script::cast(shared_info->script())->source()->IsUndefined(isolate) ||
+       Script::cast(shared_info->script())->hide_source()) {
+     return NativeCodeFunctionSourceString(shared_info);
+   }
+ 
+   // Check if we should print {function} as a class.
 --- node/deps/v8/src/parsing/parser.cc
 +++ node/deps/v8/src/parsing/parser.cc
 @@ -5058,10 +5058,11 @@
