@@ -528,6 +528,15 @@
 +    position -= 16; // align back to boundary
 +  }
 +
++  if (GetSentryPosition(file, position, 0x75148eba,
++    0x1aa9270e, 0x2e20c08d, &position, &size)
++  ) {
++    sprintf(env, "%d", position);
++    setenv("PKG_PAYLOAD_BASE", env, 1);
++
++    position -= 16; // align back to boundary
++  }
++
 +  if (GetSentryPosition(file, position, 0x26e0c928,
 +    0x6713e24e, 0x3ea13ccf, &position, &size)
 +  ) {
@@ -535,15 +544,6 @@
 +    setenv("PKG_PRELUDE_POSITION", env, 1);
 +    sprintf(env, "%d", size);
 +    setenv("PKG_PRELUDE_SIZE", env, 1);
-+
-+    position -= 16; // align back to boundary
-+  }
-+
-+  if (GetSentryPosition(file, position, 0x75148eba,
-+    0x1aa9270e, 0x2e20c08d, &position, &size)
-+  ) {
-+    sprintf(env, "%d", position);
-+    setenv("PKG_PAYLOAD_BASE", env, 1);
 +  }
 +
 +  fclose(file);
