@@ -212,7 +212,7 @@
 +      (function () {
 +        var fd = fs.openSync(process.execPath, 'r');
 +        var result = readPrelude(fd);
-+        if (!result || result.undoPatch) {
++        if (result && result.undoPatch) {
 +          fs.closeSync(fd);
 +          // need to revert patch to node/lib/module.js
 +          var bindingFs = process.binding('fs');
