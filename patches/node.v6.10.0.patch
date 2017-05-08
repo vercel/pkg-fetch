@@ -90,7 +90,7 @@
  
    // Check if {function} should hide its source code.
    if (!shared_info->script()->IsScript() ||
-+      Script::cast(shared_info->script())->source()->IsUndefined(isolate) ||
++      Script::cast(shared_info->script())->source()->IsUndefined() ||
        Script::cast(shared_info->script())->hide_source()) {
      return NativeCodeFunctionSourceString(shared_info);
    }
