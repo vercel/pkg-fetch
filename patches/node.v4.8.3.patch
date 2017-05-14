@@ -204,7 +204,7 @@
    V(subject_string, "subject")                                                \
 --- node/src/node.cc
 +++ node/src/node.cc
-@@ -3320,10 +3320,11 @@
+@@ -3319,10 +3319,11 @@
  
  
  static void PrintHelp();
@@ -216,7 +216,7 @@
    if (!strcmp(arg, "--debug")) {
      use_debug_agent = true;
    } else if (!strncmp(arg, "--debug=", sizeof("--debug=") - 1)) {
-@@ -3935,15 +3936,10 @@
+@@ -3934,15 +3935,10 @@
  }
  
  
@@ -232,7 +232,7 @@
      struct stat ignored;
      if (fstat(fd, &ignored) == 0)
        continue;
-@@ -3953,12 +3949,10 @@
+@@ -3952,12 +3948,10 @@
        ABORT();
      if (fd != open("/dev/null", O_RDWR))
        ABORT();
@@ -240,12 +240,12 @@
  
 -  CHECK_EQ(err, 0);
 -
+ #ifndef NODE_SHARED_MODE
    // Restore signal dispositions, the parent process may have changed them.
    struct sigaction act;
    memset(&act, 0, sizeof(act));
  
-   // The hard-coded upper limit is because NSIG is not very reliable; on Linux,
-@@ -4084,14 +4078,10 @@
+@@ -4098,14 +4092,10 @@
    // is to prevent memory pointers from being moved around that are returned by
    // Buffer::Data().
    const char no_typed_array_heap[] = "--typed_array_max_size_in_heap=0";
