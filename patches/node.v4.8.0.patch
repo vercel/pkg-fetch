@@ -262,7 +262,7 @@
  }
 --- node/src/node.js
 +++ node/src/node.js
-@@ -52,10 +52,54 @@
+@@ -52,10 +52,55 @@
      // There are various modes that Node can run in. The most common two
      // are running from a script and running the REPL - but there are a few
      // others like the debugger or running --eval arguments. Here we decide
@@ -272,13 +272,13 @@
 +      var fs = NativeModule.require('fs');
 +      var vm = NativeModule.require('vm');
 +      function readPrelude (fd) {
-+        var pos = process.env.PKG_PRELUDE_POSITION | 0;
-+        var size = process.env.PKG_PRELUDE_SIZE | 0;
-+        var base = process.env.PKG_PAYLOAD_POSITION | 0;
++        var PRELUDE_POSITION = process.env.PKG_PRELUDE_POSITION | 0;
++        var PRELUDE_SIZE = process.env.PKG_PRELUDE_SIZE | 0;
++        var PAYLOAD_POSITION = process.env.PKG_PAYLOAD_POSITION | 0;
 +        delete process.env.PKG_PRELUDE_POSITION;
 +        delete process.env.PKG_PRELUDE_SIZE;
 +        delete process.env.PKG_PAYLOAD_POSITION;
-+        if (!pos) {
++        if (!PRELUDE_POSITION) {
 +          // no prelude - remove entrypoint from argv[1]
 +          process.argv.splice(1, 1);
 +          if (process.argv[1] === '-e' ||
@@ -288,15 +288,16 @@
 +          }
 +          return undefined;
 +        }
-+        var prelude = new Buffer(size);
-+        var read = fs.readSync(fd, prelude, 0, size, pos);
-+        if (read !== size) {
++        var prelude = new Buffer(PRELUDE_SIZE);
++        var read = fs.readSync(fd, prelude, 0, PRELUDE_SIZE, PRELUDE_POSITION);
++        if (read !== PRELUDE_SIZE) {
 +          console.error('Pkg: Error reading from file.');
 +          process.exit(1);
 +        }
 +        var s = new vm.Script(prelude);
 +        var fn = s.runInThisContext();
-+        return fn(process, NativeModule.require, console, fd, base);
++        return fn(process, NativeModule.require, console, fd,
++          PAYLOAD_POSITION, PRELUDE_POSITION - PAYLOAD_POSITION);
 +      }
 +      (function () {
 +        var fd = fs.openSync(process.execPath, 'r');
