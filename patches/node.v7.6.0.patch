@@ -185,10 +185,10 @@
 +      function readPrelude (fd) {
 +        var pos = process.env.PKG_PRELUDE_POSITION | 0;
 +        var size = process.env.PKG_PRELUDE_SIZE | 0;
-+        var base = process.env.PKG_PAYLOAD_BASE | 0;
++        var base = process.env.PKG_PAYLOAD_POSITION | 0;
 +        delete process.env.PKG_PRELUDE_POSITION;
 +        delete process.env.PKG_PRELUDE_SIZE;
-+        delete process.env.PKG_PAYLOAD_BASE;
++        delete process.env.PKG_PAYLOAD_POSITION;
 +        if (!pos) {
 +          // no prelude - remove entrypoint from argv[1]
 +          process.argv.splice(1, 1);
@@ -619,7 +619,7 @@
 +    0x1aa9270e, 0x2e20c08d, &position, &size)
 +  ) {
 +    sprintf(env, "%d", position);
-+    setenv("PKG_PAYLOAD_BASE", env, 1);
++    setenv("PKG_PAYLOAD_POSITION", env, 1);
 +
 +    position -= 16; // align back to boundary
 +  }
