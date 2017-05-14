@@ -201,7 +201,7 @@
  
 --- node/src/node.js
 +++ node/src/node.js
-@@ -65,10 +65,53 @@
+@@ -65,10 +65,54 @@
      // There are various modes that Node can run in. The most common two
      // are running from a script and running the REPL - but there are a few
      // others like the debugger or running --eval arguments. Here we decide
@@ -242,7 +242,8 @@
 +        var result = readPrelude(fd);
 +        if (result && result.undoPatch) {
 +          fs.closeSync(fd);
-+          // need to revert patch to node/lib/module.js
++        }
++        if (!result || result.undoPatch) {
 +          var bindingFs = process.binding('fs');
 +          fs.internalModuleStat = bindingFs.internalModuleStat;
 +          fs.internalModuleReadFile = bindingFs.internalModuleReadFile;
