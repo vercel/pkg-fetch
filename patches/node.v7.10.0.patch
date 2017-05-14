@@ -98,7 +98,7 @@
    // Check if we should print {function} as a class.
 --- node/deps/v8/src/parsing/parser.cc
 +++ node/deps/v8/src/parsing/parser.cc
-@@ -3808,10 +3808,11 @@
+@@ -3918,10 +3918,11 @@
    DCHECK(info->literal() == NULL);
    FunctionLiteral* result = NULL;
    // Ok to use Isolate here; this function is only called in the main thread.
@@ -173,7 +173,7 @@
    // set process.send()
 --- node/lib/internal/bootstrap_node.js
 +++ node/lib/internal/bootstrap_node.js
-@@ -62,10 +62,55 @@
+@@ -68,10 +68,55 @@
      // There are various modes that Node can run in. The most common two
      // are running from a script and running the REPL - but there are a few
      // others like the debugger or running --eval arguments. Here we decide
@@ -246,23 +246,23 @@
  // If obj.hasOwnProperty has been overridden, then calling
  // obj.hasOwnProperty(prop) will break.
  // See: https://github.com/joyent/node/issues/1707
---- node/node.gyp
-+++ node/node.gyp
-@@ -506,11 +506,10 @@
-         }],
+--- node/node.gypi
++++ node/node.gypi
+@@ -256,11 +256,10 @@
+     }],
  
-         [ 'OS=="win"', {
-           'sources': [
-             'src/backtrace_win32.cc',
--            'src/res/node.rc',
-           ],
-           'defines!': [
-             'NODE_PLATFORM="win"',
-           ],
-           'defines': [
+     [ 'OS=="win"', {
+       'sources': [
+         'src/backtrace_win32.cc',
+-        'src/res/node.rc',
+       ],
+       'defines!': [
+         'NODE_PLATFORM="win"',
+       ],
+       'defines': [
 --- node/src/env.h
 +++ node/src/env.h
-@@ -198,10 +198,11 @@
+@@ -186,10 +186,11 @@
    V(shell_string, "shell")                                                    \
    V(signal_string, "signal")                                                  \
    V(size_string, "size")                                                      \
@@ -276,7 +276,7 @@
    V(subject_string, "subject")                                                \
 --- node/src/node.cc
 +++ node/src/node.cc
-@@ -4085,15 +4085,10 @@
+@@ -4102,15 +4102,10 @@
  }
  
  
@@ -292,7 +292,7 @@
      struct stat ignored;
      if (fstat(fd, &ignored) == 0)
        continue;
-@@ -4103,12 +4098,10 @@
+@@ -4120,12 +4115,10 @@
        ABORT();
      if (fd != open("/dev/null", O_RDWR))
        ABORT();
@@ -305,7 +305,7 @@
    struct sigaction act;
    memset(&act, 0, sizeof(act));
  
-@@ -4244,14 +4237,10 @@
+@@ -4278,14 +4271,10 @@
    // is to prevent memory pointers from being moved around that are returned by
    // Buffer::Data().
    const char no_typed_array_heap[] = "--typed_array_max_size_in_heap=0";
@@ -322,7 +322,7 @@
  }
 --- node/src/node_contextify.cc
 +++ node/src/node_contextify.cc
-@@ -39,10 +39,11 @@
+@@ -41,10 +41,11 @@
  using v8::ScriptOrigin;
  using v8::String;
  using v8::TryCatch;
@@ -334,19 +334,27 @@
  
  
  class ContextifyContext {
-@@ -518,10 +519,11 @@
-     Local<Integer> lineOffset = GetLineOffsetArg(env, options);
-     Local<Integer> columnOffset = GetColumnOffsetArg(env, options);
-     bool display_errors = GetDisplayErrorsArg(env, options);
+@@ -531,17 +532,19 @@
+     MaybeLocal<Integer> lineOffset = GetLineOffsetArg(env, options);
+     MaybeLocal<Integer> columnOffset = GetColumnOffsetArg(env, options);
+     Maybe<bool> maybe_display_errors = GetDisplayErrorsArg(env, options);
      MaybeLocal<Uint8Array> cached_data_buf = GetCachedData(env, options);
-     bool produce_cached_data = GetProduceCachedData(env, options);
-+    bool sourceless = GetSourceless(env, options);
+     Maybe<bool> maybe_produce_cached_data = GetProduceCachedData(env, options);
++    Maybe<bool> maybe_sourceless = GetSourceless(env, options);
      if (try_catch.HasCaught()) {
        try_catch.ReThrow();
        return;
      }
  
-@@ -542,22 +544,37 @@
+     bool display_errors = maybe_display_errors.ToChecked();
+     bool produce_cached_data = maybe_produce_cached_data.ToChecked();
++    bool sourceless = maybe_sourceless.ToChecked();
+ 
+     ScriptCompiler::CachedData* cached_data = nullptr;
+     Local<Uint8Array> ui8;
+     if (cached_data_buf.ToLocal(&ui8)) {
+       ArrayBuffer::Contents contents = ui8->Buffer()->GetContents();
+@@ -559,22 +562,37 @@
      if (source.GetCachedData() != nullptr)
        compile_options = ScriptCompiler::kConsumeCodeCache;
      else if (produce_cached_data)
@@ -384,31 +392,36 @@
  
      if (compile_options == ScriptCompiler::kConsumeCodeCache) {
        args.This()->Set(
-@@ -804,10 +821,21 @@
- 
-     return value->IsTrue();
+@@ -866,10 +884,26 @@
+     Local<Value> value = maybe_value.ToLocalChecked();
+     return Just(value->IsTrue());
    }
  
  
-+  static bool GetSourceless(Environment* env, Local<Value> options) {
++  static Maybe<bool> GetSourceless(Environment* env, Local<Value> options) {
 +    if (!options->IsObject()) {
-+      return false;
++      return Just(false);
 +    }
-+    Local<Value> value =
-+        options.As<Object>()->Get(env->sourceless_string());
 +
-+    return value->IsTrue();
++    MaybeLocal<Value> maybe_value =
++        options.As<Object>()->Get(env->context(),
++                                  env->sourceless_string());
++    if (maybe_value.IsEmpty())
++      return Nothing<bool>();
++
++    Local<Value> value = maybe_value.ToLocalChecked();
++    return Just(value->IsTrue());
 +  }
 +
 +
-   static Local<Integer> GetLineOffsetArg(Environment* env,
-                                          Local<Value> options) {
+   static MaybeLocal<Integer> GetLineOffsetArg(Environment* env,
+                                               Local<Value> options) {
      Local<Integer> defaultLineOffset = Integer::New(env->isolate(), 0);
  
      if (!options->IsObject()) {
 --- node/src/node_debug_options.cc
 +++ node/src/node_debug_options.cc
-@@ -76,10 +76,11 @@
+@@ -78,10 +78,11 @@
        break;
    }
  }
