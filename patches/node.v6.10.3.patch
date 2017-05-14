@@ -1,6 +1,6 @@
 --- node/deps/v8/include/v8.h
 +++ node/deps/v8/include/v8.h
-@@ -6427,10 +6427,14 @@
+@@ -6428,10 +6428,14 @@
     */
    static void SetFlagsFromCommandLine(int* argc,
                                        char** argv,
@@ -84,7 +84,7 @@
    static void FlushICache(void* start, size_t size);
 --- node/deps/v8/src/objects.cc
 +++ node/deps/v8/src/objects.cc
-@@ -13374,10 +13374,11 @@
+@@ -13382,10 +13382,11 @@
    Isolate* const isolate = function->GetIsolate();
    Handle<SharedFunctionInfo> shared_info(function->shared(), isolate);
  
@@ -98,7 +98,7 @@
    // Check if we should print {function} as a class.
 --- node/deps/v8/src/parsing/parser.cc
 +++ node/deps/v8/src/parsing/parser.cc
-@@ -5058,10 +5058,11 @@
+@@ -5057,10 +5057,11 @@
    return false;
  }
  
@@ -173,7 +173,7 @@
    // set process.send()
 --- node/lib/internal/bootstrap_node.js
 +++ node/lib/internal/bootstrap_node.js
-@@ -72,10 +72,55 @@
+@@ -73,10 +73,55 @@
      // There are various modes that Node can run in. The most common two
      // are running from a script and running the REPL - but there are a few
      // others like the debugger or running --eval arguments. Here we decide
@@ -262,7 +262,7 @@
            'defines': [
 --- node/src/env.h
 +++ node/src/env.h
-@@ -195,10 +195,11 @@
+@@ -191,10 +191,11 @@
    V(shell_string, "shell")                                                    \
    V(signal_string, "signal")                                                  \
    V(size_string, "size")                                                      \
@@ -276,7 +276,7 @@
    V(subject_string, "subject")                                                \
 --- node/src/node.cc
 +++ node/src/node.cc
-@@ -3560,10 +3560,11 @@
+@@ -3556,10 +3556,11 @@
  
  
  static void PrintHelp();
@@ -288,7 +288,7 @@
    if (!strcmp(arg, "--debug")) {
      use_debug_agent = true;
    } else if (!strncmp(arg, "--debug=", sizeof("--debug=") - 1)) {
-@@ -4234,15 +4235,10 @@
+@@ -4237,15 +4238,10 @@
  }
  
  
@@ -304,7 +304,7 @@
      struct stat ignored;
      if (fstat(fd, &ignored) == 0)
        continue;
-@@ -4252,12 +4248,10 @@
+@@ -4255,12 +4251,10 @@
        ABORT();
      if (fd != open("/dev/null", O_RDWR))
        ABORT();
@@ -312,12 +312,12 @@
  
 -  CHECK_EQ(err, 0);
 -
+ #ifndef NODE_SHARED_MODE
    // Restore signal dispositions, the parent process may have changed them.
    struct sigaction act;
    memset(&act, 0, sizeof(act));
  
-   // The hard-coded upper limit is because NSIG is not very reliable; on Linux,
-@@ -4378,14 +4372,10 @@
+@@ -4396,14 +4390,10 @@
    // is to prevent memory pointers from being moved around that are returned by
    // Buffer::Data().
    const char no_typed_array_heap[] = "--typed_array_max_size_in_heap=0";
@@ -346,7 +346,7 @@
  
  
  class ContextifyContext {
-@@ -498,10 +499,11 @@
+@@ -499,10 +500,11 @@
      Local<Integer> lineOffset = GetLineOffsetArg(env, options);
      Local<Integer> columnOffset = GetColumnOffsetArg(env, options);
      bool display_errors = GetDisplayErrorsArg(env, options);
@@ -358,7 +358,7 @@
        return;
      }
  
-@@ -522,22 +524,37 @@
+@@ -523,22 +525,37 @@
      if (source.GetCachedData() != nullptr)
        compile_options = ScriptCompiler::kConsumeCodeCache;
      else if (produce_cached_data)
@@ -396,7 +396,7 @@
  
      if (compile_options == ScriptCompiler::kConsumeCodeCache) {
        args.This()->Set(
-@@ -784,10 +801,21 @@
+@@ -785,10 +802,21 @@
  
      return value->IsTrue();
    }
