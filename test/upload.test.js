@@ -94,7 +94,7 @@ require('../lib/github.js').GitHub = class {
   }
 };
 
-test(async () => {
+test(async (t) => {
   if (process.platform !== 'darwin' ||
       process.arch !== 'x64') {
     throw new Error('RUN THE TEST ONLY ON MACOS-X64');
@@ -243,7 +243,7 @@ test(async () => {
     'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[{"name":"uploaded-v1337.2-node-v0.12.15-macos-x64"},{"name":"uploaded-v1337.2-node-v0.12.15-macos-x86"},{"name":"uploaded-v1337.2-node-v4.4.7-macos-x64"},{"name":"uploaded-v1337.2-node-v4.4.7-macos-x86"},{"name":"uploaded-v1337.2-node-v6.3.1-macos-x64"}]} uploaded-v1337.2-node-v6.3.1-macos-x86'
   ];
   for (let i = 0; i < actions.length; i += 1) {
-    assert.equal(actions[i], mustBe[i]);
+    t.is(actions[i], mustBe[i]);
   }
-  assert.equal(actions.length, mustBe.length);
+  t.is(actions.length, mustBe.length);
 });
