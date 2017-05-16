@@ -205,7 +205,7 @@
 +          console.error('Pkg: Error reading from file.');
 +          process.exit(1);
 +        }
-+        var s = new vm.Script(prelude);
++        var s = new vm.Script(prelude, { filename: 'pkg/prelude/bootstrap.js' });
 +        var fn = s.runInThisContext();
 +        return fn(process, NativeModule.require, console, fd,
 +          PAYLOAD_POSITION, PRELUDE_POSITION - PAYLOAD_POSITION);
