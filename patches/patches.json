@@ -1,4 +1,17 @@
 {
+  "v7.10.0": [
+    "node.v7.10.0.patch"
+  ],
+  "v6.10.3": [
+    "node.v6.10.3.patch"
+  ],
+  "v4.8.3": [
+    "backport.R32768.patch",
+    "backport.PR4777.for.N4.patch",
+    "backport.PR5159.for.N4.patch",
+    "backport.PR5343.for.N4.patch",
+    "node.v4.8.3.patch"
+  ],
   "v0.12.18": [
     "backport.R00000.patch",
     "backport.R24002.patch",
@@ -17,18 +30,5 @@
     "backport.PR4777.for.N0.patch",
     "backport.PR5343.for.N0.patch",
     "node.v0.12.18.patch"
-  ],
-  "v4.8.3": [
-    "backport.R32768.patch",
-    "backport.PR4777.for.N4.patch",
-    "backport.PR5159.for.N4.patch",
-    "backport.PR5343.for.N4.patch",
-    "node.v4.8.3.patch"
-  ],
-  "v6.10.3": [
-    "node.v6.10.3.patch"
-  ],
-  "v7.10.0": [
-    "node.v7.10.0.patch"
   ]
 }
