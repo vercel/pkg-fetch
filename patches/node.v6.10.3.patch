@@ -440,7 +440,7 @@
 +  return *buffer32;
 +}
 +
-+int FindMeatEnd(FILE* file) {
++int FindBaseBinaryEdge(FILE* file) {
 +  int read;
 +  uint8_t buffer[4096];
 +
@@ -583,7 +583,7 @@
 +    exit(1);
 +  }
 +
-+  int position = FindMeatEnd(file);
++  int position = FindBaseBinaryEdge(file);
 +  int size;
 +  char* bakery = NULL;
 +  char env[64];
