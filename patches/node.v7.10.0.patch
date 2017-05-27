@@ -173,7 +173,7 @@
    // set process.send()
 --- node/lib/internal/bootstrap_node.js
 +++ node/lib/internal/bootstrap_node.js
-@@ -68,10 +68,55 @@
+@@ -68,10 +68,57 @@
      // There are various modes that Node can run in. The most common two
      // are running from a script and running the REPL - but there are a few
      // others like the debugger or running --eval arguments. Here we decide
@@ -183,12 +183,14 @@
 +      var fs = NativeModule.require('fs');
 +      var vm = NativeModule.require('vm');
 +      function readPrelude (fd) {
++        var PAYLOAD_POSITION = process.env.PKG_PAYLOAD_POSITION | 0;
++        var PAYLOAD_SIZE = process.env.PKG_PAYLOAD_SIZE | 0;
 +        var PRELUDE_POSITION = process.env.PKG_PRELUDE_POSITION | 0;
 +        var PRELUDE_SIZE = process.env.PKG_PRELUDE_SIZE | 0;
-+        var PAYLOAD_POSITION = process.env.PKG_PAYLOAD_POSITION | 0;
++        delete process.env.PKG_PAYLOAD_POSITION;
++        delete process.env.PKG_PAYLOAD_SIZE;
 +        delete process.env.PKG_PRELUDE_POSITION;
 +        delete process.env.PKG_PRELUDE_SIZE;
-+        delete process.env.PKG_PAYLOAD_POSITION;
 +        if (!PRELUDE_POSITION) {
 +          // no prelude - remove entrypoint from argv[1]
 +          process.argv.splice(1, 1);
@@ -207,8 +209,8 @@
 +        }
 +        var s = new vm.Script(prelude, { filename: 'pkg/prelude/bootstrap.js' });
 +        var fn = s.runInThisContext();
-+        return fn(process, NativeModule.require, console, fd,
-+          PAYLOAD_POSITION, PRELUDE_POSITION - PAYLOAD_POSITION - 16);
++        return fn(process, NativeModule.require,
++          console, fd, PAYLOAD_POSITION, PAYLOAD_SIZE);
 +      }
 +      (function () {
 +        var fd = fs.openSync(process.execPath, 'r');
@@ -435,13 +437,11 @@
  
 --- node/src/node_main.cc
 +++ node/src/node_main.cc
-@@ -1,7 +1,288 @@
+@@ -1,7 +1,289 @@
  #include "node.h"
  
 +#include <string.h>
 +#include "uv.h"
-+
-+#define BOUNDARY 4096
 +
 +uint16_t read16(uint8_t* buffer, uint32_t pos) {
 +  buffer = &buffer[pos];
@@ -540,38 +540,30 @@
 +  exit(1);
 +}
 +
-+bool GetSentryPosition(FILE* file, int start, uint32_t s1,
++bool FindNextBlock(FILE* file, int start, uint32_t s1,
 +  uint32_t s12, uint32_t s3, int* pposition, int* psize
 +) {
 +  int read;
-+  uint32_t sentry, length;
++  uint8_t probe[4096];
++  uint32_t* psentry;
 +
 +  if (fseek(file, start, SEEK_SET) != 0) return false;
++  read = static_cast<int>(fread(&probe, 1, sizeof(probe), file));
 +
-+  while (true) {
-+    read = static_cast<int>(fread(&sentry, 1, sizeof(sentry), file));
-+    if (read != sizeof(sentry)) return false;
-+    if (sentry != s1) {
-+      fseek(file, BOUNDARY - 4, SEEK_CUR);
-+      continue;
-+    }
-+    fread(&length, 1, sizeof(length), file);
-+    if ((sentry^length) != s12) {
-+      fseek(file, BOUNDARY - 8, SEEK_CUR);
-+      continue;
-+    }
-+    fread(&sentry, 1, sizeof(sentry), file);
-+    if (sentry != s3) {
-+      fseek(file, BOUNDARY - 12, SEEK_CUR);
-+      continue;
-+    }
-+    break;
++  for (int i = 0; i < read - 16; i += 1) {
++    psentry = (uint32_t*) (probe + i);
++    if (*psentry != s1) continue;
++    psentry += 1;
++    if (((*psentry)^s1) != s12) continue;
++    psentry += 1;
++    if (*psentry != s3) continue;
++    psentry += 1;
++    *pposition = start + i + 16;
++    *psize = *psentry;
++    return true;
 +  }
 +
-+  fread(&length, 1, sizeof(length), file);
-+  *pposition = ftell(file);
-+  *psize = static_cast<int>(length);
-+  return true;
++  return false;
 +}
 +
 +
@@ -606,39 +598,50 @@
 +    exit(1);
 +  }
 +
-+  char env[64];
-+  int position = (FindMeatEnd(file) / BOUNDARY) * BOUNDARY; int size;
++  int position = FindMeatEnd(file);
++  int size;
 +  char* bakery = NULL;
++  char env[64];
 +
-+  if (GetSentryPosition(file, position, 0x4818c4df,
++  if (FindNextBlock(file, position, 0x4818c4df,
 +    0x32dbc2af, 0x56558a76, &position, &size)
 +  ) {
-+    bakery = static_cast<char*>(malloc(size));
-+    int read;
-+
-+    for (int i = 0; i < size;) {
-+      read = static_cast<int>(fread(&bakery[i], 1, size - i, file));
-+      if (ferror(file) != 0) {
++    if (size) {
++      if (fseek(file, position, SEEK_SET) != 0) {
 +        fprintf(stderr, "Pkg: Error reading from file.\n");
 +        fclose(file);
 +        exit(1);
 +      }
-+      i += read;
-+    }
 +
-+    position -= 16; // align back to boundary
++      bakery = static_cast<char*>(malloc(size));
++      int read;
++
++      for (int i = 0; i < size;) {
++        read = static_cast<int>(fread(&bakery[i], 1, size - i, file));
++        if (ferror(file) != 0) {
++          fprintf(stderr, "Pkg: Error reading from file.\n");
++          fclose(file);
++          exit(1);
++        }
++        i += read;
++      }
++
++      position += size;
++    }
 +  }
 +
-+  if (GetSentryPosition(file, position, 0x75148eba,
++  if (FindNextBlock(file, position, 0x75148eba,
 +    0x1aa9270e, 0x2e20c08d, &position, &size)
 +  ) {
 +    sprintf(env, "%d", position);
 +    setenv("PKG_PAYLOAD_POSITION", env, 1);
++    sprintf(env, "%d", size);
++    setenv("PKG_PAYLOAD_SIZE", env, 1);
 +
-+    position -= 16; // align back to boundary
++    position += size;
 +  }
 +
-+  if (GetSentryPosition(file, position, 0x26e0c928,
++  if (FindNextBlock(file, position, 0x26e0c928,
 +    0x6713e24e, 0x3ea13ccf, &position, &size)
 +  ) {
 +    sprintf(env, "%d", position);
@@ -724,7 +727,7 @@
  #include <WinError.h>
  
  int wmain(int argc, wchar_t *wargv[]) {
-@@ -44,17 +325,17 @@
+@@ -44,17 +326,17 @@
        exit(1);
      }
    }
