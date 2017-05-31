@@ -1,6 +1,6 @@
 --- node/deps/v8/include/v8.h
 +++ node/deps/v8/include/v8.h
-@@ -7211,10 +7211,14 @@
+@@ -7459,10 +7459,14 @@
     */
    static void SetFlagsFromCommandLine(int* argc,
                                        char** argv,
@@ -17,7 +17,7 @@
    V8_INLINE static V8_DEPRECATED(
 --- node/deps/v8/src/api.cc
 +++ node/deps/v8/src/api.cc
-@@ -648,10 +648,46 @@
+@@ -760,10 +760,46 @@
  void V8::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags) {
    i::FlagList::SetFlagsFromCommandLine(argc, argv, remove_flags);
  }
@@ -66,7 +66,7 @@
      : extension_(extension) { }
 --- node/deps/v8/src/assembler.h
 +++ node/deps/v8/src/assembler.h
-@@ -251,10 +251,15 @@
+@@ -254,10 +254,15 @@
    }
  
    static void PrintTarget();
@@ -84,39 +84,53 @@
    static void FlushICache(void* start, size_t size);
 --- node/deps/v8/src/objects.cc
 +++ node/deps/v8/src/objects.cc
-@@ -13127,10 +13127,11 @@
+@@ -12840,11 +12840,12 @@
+ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
    Isolate* const isolate = function->GetIsolate();
    Handle<SharedFunctionInfo> shared_info(function->shared(), isolate);
  
    // Check if {function} should hide its source code.
-   if (!shared_info->script()->IsScript() ||
-+      Script::cast(shared_info->script())->source()->IsUndefined(isolate) ||
-       Script::cast(shared_info->script())->hide_source()) {
+-  if (!shared_info->IsUserJavaScript()) {
++  if (!shared_info->IsUserJavaScript() ||
++      Script::cast(shared_info->script())->source()->IsUndefined(isolate)) {
      return NativeCodeFunctionSourceString(shared_info);
    }
  
    // Check if we should print {function} as a class.
---- node/deps/v8/src/parsing/parser.cc
-+++ node/deps/v8/src/parsing/parser.cc
-@@ -3918,10 +3918,11 @@
-   DCHECK(info->literal() == NULL);
-   FunctionLiteral* result = NULL;
+   Handle<Object> class_start_position = JSReceiver::GetDataProperty(
+--- node/deps/v8/src/parsing/parsing.cc
++++ node/deps/v8/src/parsing/parsing.cc
+@@ -23,10 +23,11 @@
+ 
+   FunctionLiteral* result = nullptr;
    // Ok to use Isolate here; this function is only called in the main thread.
-   DCHECK(parsing_on_main_thread_);
+   DCHECK(parser.parsing_on_main_thread_);
    Isolate* isolate = info->isolate();
 +  if (info->script()->source()->IsUndefined(isolate)) return false;
-   pre_parse_timer_ = isolate->counters()->pre_parse();
  
-   if (info->is_lazy()) {
-     DCHECK(!info->is_eval());
-     if (info->shared_info()->is_function()) {
+   parser.SetCachedData(info);
+   result = parser.ParseProgram(isolate, info);
+   info->set_literal(result);
+   if (result == nullptr) {
+@@ -49,10 +50,11 @@
+ 
+   FunctionLiteral* result = nullptr;
+   // Ok to use Isolate here; this function is only called in the main thread.
+   DCHECK(parser.parsing_on_main_thread_);
+   Isolate* isolate = info->isolate();
++  if (info->script()->source()->IsUndefined(isolate)) return false;
+ 
+   result = parser.ParseFunction(isolate, info);
+   info->set_literal(result);
+   if (result == nullptr) {
+     parser.ReportErrors(isolate, info->script());
 --- node/deps/v8/src/snapshot/code-serializer.cc
 +++ node/deps/v8/src/snapshot/code-serializer.cc
-@@ -339,24 +339,36 @@
- }
+@@ -408,24 +408,36 @@
  
  SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
      Isolate* isolate, uint32_t expected_source_hash) const {
+   if (this->size_ < kHeaderSize) return INVALID_HEADER;
    uint32_t magic_number = GetMagicNumber();
 -  if (magic_number != ComputeMagicNumber(isolate)) return MAGIC_NUMBER_MISMATCH;
 +  if (magic_number != ComputeMagicNumber(isolate)) {
@@ -158,7 +172,7 @@
    return source->length();
 --- node/lib/child_process.js
 +++ node/lib/child_process.js
-@@ -58,11 +58,11 @@
+@@ -94,11 +94,11 @@
      throw new TypeError('Forked processes must have an IPC channel');
    }
  
@@ -173,7 +187,7 @@
    // set process.send()
 --- node/lib/internal/bootstrap_node.js
 +++ node/lib/internal/bootstrap_node.js
-@@ -68,10 +68,57 @@
+@@ -82,10 +82,57 @@
      // There are various modes that Node can run in. The most common two
      // are running from a script and running the REPL - but there are a few
      // others like the debugger or running --eval arguments. Here we decide
@@ -233,7 +247,7 @@
        process.nextTick(function() {
 --- node/lib/module.js
 +++ node/lib/module.js
-@@ -6,12 +6,12 @@
+@@ -27,12 +27,12 @@
  const vm = require('vm');
  const assert = require('assert').ok;
  const fs = require('fs');
@@ -245,9 +259,9 @@
 +const internalModuleStat = require('fs').internalModuleStat;
  const preserveSymlinks = !!process.binding('config').preserveSymlinks;
  
- // If obj.hasOwnProperty has been overridden, then calling
- // obj.hasOwnProperty(prop) will break.
- // See: https://github.com/joyent/node/issues/1707
+ function stat(filename) {
+   filename = path._makeLong(filename);
+   const cache = stat.cache;
 --- node/node.gypi
 +++ node/node.gypi
 @@ -256,11 +256,10 @@
@@ -264,7 +278,7 @@
        'defines': [
 --- node/src/env.h
 +++ node/src/env.h
-@@ -186,10 +186,11 @@
+@@ -215,10 +215,11 @@
    V(shell_string, "shell")                                                    \
    V(signal_string, "signal")                                                  \
    V(size_string, "size")                                                      \
@@ -276,55 +290,58 @@
    V(status_string, "status")                                                  \
    V(stdio_string, "stdio")                                                    \
    V(subject_string, "subject")                                                \
+--- node/src/inspector_agent.cc
++++ node/src/inspector_agent.cc
+@@ -555,11 +555,10 @@
+                             &start_inspector_thread_async,
+                             StartInspectorIoThreadAsyncCallback));
+   start_inspector_thread_async.data = this;
+   uv_unref(reinterpret_cast<uv_handle_t*>(&start_inspector_thread_async));
+ 
+-  RegisterDebugSignalHandler();
+   if (options.inspector_enabled()) {
+     return StartIoThread(options.wait_for_connect());
+   }
+   return true;
+ }
 --- node/src/node.cc
 +++ node/src/node.cc
-@@ -4102,15 +4102,10 @@
+@@ -4156,17 +4156,10 @@
  }
  
  
  inline void PlatformInit() {
  #ifdef __POSIX__
+-#if HAVE_INSPECTOR
 -  sigset_t sigmask;
 -  sigemptyset(&sigmask);
 -  sigaddset(&sigmask, SIGUSR1);
 -  const int err = pthread_sigmask(SIG_SETMASK, &sigmask, nullptr);
+-#endif  // HAVE_INSPECTOR
 -
    // Make sure file descriptors 0-2 are valid before we start logging anything.
    for (int fd = STDIN_FILENO; fd <= STDERR_FILENO; fd += 1) {
      struct stat ignored;
      if (fstat(fd, &ignored) == 0)
        continue;
-@@ -4120,12 +4115,10 @@
+@@ -4176,14 +4169,10 @@
        ABORT();
      if (fd != open("/dev/null", O_RDWR))
        ABORT();
    }
  
+-#if HAVE_INSPECTOR
 -  CHECK_EQ(err, 0);
+-#endif  // HAVE_INSPECTOR
 -
  #ifndef NODE_SHARED_MODE
    // Restore signal dispositions, the parent process may have changed them.
    struct sigaction act;
    memset(&act, 0, sizeof(act));
  
-@@ -4278,14 +4271,10 @@
-   // is to prevent memory pointers from being moved around that are returned by
-   // Buffer::Data().
-   const char no_typed_array_heap[] = "--typed_array_max_size_in_heap=0";
-   V8::SetFlagsFromString(no_typed_array_heap, sizeof(no_typed_array_heap) - 1);
- 
--  if (!debug_options.debugger_enabled() && !debug_options.inspector_enabled()) {
--    RegisterDebugSignalHandler();
--  }
--
-   // We should set node_is_initialized here instead of in node::Start,
-   // otherwise embedders using node::Init to initialize everything will not be
-   // able to set it and native modules will not load for them.
-   node_is_initialized = true;
- }
 --- node/src/node_contextify.cc
 +++ node/src/node_contextify.cc
-@@ -41,10 +41,11 @@
+@@ -62,10 +62,11 @@
  using v8::ScriptOrigin;
  using v8::String;
  using v8::TryCatch;
@@ -334,9 +351,9 @@
  using v8::Value;
  using v8::WeakCallbackInfo;
  
+ namespace {
  
- class ContextifyContext {
-@@ -531,17 +532,19 @@
+@@ -553,17 +554,19 @@
      MaybeLocal<Integer> lineOffset = GetLineOffsetArg(env, options);
      MaybeLocal<Integer> columnOffset = GetColumnOffsetArg(env, options);
      Maybe<bool> maybe_display_errors = GetDisplayErrorsArg(env, options);
@@ -356,7 +373,7 @@
      Local<Uint8Array> ui8;
      if (cached_data_buf.ToLocal(&ui8)) {
        ArrayBuffer::Contents contents = ui8->Buffer()->GetContents();
-@@ -559,22 +562,37 @@
+@@ -581,22 +584,37 @@
      if (source.GetCachedData() != nullptr)
        compile_options = ScriptCompiler::kConsumeCodeCache;
      else if (produce_cached_data)
@@ -394,7 +411,7 @@
  
      if (compile_options == ScriptCompiler::kConsumeCodeCache) {
        args.This()->Set(
-@@ -866,10 +884,26 @@
+@@ -890,10 +908,26 @@
      Local<Value> value = maybe_value.ToLocalChecked();
      return Just(value->IsTrue());
    }
@@ -423,21 +440,24 @@
      if (!options->IsObject()) {
 --- node/src/node_debug_options.cc
 +++ node/src/node_debug_options.cc
-@@ -78,10 +78,11 @@
-       break;
-   }
- }
+@@ -58,10 +58,11 @@
+                                deprecated_debug_(false),
+                                break_first_line_(false),
+                                host_name_("127.0.0.1"), port_(-1) { }
  
- bool DebugOptions::ParseOption(const std::string& option) {
+ bool DebugOptions::ParseOption(const char* argv0, const std::string& option) {
 +  return false;
-   bool enable_inspector = false;
    bool has_argument = false;
    std::string option_name;
    std::string argument;
  
+   auto pos = option.find("=");
 --- node/src/node_main.cc
 +++ node/src/node_main.cc
-@@ -1,7 +1,289 @@
+@@ -19,10 +19,292 @@
+ // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+ // USE OR OTHER DEALINGS IN THE SOFTWARE.
+ 
  #include "node.h"
  
 +#include <string.h>
@@ -727,7 +747,7 @@
  #include <WinError.h>
  
  int wmain(int argc, wchar_t *wargv[]) {
-@@ -44,17 +326,17 @@
+@@ -65,11 +347,11 @@
        exit(1);
      }
    }
@@ -738,7 +758,10 @@
  }
  #else
  // UNIX
- int main(int argc, char *argv[]) {
+ #ifdef __linux__
+ #include <elf.h>
+@@ -99,8 +381,8 @@
+ #endif
    // Disable stdio buffering, it interacts poorly with printf()
    // calls elsewhere in the program (e.g., any logging from V8.)
    setvbuf(stdout, nullptr, _IONBF, 0);
