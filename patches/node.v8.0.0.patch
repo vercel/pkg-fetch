@@ -84,20 +84,20 @@
    static void FlushICache(void* start, size_t size);
 --- node/deps/v8/src/objects.cc
 +++ node/deps/v8/src/objects.cc
-@@ -12840,11 +12840,12 @@
- Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
-   Isolate* const isolate = function->GetIsolate();
-   Handle<SharedFunctionInfo> shared_info(function->shared(), isolate);
- 
-   // Check if {function} should hide its source code.
--  if (!shared_info->IsUserJavaScript()) {
-+  if (!shared_info->IsUserJavaScript() ||
-+      Script::cast(shared_info->script())->source()->IsUndefined(isolate)) {
-     return NativeCodeFunctionSourceString(shared_info);
-   }
+@@ -12848,10 +12848,13 @@
  
    // Check if we should print {function} as a class.
    Handle<Object> class_start_position = JSReceiver::GetDataProperty(
+       function, isolate->factory()->class_start_position_symbol());
+   if (class_start_position->IsSmi()) {
++    if (Script::cast(shared_info->script())->source()->IsUndefined(isolate)) {
++      return isolate->factory()->NewStringFromAsciiChecked("class {}");
++    }
+     Handle<Object> class_end_position = JSReceiver::GetDataProperty(
+         function, isolate->factory()->class_end_position_symbol());
+     Handle<String> script_source(
+         String::cast(Script::cast(shared_info->script())->source()), isolate);
+     return isolate->factory()->NewSubString(
 --- node/deps/v8/src/parsing/parsing.cc
 +++ node/deps/v8/src/parsing/parsing.cc
 @@ -23,10 +23,11 @@

@@ -96,6 +96,23 @@
    // Ok to use Isolate here; this function is only called in the main thread.
    DCHECK(parsing_on_main_thread_);
    Isolate* isolate = info->isolate();
+--- node/deps/v8/src/runtime/runtime-classes.cc
++++ node/deps/v8/src/runtime/runtime-classes.cc
+@@ -236,10 +236,14 @@
+   if (!start_position->IsSmi() || !end_position->IsSmi() ||
+       !Handle<Script>::cast(script)->HasValidSource()) {
+     return isolate->ThrowIllegalOperation();
+   }
+ 
++  if (Handle<Script>::cast(script)->source()->IsUndefined()) {
++    return *isolate->factory()->NewStringFromAsciiChecked("class {}");
++  }
++
+   Handle<String> source(String::cast(Handle<Script>::cast(script)->source()));
+   return *isolate->factory()->NewSubString(
+       source, Handle<Smi>::cast(start_position)->value(),
+       Handle<Smi>::cast(end_position)->value());
+ }
 --- node/deps/v8/src/snapshot/serialize.cc
 +++ node/deps/v8/src/snapshot/serialize.cc
 @@ -2695,24 +2695,36 @@
