@@ -173,7 +173,7 @@
    // set process.send()
 --- node/lib/internal/bootstrap_node.js
 +++ node/lib/internal/bootstrap_node.js
-@@ -73,10 +73,57 @@
+@@ -73,10 +73,52 @@
      // There are various modes that Node can run in. The most common two
      // are running from a script and running the REPL - but there are a few
      // others like the debugger or running --eval arguments. Here we decide
@@ -194,11 +194,6 @@
 +        if (!PRELUDE_POSITION) {
 +          // no prelude - remove entrypoint from argv[1]
 +          process.argv.splice(1, 1);
-+          if (process.argv[1] === '-e' ||
-+              process.argv[1] === '--eval') {
-+            process._eval = process.argv[2];
-+            process.argv.splice(1, 2);
-+          }
 +          return undefined;
 +        }
 +        var prelude = new Buffer(PRELUDE_SIZE);
@@ -422,7 +417,7 @@
      if (!options->IsObject()) {
 --- node/src/node_main.cc
 +++ node/src/node_main.cc
-@@ -1,7 +1,289 @@
+@@ -1,7 +1,276 @@
  #include "node.h"
  
 +#include <string.h>
@@ -640,10 +635,6 @@
 +}
 +
 +
-+const char* OPTION_RUNTIME = "--runtime";
-+const char* OPTION_ENTRYPOINT = "--entrypoint";
-+
-+
 +// for uv_setup_args
 +int adjacent(int argc, char** argv) {
 +  size_t size = 0;
@@ -661,19 +652,16 @@
 +}
 +
 +
++const char* OPTION_FALLBACK = "--pkg-fallback";
++
++
 +int reorder(int argc, char** argv) {
 +  int i;
-+  int runtime_pos = argc;
++  int fallback_pos = -1;
 +  for (i = 1; i < argc; i++) {
-+    if (strcmp(argv[i], OPTION_RUNTIME) == 0) {
-+      runtime_pos = i;
-+      break;
-+    }
-+  }
-+  int entrypoint_pos = -1;
-+  for (i = 1 + 1; i < runtime_pos; i++) {
-+    if (strcmp(argv[i - 1], OPTION_ENTRYPOINT) == 0) {
-+      entrypoint_pos = i;
++    if (i > 1) break; // it must be first
++    if (strcmp(argv[i], OPTION_FALLBACK) == 0) {
++      fallback_pos = i;
 +      break;
 +    }
 +  }
@@ -689,17 +677,11 @@
 +      bakery += width + 1;
 +    }
 +  }
-+  for (i = runtime_pos + 1; i < argc; i++) {
-+    nargv[c++] = argv[i];
++  if (fallback_pos == -1) {
++    nargv[c++] = "PKG_DEFAULT_ENTRYPOINT";
 +  }
-+  if (entrypoint_pos != -1) {
-+    nargv[c++] = argv[entrypoint_pos];
-+  } else {
-+    nargv[c++] = "DEFAULT_ENTRYPOINT";
-+  }
-+  for (i = 1; i < runtime_pos; i++) {
-+    if ((i != entrypoint_pos) &&
-+        (i != entrypoint_pos - 1)) {
++  for (i = 1; i < argc; i++) {
++    if (i != fallback_pos) {
 +      nargv[c++] = argv[i];
 +    }
 +  }
@@ -712,7 +694,7 @@
  
  int wmain(int argc, wchar_t *wargv[]) {
    if (!IsWindows7OrGreater()) {
-@@ -43,17 +325,17 @@
+@@ -43,17 +312,17 @@
        exit(1);
      }
    }
