@@ -2,8 +2,9 @@
   "name": "pkg-fetch",
   "version": "2.3.2",
   "description": "",
-  "readme": "",
   "main": "lib-es5/index.js",
+  "license": "MIT",
+  "repository": "zeit/pkg-fetch",
   "bin": {
     "pkg-fetch": "lib-es5/bin.js"
   },
