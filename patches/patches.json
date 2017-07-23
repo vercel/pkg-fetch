@@ -1,4 +1,10 @@
 {
+  "v8.2.1": {
+    "build": true,
+    "patches": [
+      "node.v8.2.1.patch"
+    ]
+  },
   "v8.0.0": [
     "node.v8.0.0.patch"
   ],
