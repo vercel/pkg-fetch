@@ -8,12 +8,30 @@
   "v8.0.0": [
     "node.v8.0.0.patch"
   ],
+  "v7.10.1": {
+    "lowPriority": true,
+    "patches": {
+      "sameAs": "v7.10.0"
+    }
+  },
   "v7.10.0": [
     "node.v7.10.0.patch"
   ],
+  "v6.11.1": {
+    "lowPriority": true,
+    "patches": {
+      "sameAs": "v6.10.3"
+    }
+  },
   "v6.10.3": [
     "node.v6.10.3.patch"
   ],
+  "v4.8.4": {
+    "lowPriority": true,
+    "patches": {
+      "sameAs": "v4.8.3"
+    }
+  },
   "v4.8.3": [
     "backport.R32768.patch",
     "backport.PR4777.for.N4.patch",
