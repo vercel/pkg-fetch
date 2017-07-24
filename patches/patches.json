@@ -1,6 +1,6 @@
 {
   "v8.2.1": {
-    "build": true,
+    "lowPriority": true,
     "patches": [
       "node.v8.2.1.patch"
     ]
