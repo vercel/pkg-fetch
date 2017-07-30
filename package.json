@@ -1,6 +1,6 @@
 {
   "name": "pkg-fetch",
-  "version": "2.3.7",
+  "version": "2.3.8",
   "description": "",
   "main": "lib-es5/index.js",
   "license": "MIT",
