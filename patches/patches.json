@@ -23,11 +23,11 @@
   "v7.10.0": [
     "node.v7.10.0.patch"
   ],
-  "v6.11.1": {
+  "v6.11.2": {
     "lowPriority": true,
-    "patches": {
-      "sameAs": "v6.10.3"
-    }
+    "patches": [
+      "node.v6.11.2.patch"
+    ]
   },
   "v6.10.3": [
     "node.v6.10.3.patch"
