@@ -1,4 +1,10 @@
 {
+  "v8.3.0": {
+    "lowPriority": true,
+    "patches": [
+      "node.v8.3.0.patch"
+    ]
+  },
   "v8.2.1": {
     "lowPriority": true,
     "patches": [
