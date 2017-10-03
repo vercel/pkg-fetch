@@ -175,7 +175,7 @@
    // set process.send()
 --- node/lib/internal/bootstrap_node.js
 +++ node/lib/internal/bootstrap_node.js
-@@ -72,10 +72,52 @@
+@@ -72,10 +72,50 @@
      // There are various modes that Node can run in. The most common two
      // are running from a script and running the REPL - but there are a few
      // others like the debugger or running --eval arguments. Here we decide
@@ -196,7 +196,7 @@
 +        if (!PRELUDE_POSITION) {
 +          // no prelude - remove entrypoint from argv[1]
 +          process.argv.splice(1, 1);
-+          return undefined;
++          return { undoPatch: true };
 +        }
 +        var prelude = new Buffer(PRELUDE_SIZE);
 +        var read = fs.readSync(fd, prelude, 0, PRELUDE_SIZE, PRELUDE_POSITION);
@@ -213,12 +213,10 @@
 +        var fd = fs.openSync(process.execPath, 'r');
 +        var result = readPrelude(fd);
 +        if (result && result.undoPatch) {
-+          fs.closeSync(fd);
-+        }
-+        if (!result || result.undoPatch) {
 +          var bindingFs = process.binding('fs');
 +          fs.internalModuleStat = bindingFs.internalModuleStat;
 +          fs.internalModuleReadFile = bindingFs.internalModuleReadFile;
++          fs.closeSync(fd);
 +        }
 +      }());
 +    }());
@@ -238,8 +236,8 @@
  const path = require('path');
 -const internalModuleReadFile = process.binding('fs').internalModuleReadFile;
 -const internalModuleStat = process.binding('fs').internalModuleStat;
-+const internalModuleReadFile = require('fs').internalModuleReadFile;
-+const internalModuleStat = require('fs').internalModuleStat;
++const internalModuleReadFile = function (f) { return require('fs').internalModuleReadFile(f); };
++const internalModuleStat = function (f) { return require('fs').internalModuleStat(f); };
  const preserveSymlinks = !!process.binding('config').preserveSymlinks;
  
  // If obj.hasOwnProperty has been overridden, then calling
