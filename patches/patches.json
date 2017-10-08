@@ -1,50 +1,11 @@
 {
-  "v8.6.0": {
-    "lowPriority": true,
-    "patches": [
-      "node.v8.6.0.patch"
-    ]
-  },
-  "v8.3.0": {
-    "lowPriority": true,
-    "patches": [
-      "node.v8.3.0.patch"
-    ]
-  },
-  "v8.2.1": {
-    "lowPriority": true,
-    "patches": [
-      "node.v8.2.1.patch"
-    ]
-  },
-  "v8.0.0": [
-    "node.v8.0.0.patch"
+  "v8.6.0": [
+    "node.v8.6.0.patch"
   ],
-  "v7.10.1": {
-    "lowPriority": true,
-    "patches": {
-      "sameAs": "v7.10.0"
-    }
-  },
-  "v7.10.0": [
-    "node.v7.10.0.patch"
+  "v6.11.2": [
+    "node.v6.11.2.patch"
   ],
-  "v6.11.2": {
-    "lowPriority": true,
-    "patches": [
-      "node.v6.11.2.patch"
-    ]
-  },
-  "v6.10.3": [
-    "node.v6.10.3.patch"
-  ],
-  "v4.8.4": {
-    "lowPriority": true,
-    "patches": {
-      "sameAs": "v4.8.3"
-    }
-  },
-  "v4.8.3": [
+  "v4.8.4": [
     "backport.R32768.patch",
     "backport.PR4777.for.N4.patch",
     "backport.PR5159.for.N4.patch",
