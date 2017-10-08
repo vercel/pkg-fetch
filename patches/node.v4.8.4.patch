@@ -409,7 +409,7 @@
  
 --- node/src/node_main.cc
 +++ node/src/node_main.cc
-@@ -1,7 +1,260 @@
+@@ -1,7 +1,236 @@
  #include "node.h"
  
 +#include <string.h>
@@ -546,7 +546,7 @@
 +#endif
 +
 +
-+char* ReadOverlays() {
++void ReadOverlays() {
 +  char exepath[1024];
 +  size_t exepath_size = sizeof(exepath);
 +  if (uv_exepath(exepath, &exepath_size)) {
@@ -572,35 +572,7 @@
 +
 +  int position = FindBaseBinaryEdge(file);
 +  int size;
-+  char* bakery = NULL;
 +  char env[64];
-+
-+  if (FindNextBlock(file, position, 0x4818c4df,
-+    0x32dbc2af, 0x56558a76, &position, &size)
-+  ) {
-+    if (size) {
-+      if (fseek(file, position, SEEK_SET) != 0) {
-+        fprintf(stderr, "Pkg: Error reading from file.\n");
-+        fclose(file);
-+        exit(1);
-+      }
-+
-+      bakery = static_cast<char*>(malloc(size));
-+      int read;
-+
-+      for (int i = 0; i < size;) {
-+        read = static_cast<int>(fread(&bakery[i], 1, size - i, file));
-+        if (ferror(file) != 0) {
-+          fprintf(stderr, "Pkg: Error reading from file.\n");
-+          fclose(file);
-+          exit(1);
-+        }
-+        i += read;
-+      }
-+
-+      position += size;
-+    }
-+  }
 +
 +  if (FindNextBlock(file, position, 0x75148eba,
 +    0x1aa9270e, 0x2e20c08d, &position, &size)
@@ -623,7 +595,6 @@
 +  }
 +
 +  fclose(file);
-+  return bakery;
 +}
 +
 +
@@ -644,19 +615,24 @@
 +}
 +
 +
++volatile char* BAKERY = (volatile char*) "\0// BAKERY // BAKERY " \
++  "// BAKERY // BAKERY // BAKERY // BAKERY // BAKERY // BAKERY " \
++  "// BAKERY // BAKERY // BAKERY // BAKERY // BAKERY // BAKERY " \
++  "// BAKERY // BAKERY // BAKERY // BAKERY // BAKERY // BAKERY ";
++
++
 +int reorder(int argc, char** argv) {
 +  int i;
 +  char** nargv = new char*[argc + 64];
-+  char* bakery = ReadOverlays();
++  ReadOverlays();
 +  int c = 0;
 +  nargv[c++] = argv[0];
-+  if (bakery) {
-+    while (true) {
-+      size_t width = strlen(bakery);
-+      if (width == 0) break;
-+      nargv[c++] = bakery;
-+      bakery += width + 1;
-+    }
++  char* bakery = (char*) BAKERY;
++  while (true) {
++    size_t width = strlen(bakery);
++    if (width == 0) break;
++    nargv[c++] = bakery;
++    bakery += width + 1;
 +  }
 +  for (i = 1; i < argc; i++) {
 +    nargv[c++] = argv[i];
@@ -670,7 +646,7 @@
    // Convert argv to to UTF8
    char** argv = new char*[argc + 1];
    for (int i = 0; i < argc; i++) {
-@@ -35,17 +288,17 @@
+@@ -35,17 +264,17 @@
        exit(1);
      }
    }
