@@ -464,7 +464,7 @@
    auto pos = option.find("=");
 --- node/src/node_main.cc
 +++ node/src/node_main.cc
-@@ -20,10 +20,279 @@
+@@ -20,10 +20,263 @@
  // USE OR OTHER DEALINGS IN THE SOFTWARE.
  
  #include "node.h"
@@ -702,19 +702,8 @@
 +}
 +
 +
-+const char* OPTION_FALLBACK = "--pkg-fallback";
-+
-+
 +int reorder(int argc, char** argv) {
 +  int i;
-+  int fallback_pos = -1;
-+  for (i = 1; i < argc; i++) {
-+    if (i > 1) break; // it must be first
-+    if (strcmp(argv[i], OPTION_FALLBACK) == 0) {
-+      fallback_pos = i;
-+      break;
-+    }
-+  }
 +  char** nargv = new char*[argc + 64];
 +  char* bakery = ReadOverlays();
 +  int c = 0;
@@ -727,13 +716,8 @@
 +      bakery += width + 1;
 +    }
 +  }
-+  if (fallback_pos == -1) {
-+    nargv[c++] = "PKG_DEFAULT_ENTRYPOINT";
-+  }
 +  for (i = 1; i < argc; i++) {
-+    if (i != fallback_pos) {
-+      nargv[c++] = argv[i];
-+    }
++    nargv[c++] = argv[i];
 +  }
 +  return adjacent(c, nargv);
 +}
@@ -744,7 +728,7 @@
  #include <VersionHelpers.h>
  #include <WinError.h>
  
-@@ -67,11 +336,11 @@
+@@ -67,11 +320,11 @@
        exit(1);
      }
    }
@@ -757,7 +741,7 @@
  // UNIX
  #ifdef __linux__
  #include <elf.h>
-@@ -101,8 +370,8 @@
+@@ -101,8 +354,8 @@
  #endif
    // Disable stdio buffering, it interacts poorly with printf()
    // calls elsewhere in the program (e.g., any logging from V8.)

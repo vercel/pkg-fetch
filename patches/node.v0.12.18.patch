@@ -328,7 +328,7 @@
                            TryCatch& try_catch) {
 --- node/src/node_main.cc
 +++ node/src/node_main.cc
-@@ -19,10 +19,279 @@
+@@ -19,10 +19,263 @@
  // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  // USE OR OTHER DEALINGS IN THE SOFTWARE.
  
@@ -566,19 +566,8 @@
 +}
 +
 +
-+const char* OPTION_FALLBACK = "--pkg-fallback";
-+
-+
 +int reorder(int argc, char** argv) {
 +  int i;
-+  int fallback_pos = -1;
-+  for (i = 1; i < argc; i++) {
-+    if (i > 1) break; // it must be first
-+    if (strcmp(argv[i], OPTION_FALLBACK) == 0) {
-+      fallback_pos = i;
-+      break;
-+    }
-+  }
 +  char** nargv = new char*[argc + 64];
 +  char* bakery = ReadOverlays();
 +  int c = 0;
@@ -591,13 +580,8 @@
 +      bakery += width + 1;
 +    }
 +  }
-+  if (fallback_pos == -1) {
-+    nargv[c++] = "PKG_DEFAULT_ENTRYPOINT";
-+  }
 +  for (i = 1; i < argc; i++) {
-+    if (i != fallback_pos) {
-+      nargv[c++] = argv[i];
-+    }
++    nargv[c++] = argv[i];
 +  }
 +  return adjacent(c, nargv);
 +}
@@ -608,7 +592,7 @@
    // Convert argv to to UTF8
    char** argv = new char*[argc];
    for (int i = 0; i < argc; i++) {
-@@ -55,13 +324,13 @@
+@@ -55,13 +308,13 @@
        fprintf(stderr, "Could not convert arguments to utf8.");
        exit(1);
      }

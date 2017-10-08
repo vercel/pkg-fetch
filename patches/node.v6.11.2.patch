@@ -431,7 +431,7 @@
      if (!options->IsObject()) {
 --- node/src/node_main.cc
 +++ node/src/node_main.cc
-@@ -1,7 +1,276 @@
+@@ -1,7 +1,260 @@
  #include "node.h"
  
 +#include <string.h>
@@ -666,19 +666,8 @@
 +}
 +
 +
-+const char* OPTION_FALLBACK = "--pkg-fallback";
-+
-+
 +int reorder(int argc, char** argv) {
 +  int i;
-+  int fallback_pos = -1;
-+  for (i = 1; i < argc; i++) {
-+    if (i > 1) break; // it must be first
-+    if (strcmp(argv[i], OPTION_FALLBACK) == 0) {
-+      fallback_pos = i;
-+      break;
-+    }
-+  }
 +  char** nargv = new char*[argc + 64];
 +  char* bakery = ReadOverlays();
 +  int c = 0;
@@ -691,13 +680,8 @@
 +      bakery += width + 1;
 +    }
 +  }
-+  if (fallback_pos == -1) {
-+    nargv[c++] = "PKG_DEFAULT_ENTRYPOINT";
-+  }
 +  for (i = 1; i < argc; i++) {
-+    if (i != fallback_pos) {
-+      nargv[c++] = argv[i];
-+    }
++    nargv[c++] = argv[i];
 +  }
 +  return adjacent(c, nargv);
 +}
@@ -708,7 +692,7 @@
  
  int wmain(int argc, wchar_t *wargv[]) {
    if (!IsWindows7OrGreater()) {
-@@ -43,17 +312,17 @@
+@@ -43,17 +296,17 @@
        exit(1);
      }
    }
