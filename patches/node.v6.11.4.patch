@@ -239,20 +239,6 @@
  // If obj.hasOwnProperty has been overridden, then calling
  // obj.hasOwnProperty(prop) will break.
  // See: https://github.com/joyent/node/issues/1707
---- node/node.gypi
-+++ node/node.gypi
-@@ -254,11 +254,10 @@
-     }],
- 
-     [ 'OS=="win"', {
-       'sources': [
-         'src/backtrace_win32.cc',
--        'src/res/node.rc',
-       ],
-       'defines!': [
-         'NODE_PLATFORM="win"',
-       ],
-       'defines': [
 --- node/src/env.h
 +++ node/src/env.h
 @@ -190,10 +190,11 @@

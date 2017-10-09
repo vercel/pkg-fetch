@@ -266,20 +266,6 @@
  
  const errors = require('internal/errors');
  
---- node/node.gypi
-+++ node/node.gypi
-@@ -260,11 +260,10 @@
-     }],
- 
-     [ 'OS=="win"', {
-       'sources': [
-         'src/backtrace_win32.cc',
--        'src/res/node.rc',
-       ],
-       'defines!': [
-         'NODE_PLATFORM="win"',
-       ],
-       'defines': [
 --- node/src/env.h
 +++ node/src/env.h
 @@ -257,10 +257,11 @@

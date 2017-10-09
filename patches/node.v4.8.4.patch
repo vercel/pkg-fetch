@@ -191,20 +191,6 @@
  const isIndexRe = /^index\.\w+?$/;
  const shebangRe = /^\#\!.*/;
  
---- node/node.gyp
-+++ node/node.gyp
-@@ -452,11 +452,10 @@
-           'dependencies': [ 'deps/uv/uv.gyp:libuv' ],
-         }],
- 
-         [ 'OS=="win"', {
-           'sources': [
--            'src/res/node.rc',
-           ],
-           'defines!': [
-             'NODE_PLATFORM="win"',
-           ],
-           'defines': [
 --- node/src/env.h
 +++ node/src/env.h
 @@ -197,10 +197,11 @@

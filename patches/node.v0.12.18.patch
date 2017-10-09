@@ -126,20 +126,6 @@
  
  exports._forkChild = function(fd) {
    // set process.send()
---- node/node.gyp
-+++ node/node.gyp
-@@ -326,11 +326,10 @@
-           'dependencies': [ 'deps/uv/uv.gyp:libuv' ],
-         }],
- 
-         [ 'OS=="win"', {
-           'sources': [
--            'src/res/node.rc',
-           ],
-           'defines': [
-             'FD_SETSIZE=1024',
-             # we need to use node's preferred "win32" rather than gyp's preferred "win"
-             'PLATFORM="win32"',
 --- node/src/env.h
 +++ node/src/env.h
 @@ -202,10 +202,11 @@
