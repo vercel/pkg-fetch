@@ -279,7 +279,7 @@
  }
 --- node/src/node.js
 +++ node/src/node.js
-@@ -52,10 +52,50 @@
+@@ -52,10 +52,46 @@
      // There are various modes that Node can run in. The most common two
      // are running from a script and running the REPL - but there are a few
      // others like the debugger or running --eval arguments. Here we decide
@@ -289,14 +289,10 @@
 +      var fs = NativeModule.require('fs');
 +      var vm = NativeModule.require('vm');
 +      function readPrelude (fd) {
-+        var PAYLOAD_POSITION = process.env.PKG_PAYLOAD_POSITION | 0;
-+        var PAYLOAD_SIZE = process.env.PKG_PAYLOAD_SIZE | 0;
-+        var PRELUDE_POSITION = process.env.PKG_PRELUDE_POSITION | 0;
-+        var PRELUDE_SIZE = process.env.PKG_PRELUDE_SIZE | 0;
-+        delete process.env.PKG_PAYLOAD_POSITION;
-+        delete process.env.PKG_PAYLOAD_SIZE;
-+        delete process.env.PKG_PRELUDE_POSITION;
-+        delete process.env.PKG_PRELUDE_SIZE;
++        var PAYLOAD_POSITION = '// PAYLOAD_POSITION //' | 0;
++        var PAYLOAD_SIZE = '// PAYLOAD_SIZE //' | 0;
++        var PRELUDE_POSITION = '// PRELUDE_POSITION //' | 0;
++        var PRELUDE_SIZE = '// PRELUDE_SIZE //' | 0;
 +        if (!PRELUDE_POSITION) {
 +          // no prelude - remove entrypoint from argv[1]
 +          process.argv.splice(1, 1);
@@ -409,194 +405,11 @@
  
 --- node/src/node_main.cc
 +++ node/src/node_main.cc
-@@ -1,7 +1,236 @@
+@@ -1,7 +1,49 @@
  #include "node.h"
  
 +#include <string.h>
 +#include "uv.h"
-+
-+uint16_t read16(uint8_t* buffer, uint32_t pos) {
-+  buffer = &buffer[pos];
-+  uint16_t* buffer16 = (uint16_t*) buffer;
-+  return *buffer16;
-+}
-+
-+uint32_t read32(uint8_t* buffer, uint32_t pos) {
-+  buffer = &buffer[pos];
-+  uint32_t* buffer32 = (uint32_t*) buffer;
-+  return *buffer32;
-+}
-+
-+int FindBaseBinaryEdge(FILE* file) {
-+  int read;
-+  uint8_t buffer[4096];
-+
-+  if (fseek(file, 0, SEEK_SET) != 0) return 0;
-+  read = static_cast<int>(fread(&buffer, 1, sizeof(buffer), file));
-+  if (read != sizeof(buffer)) return 0;
-+
-+  if (read16(buffer, 0) == 0x5A4D) { // _IMAGE_DOS_HEADER.e_magic == MZ
-+    uint32_t e_lfanew = read32(buffer, 0x3c);
-+    uint16_t NumberOfSections = read16(buffer, e_lfanew + 0x04 + 0x02);
-+    uint16_t SizeOfOptionalHeader = read16(buffer, e_lfanew + 0x04 + 0x10);
-+    uint16_t Section = e_lfanew + 0x18 + SizeOfOptionalHeader;
-+
-+    uint32_t MaxEnd = 0;
-+    for (int i = 0; i < NumberOfSections; i += 1) {
-+      if (Section > sizeof(buffer)) break;
-+      uint32_t RawOffset = read32(buffer, Section + 0x14);
-+      uint32_t RawSize = read32(buffer, Section + 0x10);
-+      uint32_t RawEnd = RawOffset + RawSize;
-+      if (RawEnd > MaxEnd) MaxEnd = RawEnd;
-+      Section += 0x28;
-+    }
-+
-+    return MaxEnd;
-+  } else
-+  if ((read32(buffer, 0) == 0xfeedface) || // MH_MAGIC
-+      (read32(buffer, 0) == 0xfeedfacf)) { // MH_MAGIC_64
-+    bool x64 = read32(buffer, 0) == 0xfeedfacf;
-+    uint32_t ncmds = read32(buffer, 0x10);
-+    uint32_t Command = x64 ? 0x20 : 0x1c;
-+
-+    uint32_t MaxEnd = 0;
-+    for (int i = 0; i < (int) ncmds; i += 1) {
-+      if (Command > sizeof(buffer)) break;
-+      uint32_t cmdtype = read32(buffer, Command + 0x00);
-+      uint32_t cmdsize = read32(buffer, Command + 0x04);
-+      if (cmdtype == 0x01) { // LC_SEGMENT
-+        uint32_t RawOffset = read32(buffer, Command + 0x20);
-+        uint32_t RawSize = read32(buffer, Command + 0x24);
-+        uint32_t RawEnd = RawOffset + RawSize;
-+        if (RawEnd > MaxEnd) MaxEnd = RawEnd;
-+      } else
-+      if (cmdtype == 0x19) { // LC_SEGMENT_64
-+        uint32_t RawOffset = read32(buffer, Command + 0x28);
-+        uint32_t RawSize = read32(buffer, Command + 0x30);
-+        uint32_t RawEnd = RawOffset + RawSize;
-+        if (RawEnd > MaxEnd) MaxEnd = RawEnd;
-+      }
-+      Command += cmdsize;
-+    }
-+
-+    return MaxEnd;
-+  } else
-+  if (read32(buffer, 0) == 0x464c457f) { // ELF
-+
-+    bool x64 = buffer[0x04] == 2;
-+    uint32_t e_shoff = read32(buffer, x64 ? 0x28 : 0x20);
-+    uint16_t e_shnum = read32(buffer, x64 ? 0x3c : 0x30);
-+    uint16_t e_shentsize = read32(buffer, x64 ? 0x3a : 0x2e);
-+    uint32_t SectionHeader = 0;
-+
-+    if (fseek(file, e_shoff, SEEK_SET) != 0) return 0;
-+    read = static_cast<int>(fread(&buffer, 1, sizeof(buffer), file));
-+    if (read != sizeof(buffer)) return 0;
-+
-+    uint32_t MaxEnd = 0;
-+    for (int i = 0; i < (int) e_shnum; i += 1) {
-+      uint32_t sh_type = read32(buffer, SectionHeader + 0x04);
-+      if (sh_type != 0x08) { // SHT_NOBITS
-+        uint32_t sh_offset = read32(buffer, SectionHeader + (x64 ? 0x18 : 0x10));
-+        uint32_t sh_size = read32(buffer, SectionHeader + (x64 ? 0x20 : 0x14));
-+        uint32_t end = sh_offset + sh_size;
-+        if (end > MaxEnd) MaxEnd = end;
-+      }
-+      SectionHeader += e_shentsize;
-+    }
-+
-+    return MaxEnd;
-+  }
-+
-+  fprintf(stderr, "Pkg: Error parsing executable headers.\n");
-+  exit(1);
-+}
-+
-+bool FindNextBlock(FILE* file, int start, uint32_t s1,
-+  uint32_t s12, uint32_t s3, int* pposition, int* psize
-+) {
-+  int read;
-+  uint8_t probe[4096];
-+  uint32_t* psentry;
-+
-+  if (fseek(file, start, SEEK_SET) != 0) return false;
-+  read = static_cast<int>(fread(&probe, 1, sizeof(probe), file));
-+
-+  for (int i = 0; i < read - 16; i += 1) {
-+    psentry = (uint32_t*) (probe + i);
-+    if (*psentry != s1) continue;
-+    psentry += 1;
-+    if (((*psentry)^s1) != s12) continue;
-+    psentry += 1;
-+    if (*psentry != s3) continue;
-+    psentry += 1;
-+    *pposition = start + i + 16;
-+    *psize = *psentry;
-+    return true;
-+  }
-+
-+  return false;
-+}
-+
-+
-+#ifdef _WIN32
-+void setenv(const char* name, const char* value, int overwrite) {
-+  SetEnvironmentVariable(name, value);
-+}
-+#endif
-+
-+
-+void ReadOverlays() {
-+  char exepath[1024];
-+  size_t exepath_size = sizeof(exepath);
-+  if (uv_exepath(exepath, &exepath_size)) {
-+    fprintf(stderr, "Pkg: Error obtaining exepath.\n");
-+    exit(1);
-+  }
-+
-+  FILE* file;
-+#ifdef _WIN32
-+  WCHAR exepath_w[2048];
-+  if (!MultiByteToWideChar(CP_UTF8, 0, exepath, -1, exepath_w, sizeof(exepath_w))) {
-+    fprintf(stderr, "Pkg: Error converting to WideChar.\n");
-+    exit(1);
-+  }
-+  file = _wfopen(exepath_w, L"rb");
-+#else
-+  file = fopen(exepath, "rb");
-+#endif
-+  if (!file) {
-+    fprintf(stderr, "Pkg: Error opening file.\n");
-+    exit(1);
-+  }
-+
-+  int position = FindBaseBinaryEdge(file);
-+  int size;
-+  char env[64];
-+
-+  if (FindNextBlock(file, position, 0x75148eba,
-+    0x1aa9270e, 0x2e20c08d, &position, &size)
-+  ) {
-+    sprintf(env, "%d", position);
-+    setenv("PKG_PAYLOAD_POSITION", env, 1);
-+    sprintf(env, "%d", size);
-+    setenv("PKG_PAYLOAD_SIZE", env, 1);
-+
-+    position += size;
-+  }
-+
-+  if (FindNextBlock(file, position, 0x26e0c928,
-+    0x6713e24e, 0x3ea13ccf, &position, &size)
-+  ) {
-+    sprintf(env, "%d", position);
-+    setenv("PKG_PRELUDE_POSITION", env, 1);
-+    sprintf(env, "%d", size);
-+    setenv("PKG_PRELUDE_SIZE", env, 1);
-+  }
-+
-+  fclose(file);
-+}
-+
 +
 +// for uv_setup_args
 +int adjacent(int argc, char** argv) {
@@ -614,17 +427,14 @@
 +  return node::Start(argc, argv);
 +}
 +
-+
 +volatile char* BAKERY = (volatile char*) "\0// BAKERY // BAKERY " \
 +  "// BAKERY // BAKERY // BAKERY // BAKERY // BAKERY // BAKERY " \
 +  "// BAKERY // BAKERY // BAKERY // BAKERY // BAKERY // BAKERY " \
 +  "// BAKERY // BAKERY // BAKERY // BAKERY // BAKERY // BAKERY ";
 +
-+
 +int reorder(int argc, char** argv) {
 +  int i;
 +  char** nargv = new char*[argc + 64];
-+  ReadOverlays();
 +  int c = 0;
 +  nargv[c++] = argv[0];
 +  char* bakery = (char*) BAKERY;
@@ -640,13 +450,12 @@
 +  return adjacent(c, nargv);
 +}
 +
-+
  #ifdef _WIN32
  int wmain(int argc, wchar_t *wargv[]) {
    // Convert argv to to UTF8
    char** argv = new char*[argc + 1];
    for (int i = 0; i < argc; i++) {
-@@ -35,17 +264,17 @@
+@@ -35,17 +77,17 @@
        exit(1);
      }
    }
