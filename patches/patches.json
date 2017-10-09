@@ -2,8 +2,8 @@
   "v8.6.0": [
     "node.v8.6.0.patch"
   ],
-  "v6.11.2": [
-    "node.v6.11.2.patch"
+  "v6.11.4": [
+    "node.v6.11.4.patch"
   ],
   "v4.8.4": [
     "backport.R32768.patch",

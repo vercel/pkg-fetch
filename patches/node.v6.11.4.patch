@@ -17,7 +17,7 @@
    V8_INLINE static V8_DEPRECATED(
 --- node/deps/v8/src/api.cc
 +++ node/deps/v8/src/api.cc
-@@ -541,10 +541,46 @@
+@@ -547,10 +547,46 @@
  void V8::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags) {
    i::FlagList::SetFlagsFromCommandLine(argc, argv, remove_flags);
  }
@@ -84,7 +84,7 @@
    static void FlushICache(void* start, size_t size);
 --- node/deps/v8/src/objects.cc
 +++ node/deps/v8/src/objects.cc
-@@ -13390,10 +13390,13 @@
+@@ -13396,10 +13396,13 @@
  
    // Check if we should print {function} as a class.
    Handle<Object> class_start_position = JSReceiver::GetDataProperty(
@@ -269,7 +269,7 @@
    V(subject_string, "subject")                                                \
 --- node/src/node.cc
 +++ node/src/node.cc
-@@ -3578,10 +3578,11 @@
+@@ -3587,10 +3587,11 @@
  
  
  static void PrintHelp();
@@ -281,7 +281,7 @@
    if (!strcmp(arg, "--debug")) {
      use_debug_agent = true;
    } else if (!strncmp(arg, "--debug=", sizeof("--debug=") - 1)) {
-@@ -4278,15 +4279,10 @@
+@@ -4287,15 +4288,10 @@
  }
  
  
@@ -297,7 +297,7 @@
      struct stat ignored;
      if (fstat(fd, &ignored) == 0)
        continue;
-@@ -4296,12 +4292,10 @@
+@@ -4305,12 +4301,10 @@
        ABORT();
      if (fd != open("/dev/null", O_RDWR))
        ABORT();
@@ -310,7 +310,7 @@
    struct sigaction act;
    memset(&act, 0, sizeof(act));
  
-@@ -4439,14 +4433,10 @@
+@@ -4448,14 +4442,10 @@
    // is to prevent memory pointers from being moved around that are returned by
    // Buffer::Data().
    const char no_typed_array_heap[] = "--typed_array_max_size_in_heap=0";
