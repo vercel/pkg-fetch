@@ -1,16 +1,16 @@
 {
   "v8.6.0": [
-    "node.v8.6.0.patch"
+    "node.v8.6.0.cpp.patch"
   ],
   "v6.11.4": [
-    "node.v6.11.4.patch"
+    "node.v6.11.4.cpp.patch"
   ],
   "v4.8.4": [
     "backport.R32768.patch",
     "backport.PR4777.for.N4.patch",
     "backport.PR5159.for.N4.patch",
     "backport.PR5343.for.N4.patch",
-    "node.v4.8.4.patch"
+    "node.v4.8.4.cpp.patch"
   ],
   "v0.12.18": [
     "backport.R00000.patch",
@@ -29,6 +29,6 @@
     "backport.R25444.patch",
     "backport.PR4777.for.N0.patch",
     "backport.PR5343.for.N0.patch",
-    "node.v0.12.18.patch"
+    "node.v0.12.18.cpp.patch"
   ]
 }
