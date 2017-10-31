@@ -1,6 +1,6 @@
 --- node/deps/v8/include/v8.h
 +++ node/deps/v8/include/v8.h
-@@ -7697,10 +7697,14 @@
+@@ -7800,10 +7800,14 @@
     */
    static void SetFlagsFromCommandLine(int* argc,
                                        char** argv,
@@ -17,7 +17,7 @@
    V8_INLINE static V8_DEPRECATED(
 --- node/deps/v8/src/api.cc
 +++ node/deps/v8/src/api.cc
-@@ -826,10 +826,46 @@
+@@ -829,10 +829,46 @@
  void V8::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags) {
    i::FlagList::SetFlagsFromCommandLine(argc, argv, remove_flags);
  }
@@ -84,7 +84,7 @@
    static void FlushICache(void* start, size_t size);
 --- node/deps/v8/src/objects.cc
 +++ node/deps/v8/src/objects.cc
-@@ -13008,10 +13008,13 @@
+@@ -13043,10 +13043,13 @@
  
    // Check if we should print {function} as a class.
    Handle<Object> class_start_position = JSReceiver::GetDataProperty(
@@ -268,7 +268,7 @@
  
 --- node/src/env.h
 +++ node/src/env.h
-@@ -257,10 +257,11 @@
+@@ -258,10 +258,11 @@
    V(shell_string, "shell")                                                    \
    V(signal_string, "signal")                                                  \
    V(size_string, "size")                                                      \
@@ -282,7 +282,7 @@
    V(stream_string, "stream")                                                  \
 --- node/src/inspector_agent.cc
 +++ node/src/inspector_agent.cc
-@@ -672,12 +672,10 @@
+@@ -468,12 +468,10 @@
                              &start_io_thread_async,
                              StartIoThreadAsyncCallback));
    start_io_thread_async.data = this;
@@ -297,7 +297,7 @@
    return true;
 --- node/src/node.cc
 +++ node/src/node.cc
-@@ -4316,17 +4316,10 @@
+@@ -4424,17 +4424,10 @@
  }
  
  
@@ -315,7 +315,7 @@
      struct stat ignored;
      if (fstat(fd, &ignored) == 0)
        continue;
-@@ -4336,14 +4329,10 @@
+@@ -4444,14 +4437,10 @@
        ABORT();
      if (fd != open("/dev/null", O_RDWR))
        ABORT();
