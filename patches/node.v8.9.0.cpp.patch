@@ -187,7 +187,7 @@
    return source->length();
 --- node/lib/child_process.js
 +++ node/lib/child_process.js
-@@ -95,11 +95,11 @@
+@@ -98,11 +98,11 @@
    }
  
    options.execPath = options.execPath || process.execPath;
@@ -251,14 +251,16 @@
        process.nextTick(function() {
 --- node/lib/module.js
 +++ node/lib/module.js
-@@ -28,12 +28,12 @@
+@@ -28,14 +28,12 @@
  const vm = require('vm');
  const assert = require('assert').ok;
  const fs = require('fs');
  const internalFS = require('internal/fs');
  const path = require('path');
--const internalModuleReadFile = process.binding('fs').internalModuleReadFile;
--const internalModuleStat = process.binding('fs').internalModuleStat;
+-const {
+-  internalModuleReadFile,
+-  internalModuleStat
+-} = process.binding('fs');
 +const internalModuleReadFile = function (f) { return require('fs').internalModuleReadFile(f); };
 +const internalModuleStat = function (f) { return require('fs').internalModuleStat(f); };
  const preserveSymlinks = !!process.binding('config').preserveSymlinks;
@@ -268,7 +270,7 @@
  
 --- node/src/env.h
 +++ node/src/env.h
-@@ -258,10 +258,11 @@
+@@ -259,10 +259,11 @@
    V(shell_string, "shell")                                                    \
    V(signal_string, "signal")                                                  \
    V(size_string, "size")                                                      \
@@ -282,7 +284,7 @@
    V(stream_string, "stream")                                                  \
 --- node/src/inspector_agent.cc
 +++ node/src/inspector_agent.cc
-@@ -468,12 +468,10 @@
+@@ -478,12 +478,10 @@
                              &start_io_thread_async,
                              StartIoThreadAsyncCallback));
    start_io_thread_async.data = this;
@@ -297,7 +299,7 @@
    return true;
 --- node/src/node.cc
 +++ node/src/node.cc
-@@ -4424,17 +4424,10 @@
+@@ -4430,17 +4430,10 @@
  }
  
  
@@ -315,7 +317,7 @@
      struct stat ignored;
      if (fstat(fd, &ignored) == 0)
        continue;
-@@ -4444,14 +4437,10 @@
+@@ -4450,14 +4443,10 @@
        ABORT();
      if (fd != open("/dev/null", O_RDWR))
        ABORT();
@@ -344,7 +346,7 @@
  
  namespace {
  
-@@ -559,18 +560,20 @@
+@@ -575,18 +576,20 @@
      MaybeLocal<Integer> lineOffset = GetLineOffsetArg(env, options);
      MaybeLocal<Integer> columnOffset = GetColumnOffsetArg(env, options);
      Maybe<bool> maybe_display_errors = GetDisplayErrorsArg(env, options);
@@ -365,7 +367,7 @@
      Local<Uint8Array> ui8;
      if (cached_data_buf.ToLocal(&ui8)) {
        ArrayBuffer::Contents contents = ui8->Buffer()->GetContents();
-@@ -590,22 +593,37 @@
+@@ -606,22 +609,37 @@
      else if (produce_cached_data)
        compile_options = ScriptCompiler::kProduceCodeCache;
  
@@ -403,7 +405,7 @@
  
      if (compile_options == ScriptCompiler::kConsumeCodeCache) {
        args.This()->Set(
-@@ -899,10 +917,26 @@
+@@ -915,10 +933,26 @@
      Local<Value> value = maybe_value.ToLocalChecked();
      return Just(value->IsTrue());
    }
