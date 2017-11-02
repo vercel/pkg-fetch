@@ -126,7 +126,7 @@
    isolate->counters()->total_parse_size()->Increment(source->length());
 --- node/deps/v8/src/snapshot/code-serializer.cc
 +++ node/deps/v8/src/snapshot/code-serializer.cc
-@@ -392,31 +392,50 @@
+@@ -392,31 +392,46 @@
  
  SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
      Isolate* isolate, uint32_t expected_source_hash) const {
@@ -135,10 +135,6 @@
 -  if (magic_number != ComputeMagicNumber(isolate)) return MAGIC_NUMBER_MISMATCH;
 +  if (magic_number != ComputeMagicNumber(isolate)) {
 +    base::OS::PrintError("Pkg: MAGIC_NUMBER_MISMATCH\n");
-+    return MAGIC_NUMBER_MISMATCH;
-+  }
-+  if (GetExtraReferences() > GetExtraReferences(isolate)) {
-+    base::OS::PrintError("Pkg: MAGIC_NUMBER_MISMATCH (2)\n");
 +    return MAGIC_NUMBER_MISMATCH;
 +  }
    uint32_t version_hash = GetHeaderValue(kVersionHashOffset);
