@@ -8,12 +8,12 @@
   "v6.11.5": [
     "node.v6.11.5.cpp.patch"
   ],
-  "v4.8.4": [
+  "v4.8.5": [
     "backport.R32768.patch",
     "backport.PR4777.for.N4.patch",
     "backport.PR5159.for.N4.patch",
     "backport.PR5343.for.N4.patch",
-    "node.v4.8.4.cpp.patch"
+    "node.v4.8.5.cpp.patch"
   ],
   "v0.12.18": [
     "backport.R00000.patch",
