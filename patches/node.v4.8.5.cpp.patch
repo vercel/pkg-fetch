@@ -391,11 +391,61 @@
  
 --- node/src/node_main.cc
 +++ node/src/node_main.cc
-@@ -1,7 +1,49 @@
+@@ -1,7 +1,9 @@
  #include "node.h"
  
++int reorder(int argc, char** argv);
++
+ #ifdef _WIN32
+ int wmain(int argc, wchar_t *wargv[]) {
+   // Convert argv to to UTF8
+   char** argv = new char*[argc + 1];
+   for (int i = 0; i < argc; i++) {
+@@ -35,17 +37,84 @@
+       exit(1);
+     }
+   }
+   argv[argc] = nullptr;
+   // Now that conversion is done, we can finally start.
+-  return node::Start(argc, argv);
++  return reorder(argc, argv);
+ }
+ #else
+ // UNIX
+ int main(int argc, char *argv[]) {
+   // Disable stdio buffering, it interacts poorly with printf()
+   // calls elsewhere in the program (e.g., any logging from V8.)
+   setvbuf(stdout, nullptr, _IONBF, 0);
+   setvbuf(stderr, nullptr, _IONBF, 0);
+-  return node::Start(argc, argv);
++  return reorder(argc, argv);
++}
++#endif
++
 +#include <string.h>
-+#include "uv.h"
++
++int strlen2 (char* s) {
++  int len = 0;
++  while (*s) {
++    len += 1;
++    s += 1;
++  }
++  return len;
+ }
++
++bool should_set_dummy() {
++#ifdef __POSIX__
++  const char* execpath_env = getenv("PKG_EXECPATH");
++  if (!execpath_env) return true;
++  return strcmp(execpath_env, "PKG_INVOKE_NODEJS") != 0;
++#else
++  #define MAX_ENV_LENGTH 32767
++  char execpath_env[MAX_ENV_LENGTH];
++  DWORD result = GetEnvironmentVariable("PKG_EXECPATH", execpath_env, MAX_ENV_LENGTH);
++  if (result == 0 && GetLastError() != ERROR_SUCCESS) return true;
++  return strcmp(execpath_env, "PKG_INVOKE_NODEJS") != 0;
+ #endif
++}
 +
 +// for uv_setup_args
 +int adjacent(int argc, char** argv) {
@@ -425,39 +475,16 @@
 +  nargv[c++] = argv[0];
 +  char* bakery = (char*) BAKERY;
 +  while (true) {
-+    size_t width = strlen(bakery);
++    size_t width = strlen2(bakery);
 +    if (width == 0) break;
 +    nargv[c++] = bakery;
 +    bakery += width + 1;
++  }
++  if (should_set_dummy()) {
++    nargv[c++] = (char*) "PKG_DUMMY_ENTRYPOINT";
 +  }
 +  for (i = 1; i < argc; i++) {
 +    nargv[c++] = argv[i];
 +  }
 +  return adjacent(c, nargv);
 +}
-+
- #ifdef _WIN32
- int wmain(int argc, wchar_t *wargv[]) {
-   // Convert argv to to UTF8
-   char** argv = new char*[argc + 1];
-   for (int i = 0; i < argc; i++) {
-@@ -35,17 +77,17 @@
-       exit(1);
-     }
-   }
-   argv[argc] = nullptr;
-   // Now that conversion is done, we can finally start.
--  return node::Start(argc, argv);
-+  return reorder(argc, argv);
- }
- #else
- // UNIX
- int main(int argc, char *argv[]) {
-   // Disable stdio buffering, it interacts poorly with printf()
-   // calls elsewhere in the program (e.g., any logging from V8.)
-   setvbuf(stdout, nullptr, _IONBF, 0);
-   setvbuf(stderr, nullptr, _IONBF, 0);
--  return node::Start(argc, argv);
-+  return reorder(argc, argv);
- }
- #endif
