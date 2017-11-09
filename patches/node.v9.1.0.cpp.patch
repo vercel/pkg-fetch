@@ -266,7 +266,7 @@
  
 --- node/src/env.h
 +++ node/src/env.h
-@@ -258,10 +258,11 @@
+@@ -259,10 +259,11 @@
    V(shell_string, "shell")                                                    \
    V(signal_string, "signal")                                                  \
    V(size_string, "size")                                                      \
@@ -295,7 +295,7 @@
    return true;
 --- node/src/node.cc
 +++ node/src/node.cc
-@@ -4464,17 +4464,10 @@
+@@ -4473,17 +4473,10 @@
  }
  
  
@@ -313,7 +313,7 @@
      struct stat ignored;
      if (fstat(fd, &ignored) == 0)
        continue;
-@@ -4484,14 +4477,10 @@
+@@ -4493,14 +4486,10 @@
        ABORT();
      if (fd != open("/dev/null", O_RDWR))
        ABORT();
@@ -330,7 +330,7 @@
  
 --- node/src/node_contextify.cc
 +++ node/src/node_contextify.cc
-@@ -60,10 +60,11 @@
+@@ -59,10 +59,11 @@
  using v8::Symbol;
  using v8::TryCatch;
  using v8::Uint32;
@@ -342,7 +342,7 @@
  
  namespace {
  
-@@ -642,18 +643,20 @@
+@@ -640,18 +641,20 @@
      MaybeLocal<Integer> lineOffset = GetLineOffsetArg(env, options);
      MaybeLocal<Integer> columnOffset = GetColumnOffsetArg(env, options);
      Maybe<bool> maybe_display_errors = GetDisplayErrorsArg(env, options);
@@ -363,7 +363,7 @@
      Local<Uint8Array> ui8;
      if (cached_data_buf.ToLocal(&ui8)) {
        ArrayBuffer::Contents contents = ui8->Buffer()->GetContents();
-@@ -673,22 +676,37 @@
+@@ -671,22 +674,37 @@
      else if (produce_cached_data)
        compile_options = ScriptCompiler::kProduceCodeCache;
  
@@ -401,7 +401,7 @@
  
      if (compile_options == ScriptCompiler::kConsumeCodeCache) {
        args.This()->Set(
-@@ -980,10 +998,26 @@
+@@ -978,10 +996,26 @@
      Local<Value> value = maybe_value.ToLocalChecked();
      return Just(value->IsTrue());
    }
