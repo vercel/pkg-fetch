@@ -295,7 +295,7 @@
    return true;
 --- node/src/node.cc
 +++ node/src/node.cc
-@@ -4473,17 +4473,10 @@
+@@ -4483,17 +4483,10 @@
  }
  
  
@@ -313,7 +313,7 @@
      struct stat ignored;
      if (fstat(fd, &ignored) == 0)
        continue;
-@@ -4493,14 +4486,10 @@
+@@ -4503,14 +4496,10 @@
        ABORT();
      if (fd != open("/dev/null", O_RDWR))
        ABORT();
@@ -340,9 +340,9 @@
  using v8::Value;
  using v8::WeakCallbackInfo;
  
- namespace {
- 
-@@ -640,18 +641,20 @@
+ // The vm module executes code in a sandboxed environment with a different
+ // global object than the rest of the code. This is achieved by applying
+@@ -661,18 +662,20 @@
      MaybeLocal<Integer> lineOffset = GetLineOffsetArg(env, options);
      MaybeLocal<Integer> columnOffset = GetColumnOffsetArg(env, options);
      Maybe<bool> maybe_display_errors = GetDisplayErrorsArg(env, options);
@@ -363,7 +363,7 @@
      Local<Uint8Array> ui8;
      if (cached_data_buf.ToLocal(&ui8)) {
        ArrayBuffer::Contents contents = ui8->Buffer()->GetContents();
-@@ -671,22 +674,37 @@
+@@ -692,22 +695,37 @@
      else if (produce_cached_data)
        compile_options = ScriptCompiler::kProduceCodeCache;
  
@@ -401,7 +401,7 @@
  
      if (compile_options == ScriptCompiler::kConsumeCodeCache) {
        args.This()->Set(
-@@ -978,10 +996,26 @@
+@@ -999,10 +1017,26 @@
      Local<Value> value = maybe_value.ToLocalChecked();
      return Just(value->IsTrue());
    }
