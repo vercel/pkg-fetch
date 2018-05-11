@@ -31,7 +31,7 @@
     "in-publish": "2.0.0",
     "minimist": "1.2.0",
     "progress": "2.0.0",
-    "request": "2.81.0",
+    "request": "2.85.0",
     "request-progress": "3.0.0",
     "semver": "5.4.1",
     "unique-temp-dir": "1.0.0"
