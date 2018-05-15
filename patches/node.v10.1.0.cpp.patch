@@ -78,6 +78,22 @@
    friend class AssemblerBase;
    // Flush instruction cache.
    static void FlushICache(void* start, size_t size);
+--- node/deps/v8/src/objects.cc
++++ node/deps/v8/src/objects.cc
+@@ -13082,10 +13082,13 @@
+ 
+   // Check if we should print {function} as a class.
+   Handle<Object> maybe_class_positions = JSReceiver::GetDataProperty(
+       function, isolate->factory()->class_positions_symbol());
+   if (maybe_class_positions->IsTuple2()) {
++    if (Script::cast(shared_info->script())->source()->IsUndefined(isolate)) {
++      return isolate->factory()->NewStringFromAsciiChecked("class {}");
++    }
+     Tuple2* class_positions = Tuple2::cast(*maybe_class_positions);
+     int start_position = Smi::ToInt(class_positions->value1());
+     int end_position = Smi::ToInt(class_positions->value2());
+     Handle<String> script_source(
+         String::cast(Script::cast(shared_info->script())->source()), isolate);
 --- node/deps/v8/src/parsing/parsing.cc
 +++ node/deps/v8/src/parsing/parsing.cc
 @@ -18,10 +18,11 @@
