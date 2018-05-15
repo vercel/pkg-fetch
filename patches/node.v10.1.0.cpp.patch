@@ -197,7 +197,7 @@
 +          process.argv.splice(1, 1);
 +          return { undoPatch: true };
 +        }
-+        var prelude = new Buffer(PRELUDE_SIZE);
++        var prelude = Buffer.alloc(PRELUDE_SIZE);
 +        var read = fs.readSync(fd, prelude, 0, PRELUDE_SIZE, PRELUDE_POSITION);
 +        if (read !== PRELUDE_SIZE) {
 +          console.error('Pkg: Error reading from file.');
