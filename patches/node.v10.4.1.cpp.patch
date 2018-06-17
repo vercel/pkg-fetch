@@ -498,15 +498,15 @@
 +}
 +
 +bool should_set_dummy() {
-+#ifdef __POSIX__
-+  const char* execpath_env = getenv("PKG_EXECPATH");
-+  if (!execpath_env) return true;
-+  return strcmp(execpath_env, "PKG_INVOKE_NODEJS") != 0;
-+#else
++#ifdef _WIN32
 +  #define MAX_ENV_LENGTH 32767
 +  char execpath_env[MAX_ENV_LENGTH];
 +  DWORD result = GetEnvironmentVariable("PKG_EXECPATH", execpath_env, MAX_ENV_LENGTH);
 +  if (result == 0 && GetLastError() != ERROR_SUCCESS) return true;
++  return strcmp(execpath_env, "PKG_INVOKE_NODEJS") != 0;
++#else
++  const char* execpath_env = getenv("PKG_EXECPATH");
++  if (!execpath_env) return true;
 +  return strcmp(execpath_env, "PKG_INVOKE_NODEJS") != 0;
 +#endif
 +}
