@@ -1,9 +1,9 @@
 {
-  "v10.1.0": [
-    "node.v10.1.0.cpp.patch"
+  "v10.4.1": [
+    "node.v10.4.1.cpp.patch"
   ],
-  "v9.2.1": [
-    "node.v9.2.1.cpp.patch"
+  "v8.11.3": [
+    "node.v8.11.3.cpp.patch"
   ],
   "v8.9.0": [
     "node.v8.9.0.cpp.patch"
