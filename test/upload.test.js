@@ -99,6 +99,9 @@ test(async (t) => {
   const { main } = require('../lib/upload.js');
   await main();
   const mustBe = [
+    'getRelease v1337.2',
+    'getReleaseDraft v1337.2',
+    'createRelease v1337.2',
     '> Building built-v0.12.15-macos-x64...',
     '> Cloning Node.js repository from GitHub...',
     'git clone --bare --progress https://github.com/nodejs/node node/.git {"cwd":"../precompile"}',
@@ -131,6 +134,9 @@ test(async (t) => {
     'getReleaseDraft v1337.2',
     'createRelease v1337.2',
     'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[]} uploaded-v1337.2-node-v0.12.15-macos-x64',
+    'getRelease v1337.2',
+    'getReleaseDraft v1337.2',
+    'createRelease v1337.2',
     '> Building built-v0.12.15-macos-x86...',
     '> Cloning Node.js repository from GitHub...',
     'git clone --bare --progress https://github.com/nodejs/node node/.git {"cwd":"../precompile"}',
@@ -163,6 +169,9 @@ test(async (t) => {
     'getReleaseDraft v1337.2',
     'createRelease v1337.2',
     'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[{"name":"uploaded-v1337.2-node-v0.12.15-macos-x64"}]} uploaded-v1337.2-node-v0.12.15-macos-x86',
+    'getRelease v1337.2',
+    'getReleaseDraft v1337.2',
+    'createRelease v1337.2',
     '> Building built-v4.4.7-macos-x64...',
     '> Cloning Node.js repository from GitHub...',
     'git clone --bare --progress https://github.com/nodejs/node node/.git {"cwd":"../precompile"}',
@@ -182,6 +191,9 @@ test(async (t) => {
     'getReleaseDraft v1337.2',
     'createRelease v1337.2',
     'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[{"name":"uploaded-v1337.2-node-v0.12.15-macos-x64"},{"name":"uploaded-v1337.2-node-v0.12.15-macos-x86"}]} uploaded-v1337.2-node-v4.4.7-macos-x64',
+    'getRelease v1337.2',
+    'getReleaseDraft v1337.2',
+    'createRelease v1337.2',
     '> Building built-v4.4.7-macos-x86...',
     '> Cloning Node.js repository from GitHub...',
     'git clone --bare --progress https://github.com/nodejs/node node/.git {"cwd":"../precompile"}',
@@ -201,6 +213,9 @@ test(async (t) => {
     'getReleaseDraft v1337.2',
     'createRelease v1337.2',
     'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[{"name":"uploaded-v1337.2-node-v0.12.15-macos-x64"},{"name":"uploaded-v1337.2-node-v0.12.15-macos-x86"},{"name":"uploaded-v1337.2-node-v4.4.7-macos-x64"}]} uploaded-v1337.2-node-v4.4.7-macos-x86',
+    'getRelease v1337.2',
+    'getReleaseDraft v1337.2',
+    'createRelease v1337.2',
     '> Building built-v6.3.1-macos-x64...',
     '> Cloning Node.js repository from GitHub...',
     'git clone --bare --progress https://github.com/nodejs/node node/.git {"cwd":"../precompile"}',
@@ -219,6 +234,9 @@ test(async (t) => {
     'getReleaseDraft v1337.2',
     'createRelease v1337.2',
     'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[{"name":"uploaded-v1337.2-node-v0.12.15-macos-x64"},{"name":"uploaded-v1337.2-node-v0.12.15-macos-x86"},{"name":"uploaded-v1337.2-node-v4.4.7-macos-x64"},{"name":"uploaded-v1337.2-node-v4.4.7-macos-x86"}]} uploaded-v1337.2-node-v6.3.1-macos-x64',
+    'getRelease v1337.2',
+    'getReleaseDraft v1337.2',
+    'createRelease v1337.2',
     '> Building built-v6.3.1-macos-x86...',
     '> Cloning Node.js repository from GitHub...',
     'git clone --bare --progress https://github.com/nodejs/node node/.git {"cwd":"../precompile"}',
@@ -239,7 +257,7 @@ test(async (t) => {
     'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[{"name":"uploaded-v1337.2-node-v0.12.15-macos-x64"},{"name":"uploaded-v1337.2-node-v0.12.15-macos-x86"},{"name":"uploaded-v1337.2-node-v4.4.7-macos-x64"},{"name":"uploaded-v1337.2-node-v4.4.7-macos-x86"},{"name":"uploaded-v1337.2-node-v6.3.1-macos-x64"}]} uploaded-v1337.2-node-v6.3.1-macos-x86'
   ];
   for (let i = 0; i < actions.length; i += 1) {
-    t.is(actions[i], mustBe[i]);
+    t.is(actions[i] + ` [[[${i}]]]`, mustBe[i] + ` [[[${i}]]]`);
   }
   t.is(actions.length, mustBe.length);
 });
