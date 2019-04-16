@@ -1,4 +1,7 @@
 {
+  "v10.15.3": [
+    "node.v10.15.3.cpp.patch"
+  ],
   "v10.4.1": [
     "node.v10.4.1.cpp.patch"
   ],
