@@ -1,3 +1,15 @@
+--- a/lib/internal/main/worker_thread.js
++++ b/lib/internal/main/worker_thread.js
+@@ -103,6 +103,9 @@ port.on('message', (message) => {
+     if (manifestSrc) {
+       require('internal/process/policy').setup(manifestSrc, manifestURL);
+     }
++    if (!doEval) {
++      process.argv[1] = filename; // script filename
++    }
+     initializeDeprecations();
+     initializeFrozenIntrinsics();
+     initializeCJSLoader();
 --- a/deps/v8/include/v8.h
 +++ b/deps/v8/include/v8.h
 @@ -8664,6 +8664,10 @@ class V8_EXPORT V8 {
