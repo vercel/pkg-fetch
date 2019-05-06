@@ -320,19 +320,19 @@ new file mode 100644
      wait_for_connect = parent_handle_->WaitForConnect();
 --- node/src/node.cc
 +++ node/src/node.cc
-@@ -394,10 +394,12 @@
-   // directory which will be executed instead of Node's normal loading.
-   if (NativeModuleEnv::Exists("_third_party_main")) {
-     return StartExecution(env, "internal/main/run_third_party_main");
-   }
+@@ -348,10 +348,12 @@
+   CHECK(env->req_wrap_queue()->IsEmpty());
+   CHECK(env->handle_wrap_queue()->IsEmpty());
  
-+  StartExecution(env, "internal/bootstrap/pkg");
+   env->set_has_run_bootstrapping_code(true);
+ 
++  USE(StartExecution(env, "internal/bootstrap/pkg"));
 +
-   std::string first_argv;
-   if (env->argv().size() > 1) {
-     first_argv = env->argv()[1];
-   }
+   return scope.EscapeMaybe(result);
+ }
  
+ void MarkBootstrapComplete(const FunctionCallbackInfo<Value>& args) {
+   Environment* env = Environment::GetCurrent(args);
 @@ -466,17 +468,10 @@
  
  #endif  // __POSIX__
