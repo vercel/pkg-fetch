@@ -84,7 +84,7 @@
    static unsigned supported_;
 --- node/deps/v8/src/parser.cc
 +++ node/deps/v8/src/parser.cc
-@@ -5636,10 +5636,11 @@
+@@ -5640,10 +5640,11 @@
    return false;
  }
  
