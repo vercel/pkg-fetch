@@ -160,11 +160,11 @@
    return source->length();
 --- node/lib/child_process.js
 +++ node/lib/child_process.js
-@@ -53,11 +53,11 @@
-     throw new TypeError('Forked processes must have an IPC channel');
+@@ -54,11 +54,11 @@
    }
  
    options.execPath = options.execPath || process.execPath;
+   options.shell = false;
  
 -  return spawn(options.execPath, args, options);
 +  return exports.spawn(options.execPath, args, options);
@@ -175,7 +175,7 @@
    // set process.send()
 --- node/lib/internal/bootstrap_node.js
 +++ node/lib/internal/bootstrap_node.js
-@@ -72,10 +72,46 @@
+@@ -83,10 +83,46 @@
      // There are various modes that Node can run in. The most common two
      // are running from a script and running the REPL - but there are a few
      // others like the debugger or running --eval arguments. Here we decide
@@ -241,7 +241,7 @@
  // See: https://github.com/joyent/node/issues/1707
 --- node/src/env.h
 +++ node/src/env.h
-@@ -190,10 +190,11 @@
+@@ -192,10 +192,11 @@
    V(shell_string, "shell")                                                    \
    V(signal_string, "signal")                                                  \
    V(size_string, "size")                                                      \
@@ -255,7 +255,7 @@
    V(subject_string, "subject")                                                \
 --- node/src/node.cc
 +++ node/src/node.cc
-@@ -3587,10 +3587,11 @@
+@@ -3621,10 +3621,11 @@
  
  
  static void PrintHelp();
@@ -267,7 +267,7 @@
    if (!strcmp(arg, "--debug")) {
      use_debug_agent = true;
    } else if (!strncmp(arg, "--debug=", sizeof("--debug=") - 1)) {
-@@ -4287,15 +4288,10 @@
+@@ -4435,15 +4436,10 @@
  }
  
  
@@ -283,7 +283,7 @@
      struct stat ignored;
      if (fstat(fd, &ignored) == 0)
        continue;
-@@ -4305,12 +4301,10 @@
+@@ -4453,12 +4449,10 @@
        ABORT();
      if (fd != open("/dev/null", O_RDWR))
        ABORT();
@@ -296,7 +296,7 @@
    struct sigaction act;
    memset(&act, 0, sizeof(act));
  
-@@ -4448,14 +4442,10 @@
+@@ -4637,14 +4631,10 @@
    // is to prevent memory pointers from being moved around that are returned by
    // Buffer::Data().
    const char no_typed_array_heap[] = "--typed_array_max_size_in_heap=0";
@@ -313,7 +313,7 @@
  }
 --- node/src/node_contextify.cc
 +++ node/src/node_contextify.cc
-@@ -40,10 +40,11 @@
+@@ -38,10 +38,11 @@
  using v8::ScriptOrigin;
  using v8::String;
  using v8::TryCatch;
@@ -325,7 +325,7 @@
  
  
  class ContextifyContext {
-@@ -501,17 +502,19 @@
+@@ -499,17 +500,19 @@
      MaybeLocal<Integer> lineOffset = GetLineOffsetArg(env, options);
      MaybeLocal<Integer> columnOffset = GetColumnOffsetArg(env, options);
      Maybe<bool> maybe_display_errors = GetDisplayErrorsArg(env, options);
@@ -345,7 +345,7 @@
      if (!cached_data_buf.IsEmpty()) {
        Local<Uint8Array> ui8 = cached_data_buf.ToLocalChecked();
        ArrayBuffer::Contents contents = ui8->Buffer()->GetContents();
-@@ -529,22 +532,37 @@
+@@ -527,22 +530,37 @@
      if (source.GetCachedData() != nullptr)
        compile_options = ScriptCompiler::kConsumeCodeCache;
      else if (produce_cached_data)
@@ -383,7 +383,7 @@
  
      if (compile_options == ScriptCompiler::kConsumeCodeCache) {
        args.This()->Set(
-@@ -838,10 +856,27 @@
+@@ -836,10 +854,27 @@
      Local<Value> value = maybe_value.ToLocalChecked();
      return Just(value->IsTrue());
    }
@@ -419,11 +419,11 @@
 +int reorder(int argc, char** argv);
 +
  #ifdef _WIN32
+ #include <windows.h>
  #include <VersionHelpers.h>
  
  int wmain(int argc, wchar_t *wargv[]) {
-   if (!IsWindows7OrGreater()) {
-@@ -43,17 +45,84 @@
+@@ -44,17 +46,84 @@
        exit(1);
      }
    }

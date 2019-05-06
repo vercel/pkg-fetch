@@ -8,8 +8,8 @@
   "v8.16.0": [
     "node.v8.16.0.cpp.patch"
   ],
-  "v6.11.5": [
-    "node.v6.11.5.cpp.patch"
+  "v6.17.1": [
+    "node.v6.17.1.cpp.patch"
   ],
   "v4.8.5": [
     "backport.R32768.patch",
