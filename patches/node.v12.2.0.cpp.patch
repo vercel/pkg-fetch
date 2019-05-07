@@ -100,7 +100,7 @@
    std::unique_ptr<Utf16CharacterStream> stream(
 --- node/deps/v8/src/snapshot/code-serializer.cc
 +++ node/deps/v8/src/snapshot/code-serializer.cc
-@@ -339,26 +339,39 @@
+@@ -340,26 +340,39 @@
  
  SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
      Isolate* isolate, uint32_t expected_source_hash) const {
@@ -305,7 +305,7 @@ new file mode 100644
        'lib/async_hooks.js',
 --- node/src/inspector_agent.cc
 +++ node/src/inspector_agent.cc
-@@ -714,12 +714,10 @@
+@@ -716,12 +716,10 @@
      CHECK_EQ(0, uv_async_init(parent_env_->event_loop(),
                                &start_io_thread_async,
                                StartIoThreadAsyncCallback));
@@ -320,7 +320,7 @@ new file mode 100644
      wait_for_connect = parent_handle_->WaitForConnect();
 --- node/src/node.cc
 +++ node/src/node.cc
-@@ -348,10 +348,12 @@
+@@ -335,10 +335,12 @@
    CHECK(env->req_wrap_queue()->IsEmpty());
    CHECK(env->handle_wrap_queue()->IsEmpty());
  
@@ -333,7 +333,7 @@ new file mode 100644
  
  void MarkBootstrapComplete(const FunctionCallbackInfo<Value>& args) {
    Environment* env = Environment::GetCurrent(args);
-@@ -466,17 +468,10 @@
+@@ -453,17 +455,10 @@
  
  #endif  // __POSIX__
  
@@ -351,7 +351,7 @@ new file mode 100644
      struct stat ignored;
      if (fstat(fd, &ignored) == 0)
        continue;
-@@ -486,14 +481,10 @@
+@@ -473,14 +468,10 @@
        ABORT();
      if (fd != open("/dev/null", O_RDWR))
        ABORT();
@@ -566,7 +566,7 @@ new file mode 100644
 +}
 --- node/src/node_options.cc
 +++ node/src/node_options.cc
-@@ -222,10 +222,11 @@
+@@ -232,10 +232,11 @@
  // XXX: If you add an option here, please also add it to doc/node.1 and
  // doc/api/cli.md
  // TODO(addaleax): Make that unnecessary.
