@@ -423,7 +423,7 @@
  #include <VersionHelpers.h>
  
  int wmain(int argc, wchar_t *wargv[]) {
-@@ -44,17 +46,84 @@
+@@ -44,17 +46,86 @@
        exit(1);
      }
    }
@@ -434,6 +434,8 @@
  }
  #else
  // UNIX
++#include <stdlib.h>
++
  int main(int argc, char *argv[]) {
    // Disable stdio buffering, it interacts poorly with printf()
    // calls elsewhere in the program (e.g., any logging from V8.)
@@ -441,8 +443,8 @@
    setvbuf(stderr, nullptr, _IONBF, 0);
 -  return node::Start(argc, argv);
 +  return reorder(argc, argv);
-+}
-+#endif
+ }
+ #endif
 +
 +#include <string.h>
 +
@@ -453,20 +455,20 @@
 +    s += 1;
 +  }
 +  return len;
- }
++}
 +
 +bool should_set_dummy() {
-+#ifdef __POSIX__
-+  const char* execpath_env = getenv("PKG_EXECPATH");
-+  if (!execpath_env) return true;
-+  return strcmp(execpath_env, "PKG_INVOKE_NODEJS") != 0;
-+#else
++#ifdef _WIN32
 +  #define MAX_ENV_LENGTH 32767
 +  char execpath_env[MAX_ENV_LENGTH];
 +  DWORD result = GetEnvironmentVariable("PKG_EXECPATH", execpath_env, MAX_ENV_LENGTH);
 +  if (result == 0 && GetLastError() != ERROR_SUCCESS) return true;
 +  return strcmp(execpath_env, "PKG_INVOKE_NODEJS") != 0;
- #endif
++#else
++  const char* execpath_env = getenv("PKG_EXECPATH");
++  if (!execpath_env) return true;
++  return strcmp(execpath_env, "PKG_INVOKE_NODEJS") != 0;
++#endif
 +}
 +
 +// for uv_setup_args
