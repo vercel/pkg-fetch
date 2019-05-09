@@ -15,15 +15,22 @@
   ],
   "babel": {
     "plugins": [
-      "transform-async-to-generator",
-      "transform-runtime"
+      "@babel/plugin-transform-async-to-generator",
+      "@babel/plugin-transform-runtime"
     ],
     "presets": [
-      "es2015"
+      [
+        "@babel/preset-env",
+        {
+          "targets": {
+            "node": "4"
+          }
+        }
+      ]
     ]
   },
   "dependencies": {
-    "babel-runtime": "~6.26.0",
+    "@babel/runtime": "~7.4.4",
     "byline": "~5.0.0",
     "chalk": "~2.4.1",
     "expand-template": "~2.0.3",
@@ -36,13 +43,14 @@
     "unique-temp-dir": "~1.0.0"
   },
   "devDependencies": {
+    "@babel/cli": "~7.4.4",
+    "@babel/core": "~7.4.4",
+    "@babel/plugin-transform-async-to-generator": "~7.4.4",
+    "@babel/plugin-transform-runtime": "~7.4.4",
+    "@babel/preset-env": "~7.4.4",
+    "@babel/register": "~7.4.4",
     "ava": "~1.4.1",
-    "babel-cli": "~6.26.0",
     "babel-eslint": "~10.0.1",
-    "babel-plugin-transform-async-to-generator": "~6.24.1",
-    "babel-plugin-transform-runtime": "~6.23.0",
-    "babel-preset-es2015": "~6.24.1",
-    "babel-register": "~6.26.0",
     "eslint-config-klopov": "~0.13.0"
   },
   "scripts": {
@@ -64,7 +72,7 @@
       "test/*.test.js"
     ],
     "require": [
-      "babel-register"
+      "@babel/register"
     ]
   }
 }
