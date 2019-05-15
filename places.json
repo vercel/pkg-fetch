@@ -1,4 +1,4 @@
 {
-  "localPlace": "{tag}/{from}-{nodeVersion}-{platform}-{arch}",
+  "localPlace": "{from}-{nodeVersion}-{platform}-{arch}",
   "remotePlace": "uploaded-{tag}-node-{nodeVersion}-{platform}-{arch}"
 }
