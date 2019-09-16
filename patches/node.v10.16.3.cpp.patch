@@ -1,0 +1,1312 @@
+--- node_origin/node/deps/v8/include/v8.h	2019-08-28 20:53:14.000000000 +0800
++++ node/deps/v8/include/v8.h	2019-08-29 16:34:37.999596451 +0800
+@@ -8138,6 +8138,10 @@ class V8_EXPORT V8 {
+   static void SetFlagsFromCommandLine(int* argc,
+                                       char** argv,
+                                       bool remove_flags);
++  static void EnableCompilationForSourcelessUse();
++  static void DisableCompilationForSourcelessUse();
++  static void FixSourcelessScript(Isolate* v8_isolate, Local<UnboundScript> script);
++
+ 
+   /** Get the version string. */
+   static const char* GetVersion();
+diff -upr node_origin/node/deps/v8/src/api.cc node/deps/v8/src/api.cc
+--- node_origin/node/deps/v8/src/api.cc	2019-08-28 20:53:14.000000000 +0800
++++ node/deps/v8/src/api.cc	2019-09-03 09:15:30.997949281 +0800
+@@ -916,6 +916,39 @@ void V8::SetFlagsFromCommandLine(int* ar
+   i::FlagList::SetFlagsFromCommandLine(argc, argv, remove_flags);
+ }
+ 
++bool save_lazy;
++bool save_predictable;
++
++
++void V8::EnableCompilationForSourcelessUse() {
++  save_lazy = i::FLAG_lazy;
++  i::FLAG_lazy = false;
++  save_predictable = i::FLAG_predictable;
++  i::FLAG_predictable = true;
++  i::CpuFeatures::Reinitialize();
++  i::CpuFeatures::Probe(true);
++}
++
++
++void V8::DisableCompilationForSourcelessUse() {
++  i::FLAG_lazy = save_lazy;
++  i::FLAG_predictable = save_predictable;
++  i::CpuFeatures::Reinitialize();
++  i::CpuFeatures::Probe(false);
++}
++
++
++void V8::FixSourcelessScript(Isolate* v8_isolate, Local<UnboundScript> script) {
++  auto isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
++  auto object = i::Handle<i::HeapObject>::cast(Utils::OpenHandle(*script));
++  i::Handle<i::SharedFunctionInfo> function_info(
++    i::SharedFunctionInfo::cast(*object), object->GetIsolate());
++  auto s = reinterpret_cast<i::Script*>(function_info->script());
++  s->set_source(isolate->heap()->undefined_value());
++}
++
++
++
+ RegisteredExtension* RegisteredExtension::first_extension_ = nullptr;
+ 
+ RegisteredExtension::RegisteredExtension(Extension* extension)
+diff -upr node_origin/node/deps/v8/src/assembler.h node/deps/v8/src/assembler.h
+--- node_origin/node/deps/v8/src/assembler.h	2019-08-28 20:53:14.000000000 +0800
++++ node/deps/v8/src/assembler.h	2019-09-03 09:16:44.110274443 +0800
+@@ -303,6 +303,10 @@ class CpuFeatures : public AllStatic {
+ 
+   static void PrintTarget();
+   static void PrintFeatures();
++  static void Reinitialize() {
++    supported_ = 0;
++    initialized_ = false;
++  }
+ 
+  private:
+   friend class ExternalReference;
+diff -upr node_origin/node/deps/v8/src/objects.cc node/deps/v8/src/objects.cc
+--- node_origin/node/deps/v8/src/objects.cc	2019-08-28 20:53:15.000000000 +0800
++++ node/deps/v8/src/objects.cc	2019-08-29 16:43:49.208880892 +0800
+@@ -13181,6 +13181,9 @@ Handle<String> JSFunction::ToString(Hand
+   Handle<Object> maybe_class_positions = JSReceiver::GetDataProperty(
+       function, isolate->factory()->class_positions_symbol());
+   if (maybe_class_positions->IsTuple2()) {
++    if (Script::cast(shared_info->script())->source()->IsUndefined(isolate)) {
++      return isolate->factory()->NewStringFromAsciiChecked("class {}");
++    }
+     Tuple2* class_positions = Tuple2::cast(*maybe_class_positions);
+     int start_position = Smi::ToInt(class_positions->value1());
+     int end_position = Smi::ToInt(class_positions->value2());
+diff -upr node_origin/node/deps/v8/src/parsing/parsing.cc node/deps/v8/src/parsing/parsing.cc
+--- node_origin/node/deps/v8/src/parsing/parsing.cc	2019-08-28 20:53:15.000000000 +0800
++++ node/deps/v8/src/parsing/parsing.cc	2019-08-29 16:46:08.821680616 +0800
+@@ -20,7 +20,7 @@ namespace parsing {
+ bool ParseProgram(ParseInfo* info, Isolate* isolate) {
+   DCHECK(info->is_toplevel());
+   DCHECK_NULL(info->literal());
+-
++  if (info->script()->source()->IsUndefined(isolate)) return false;
+   VMState<PARSER> state(isolate);
+ 
+   // Create a character stream for the parser.
+@@ -57,7 +57,7 @@ bool ParseFunction(ParseInfo* info, Hand
+   DCHECK(!info->is_toplevel());
+   DCHECK(!shared_info.is_null());
+   DCHECK_NULL(info->literal());
+-
++  if (info->script()->source()->IsUndefined(isolate)) return false;
+   // Create a character stream for the parser.
+   Handle<String> source(String::cast(info->script()->source()), isolate);
+   source = String::Flatten(source);
+diff -upr node_origin/node/deps/v8/src/snapshot/code-serializer.cc node/deps/v8/src/snapshot/code-serializer.cc
+--- node_origin/node/deps/v8/src/snapshot/code-serializer.cc	2019-08-28 20:53:15.000000000 +0800
++++ node/deps/v8/src/snapshot/code-serializer.cc	2019-09-03 16:30:55.656166576 +0800
+@@ -403,27 +403,49 @@ SerializedCodeData::SanityCheckResult Se
+     Isolate* isolate, uint32_t expected_source_hash) const {
+   if (this->size_ < kHeaderSize) return INVALID_HEADER;
+   uint32_t magic_number = GetMagicNumber();
+-  if (magic_number != ComputeMagicNumber(isolate)) return MAGIC_NUMBER_MISMATCH;
++  // if (magic_number != ComputeMagicNumber(isolate)) return MAGIC_NUMBER_MISMATCH;
++  if (magic_number != ComputeMagicNumber(isolate)) {
++    // base::OS::PrintError("Pkg: MAGIC_NUMBER_MISMATCH\n"); // TODO enable after solving v8-cache/ncc issue
++    return MAGIC_NUMBER_MISMATCH;
++  }
+   uint32_t version_hash = GetHeaderValue(kVersionHashOffset);
+-  uint32_t source_hash = GetHeaderValue(kSourceHashOffset);
++  // uint32_t source_hash = GetHeaderValue(kSourceHashOffset);
+   uint32_t cpu_features = GetHeaderValue(kCpuFeaturesOffset);
+   uint32_t flags_hash = GetHeaderValue(kFlagHashOffset);
+   uint32_t payload_length = GetHeaderValue(kPayloadLengthOffset);
+   uint32_t c1 = GetHeaderValue(kChecksum1Offset);
+   uint32_t c2 = GetHeaderValue(kChecksum2Offset);
+-  if (version_hash != Version::Hash()) return VERSION_MISMATCH;
+-  if (source_hash != expected_source_hash) return SOURCE_MISMATCH;
+-  if (cpu_features != static_cast<uint32_t>(CpuFeatures::SupportedFeatures())) {
+-    return CPU_FEATURES_MISMATCH;
++  // if (version_hash != Version::Hash()) return VERSION_MISMATCH;
++  if (version_hash != Version::Hash()) {
++    base::OS::PrintError("Pkg: VERSION_MISMATCH\n");
++    return VERSION_MISMATCH;
++  }
++  // if (source_hash != expected_source_hash) return SOURCE_MISMATCH;
++  uint32_t host_features = static_cast<uint32_t>(CpuFeatures::SupportedFeatures());
++  if (cpu_features & (~host_features)) {
++     base::OS::PrintError("Pkg: CPU_FEATURES_MISMATCH\n");
++     return CPU_FEATURES_MISMATCH;
++   }
++  // if (flags_hash != FlagList::Hash()) return FLAGS_MISMATCH;
++  if (flags_hash != FlagList::Hash()) {
++    base::OS::PrintError("Pkg: FLAGS_MISMATCH\n");
++    return FLAGS_MISMATCH;
+   }
+-  if (flags_hash != FlagList::Hash()) return FLAGS_MISMATCH;
+   uint32_t max_payload_length =
+       this->size_ -
+       POINTER_SIZE_ALIGN(kHeaderSize +
+                          GetHeaderValue(kNumReservationsOffset) * kInt32Size +
+                          GetHeaderValue(kNumCodeStubKeysOffset) * kInt32Size);
+-  if (payload_length > max_payload_length) return LENGTH_MISMATCH;
+-  if (!Checksum(DataWithoutHeader()).Check(c1, c2)) return CHECKSUM_MISMATCH;
++  // if (payload_length > max_payload_length) return LENGTH_MISMATCH;
++  // if (!Checksum(DataWithoutHeader()).Check(c1, c2)) return CHECKSUM_MISMATCH;
++  if (payload_length > max_payload_length) {
++    base::OS::PrintError("Pkg: LENGTH_MISMATCH\n");
++    return LENGTH_MISMATCH;
++  }
++  if (!Checksum(DataWithoutHeader()).Check(c1, c2)) {
++    base::OS::PrintError("Pkg: CHECKSUM_MISMATCH\n");
++    return CHECKSUM_MISMATCH;
++  }
+   return CHECK_SUCCESS;
+ }
+ 
+diff -upr node_origin/node/lib/child_process.js node/lib/child_process.js
+--- node_origin/node/lib/child_process.js	2019-08-28 20:53:21.000000000 +0800
++++ node/lib/child_process.js	2019-08-29 16:52:45.461793634 +0800
+@@ -70,7 +70,7 @@ exports.fork = function fork(modulePath
+   }
+ 
+   if (pos < arguments.length &&
+-      (arguments[pos] === undefined || arguments[pos] === null)) {
++    (arguments[pos] === undefined || arguments[pos] === null)) {
+     pos++;
+   }
+ 
+@@ -110,7 +110,7 @@ exports.fork = function fork(modulePath
+   options.execPath = options.execPath || process.execPath;
+   options.shell = false;
+ 
+-  return spawn(options.execPath, args, options);
++  return exports.spawn(options.execPath, args, options);
+ };
+ 
+ 
+@@ -150,8 +150,8 @@ function normalizeExecArgs(command, opti
+ exports.exec = function exec(command, options, callback) {
+   const opts = normalizeExecArgs(command, options, callback);
+   return exports.execFile(opts.file,
+-                          opts.options,
+-                          opts.callback);
++    opts.options,
++    opts.callback);
+ };
+ 
+ const customPromiseExecFunction = (orig) => {
+@@ -399,7 +399,7 @@ const _deprecatedCustomFds = deprecate(
+       return fd === -1 ? 'pipe' : fd;
+     });
+   }, 'child_process: options.customFds option is deprecated. ' +
+-     'Use options.stdio instead.', 'DEP0006');
++  'Use options.stdio instead.', 'DEP0006');
+ 
+ function _convertCustomFds(options) {
+   if (options.customFds && !options.stdio) {
+@@ -431,15 +431,15 @@ function normalizeSpawnArguments(file, a
+ 
+   // Validate the cwd, if present.
+   if (options.cwd != null &&
+-      typeof options.cwd !== 'string') {
++    typeof options.cwd !== 'string') {
+     throw new ERR_INVALID_ARG_TYPE('options.cwd', 'string', options.cwd);
+   }
+ 
+   // Validate detached, if present.
+   if (options.detached != null &&
+-      typeof options.detached !== 'boolean') {
++    typeof options.detached !== 'boolean') {
+     throw new ERR_INVALID_ARG_TYPE('options.detached',
+-                                   'boolean', options.detached);
++      'boolean', options.detached);
+   }
+ 
+   // Validate the uid, if present.
+@@ -454,31 +454,31 @@ function normalizeSpawnArguments(file, a
+ 
+   // Validate the shell, if present.
+   if (options.shell != null &&
+-      typeof options.shell !== 'boolean' &&
+-      typeof options.shell !== 'string') {
++    typeof options.shell !== 'boolean' &&
++    typeof options.shell !== 'string') {
+     throw new ERR_INVALID_ARG_TYPE('options.shell',
+-                                   ['boolean', 'string'], options.shell);
++      ['boolean', 'string'], options.shell);
+   }
+ 
+   // Validate argv0, if present.
+   if (options.argv0 != null &&
+-      typeof options.argv0 !== 'string') {
++    typeof options.argv0 !== 'string') {
+     throw new ERR_INVALID_ARG_TYPE('options.argv0', 'string', options.argv0);
+   }
+ 
+   // Validate windowsHide, if present.
+   if (options.windowsHide != null &&
+-      typeof options.windowsHide !== 'boolean') {
++    typeof options.windowsHide !== 'boolean') {
+     throw new ERR_INVALID_ARG_TYPE('options.windowsHide',
+-                                   'boolean', options.windowsHide);
++      'boolean', options.windowsHide);
+   }
+ 
+   // Validate windowsVerbatimArguments, if present.
+   if (options.windowsVerbatimArguments != null &&
+-      typeof options.windowsVerbatimArguments !== 'boolean') {
++    typeof options.windowsVerbatimArguments !== 'boolean') {
+     throw new ERR_INVALID_ARG_TYPE('options.windowsVerbatimArguments',
+-                                   'boolean',
+-                                   options.windowsVerbatimArguments);
++      'boolean',
++      options.windowsVerbatimArguments);
+   }
+ 
+   // Make a shallow copy so we don't clobber the user's options object.
+@@ -517,8 +517,8 @@ function normalizeSpawnArguments(file, a
+   // process.env.NODE_V8_COVERAGE always propagates, making it possible to
+   // collect coverage for programs that spawn with white-listed environment.
+   if (process.env.NODE_V8_COVERAGE &&
+-      !Object.prototype.hasOwnProperty.call(options.env || {},
+-                                            'NODE_V8_COVERAGE')) {
++    !Object.prototype.hasOwnProperty.call(options.env || {},
++      'NODE_V8_COVERAGE')) {
+     env.NODE_V8_COVERAGE = process.env.NODE_V8_COVERAGE;
+   }
+ 
+@@ -602,11 +602,11 @@ function spawnSync(file, args, options)
+         pipe.input = Buffer.from(input, options.encoding);
+       } else {
+         throw new ERR_INVALID_ARG_TYPE(`options.stdio[${i}]`,
+-                                       ['Buffer',
+-                                        'TypedArray',
+-                                        'DataView',
+-                                        'string'],
+-                                       input);
++          ['Buffer',
++            'TypedArray',
++            'DataView',
++            'string'],
++          input);
+       }
+     }
+   }
+@@ -683,8 +683,8 @@ function validateTimeout(timeout) {
+ function validateMaxBuffer(maxBuffer) {
+   if (maxBuffer != null && !(typeof maxBuffer === 'number' && maxBuffer >= 0)) {
+     throw new ERR_OUT_OF_RANGE('options.maxBuffer',
+-                               'a positive number',
+-                               maxBuffer);
++      'a positive number',
++      maxBuffer);
+   }
+ }
+ 
+@@ -694,7 +694,7 @@ function sanitizeKillSignal(killSignal)
+     return convertToValidSignal(killSignal);
+   } else if (killSignal != null) {
+     throw new ERR_INVALID_ARG_TYPE('options.killSignal',
+-                                   ['string', 'number'],
+-                                   killSignal);
++      ['string', 'number'],
++      killSignal);
+   }
+ }
+diff -upr node_origin/node/lib/internal/bootstrap/loaders.js node/lib/internal/bootstrap/loaders.js
+--- node_origin/node/lib/internal/bootstrap/loaders.js	2019-08-28 20:53:21.000000000 +0800
++++ node/lib/internal/bootstrap/loaders.js	2019-08-29 16:53:43.601543104 +0800
+@@ -40,7 +40,7 @@
+ 'use strict';
+ 
+ (function bootstrapInternalLoaders(process, getBinding, getLinkedBinding,
+-                                   getInternalBinding, debugBreak) {
++  getInternalBinding, debugBreak) {
+   if (debugBreak)
+     debugger; // eslint-disable-line no-debugger
+ 
+@@ -147,7 +147,7 @@
+   const loaderExports = { internalBinding, NativeModule };
+   const loaderId = 'internal/bootstrap/loaders';
+ 
+-  NativeModule.require = function(id) {
++  NativeModule.require = function (id) {
+     if (id === loaderId) {
+       return loaderExports;
+     }
+@@ -178,29 +178,29 @@
+     return nativeModule.exports;
+   };
+ 
+-  NativeModule.isDepsModule = function(id) {
++  NativeModule.isDepsModule = function (id) {
+     return id.startsWith('node-inspect/') || id.startsWith('v8/');
+   };
+ 
+-  NativeModule.requireForDeps = function(id) {
++  NativeModule.requireForDeps = function (id) {
+     if (!NativeModule.exists(id) ||
+-        // TODO(TimothyGu): remove when DEP0084 reaches end of life.
+-        NativeModule.isDepsModule(id)) {
++      // TODO(TimothyGu): remove when DEP0084 reaches end of life.
++      NativeModule.isDepsModule(id)) {
+       id = `internal/deps/${id}`;
+     }
+     return NativeModule.require(id);
+   };
+ 
+-  NativeModule.getCached = function(id) {
++  NativeModule.getCached = function (id) {
+     return NativeModule._cache[id];
+   };
+ 
+-  NativeModule.exists = function(id) {
++  NativeModule.exists = function (id) {
+     return NativeModule._source.hasOwnProperty(id);
+   };
+ 
+   if (config.exposeInternals) {
+-    NativeModule.nonInternalExists = function(id) {
++    NativeModule.nonInternalExists = function (id) {
+       // Do not expose this to user land even with --expose-internals
+       if (id === loaderId) {
+         return false;
+@@ -208,26 +208,26 @@
+       return NativeModule.exists(id);
+     };
+ 
+-    NativeModule.isInternal = function(id) {
++    NativeModule.isInternal = function (id) {
+       // Do not expose this to user land even with --expose-internals
+       return id === loaderId;
+     };
+   } else {
+-    NativeModule.nonInternalExists = function(id) {
++    NativeModule.nonInternalExists = function (id) {
+       return NativeModule.exists(id) && !NativeModule.isInternal(id);
+     };
+ 
+-    NativeModule.isInternal = function(id) {
++    NativeModule.isInternal = function (id) {
+       return id.startsWith('internal/') ||
+-          (id === 'worker_threads' && !config.experimentalWorker);
++        (id === 'worker_threads' && !config.experimentalWorker);
+     };
+   }
+ 
+-  NativeModule.getSource = function(id) {
++  NativeModule.getSource = function (id) {
+     return NativeModule._source[id];
+   };
+ 
+-  NativeModule.wrap = function(script) {
++  NativeModule.wrap = function (script) {
+     return NativeModule.wrapper[0] + script + NativeModule.wrapper[1];
+   };
+ 
+@@ -246,13 +246,13 @@
+   // may be imported in a nicer way for esm users. The default export is left
+   // as the entire namespace (module.exports) and wrapped in a proxy such
+   // that APMs and other behavior are still left intact.
+-  NativeModule.prototype.proxifyExports = function() {
++  NativeModule.prototype.proxifyExports = function () {
+     this.exportKeys = ObjectKeys(this.exports);
+ 
+     const update = (property, value) => {
+       if (this.reflect !== undefined &&
+-          ReflectApply(ObjectHasOwnProperty,
+-                       this.reflect.exports, [property]))
++        ReflectApply(ObjectHasOwnProperty,
++          this.reflect.exports, [property]))
+         this.reflect.exports[property].set(value);
+     };
+ 
+@@ -263,7 +263,7 @@
+         // to throw the appropriate error if something goes wrong.
+         ObjectDefineProperty(target, prop, descriptor);
+         if (typeof descriptor.get === 'function' &&
+-            !ReflectHas(handler, 'get')) {
++          !ReflectHas(handler, 'get')) {
+           handler.get = (target, prop, receiver) => {
+             const value = ReflectGet(target, prop, receiver);
+             if (ReflectApply(ObjectHasOwnProperty, target, [prop]))
+@@ -300,7 +300,7 @@
+     this.exports = new Proxy(this.exports, handler);
+   };
+ 
+-  NativeModule.prototype.compile = function() {
++  NativeModule.prototype.compile = function () {
+     const id = this.id;
+     let source = NativeModule.getSource(id);
+     source = NativeModule.wrap(source);
+@@ -339,7 +339,7 @@
+       // cachedData, produceCachedData, parsingContext)
+       const script = new ContextifyScript(
+         source, this.filename, 0, 0,
+-        cache, false, undefined
++        cache, false, undefined, false
+       );
+ 
+       // This will be used to create code cache in tools/generate_code_cache.js
+@@ -373,7 +373,7 @@
+     }
+   };
+ 
+-  NativeModule.prototype.cache = function() {
++  NativeModule.prototype.cache = function () {
+     NativeModule._cache[this.id] = this;
+   };
+ 
+diff -upr node_origin/node/lib/internal/bootstrap/node.js node/lib/internal/bootstrap/node.js
+--- node_origin/node/lib/internal/bootstrap/node.js	2019-08-28 20:53:21.000000000 +0800
++++ node/lib/internal/bootstrap/node.js	2019-08-29 16:54:30.589148812 +0800
+@@ -13,17 +13,17 @@
+ 'use strict';
+ 
+ (function bootstrapNodeJSCore(process,
+-                              // bootstrapper properties... destructured to
+-                              // avoid retaining a reference to the bootstrap
+-                              // object.
+-                              { _setupProcessObject, _setupNextTick,
+-                                _setupPromises, _chdir, _cpuUsage,
+-                                _hrtime, _hrtimeBigInt,
+-                                _memoryUsage, _rawDebug,
+-                                _umask, _initgroups, _setegid, _seteuid,
+-                                _setgid, _setuid, _setgroups,
+-                                _shouldAbortOnUncaughtToggle },
+-                              { internalBinding, NativeModule }) {
++  // bootstrapper properties... destructured to
++  // avoid retaining a reference to the bootstrap
++  // object.
++  { _setupProcessObject, _setupNextTick,
++    _setupPromises, _chdir, _cpuUsage,
++    _hrtime, _hrtimeBigInt,
++    _memoryUsage, _rawDebug,
++    _umask, _initgroups, _setegid, _seteuid,
++    _setgid, _setuid, _setgroups,
++    _shouldAbortOnUncaughtToggle },
++  { internalBinding, NativeModule }) {
+   const exceptionHandlerState = { captureFn: null };
+   const isMainThread = internalBinding('worker').threadId === 0;
+ 
+@@ -61,11 +61,11 @@
+     }
+ 
+     perThreadSetup.setupUncaughtExceptionCapture(exceptionHandlerState,
+-                                                 _shouldAbortOnUncaughtToggle);
++      _shouldAbortOnUncaughtToggle);
+ 
+     NativeModule.require('internal/process/warning').setup();
+     NativeModule.require('internal/process/next_tick').setup(_setupNextTick,
+-                                                             _setupPromises);
++      _setupPromises);
+ 
+     if (isMainThread) {
+       mainThreadSetup.setupStdio();
+@@ -199,10 +199,10 @@
+       ]) {
+         utilBinding[name] = pendingDeprecation ?
+           deprecate(types[name],
+-                    'Accessing native typechecking bindings of Node ' +
+-                    'directly is deprecated. ' +
+-                    `Please use \`util.types.${name}\` instead.`,
+-                    'DEP0103') :
++            'Accessing native typechecking bindings of Node ' +
++            'directly is deprecated. ' +
++            `Please use \`util.types.${name}\` instead.`,
++            'DEP0103') :
+           types[name];
+       }
+     }
+@@ -215,6 +215,41 @@
+     // are running from a script and running the REPL - but there are a few
+     // others like the debugger or running --eval arguments. Here we decide
+     // which mode we run in.
++    (function () {
++      var fs = NativeModule.require('fs');
++      var vm = NativeModule.require('vm');
++      function readPrelude(fd) {
++        var PAYLOAD_POSITION = '// PAYLOAD_POSITION //' | 0;
++        var PAYLOAD_SIZE = '// PAYLOAD_SIZE //' | 0;
++        var PRELUDE_POSITION = '// PRELUDE_POSITION //' | 0;
++        var PRELUDE_SIZE = '// PRELUDE_SIZE //' | 0;
++        if (!PRELUDE_POSITION) {
++          // no prelude - remove entrypoint from argv[1]
++          process.argv.splice(1, 1);
++          return { undoPatch: true };
++        }
++        var prelude = Buffer.alloc(PRELUDE_SIZE);
++        var read = fs.readSync(fd, prelude, 0, PRELUDE_SIZE, PRELUDE_POSITION);
++        if (read !== PRELUDE_SIZE) {
++          console.error('Pkg: Error reading from file.');
++          process.exit(1);
++        }
++        var s = new vm.Script(prelude, { filename: 'pkg/prelude/bootstrap.js' });
++        var fn = s.runInThisContext();
++        return fn(process, NativeModule.require,
++          console, fd, PAYLOAD_POSITION, PAYLOAD_SIZE);
++      }
++      (function () {
++        var fd = fs.openSync(process.execPath, 'r');
++        var result = readPrelude(fd);
++        if (result && result.undoPatch) {
++          var bindingFs = process.binding('fs');
++          fs.internalModuleStat = bindingFs.internalModuleStat;
++          fs.internalModuleReadJSON = bindingFs.internalModuleReadJSON;
++          fs.closeSync(fd);
++        }
++      }());
++    }());
+     if (internalBinding('worker').getEnvMessagePort() !== undefined) {
+       // This means we are in a Worker context, and any script execution
+       // will be directed by the worker module.
+@@ -315,7 +350,7 @@
+             code += d;
+           });
+ 
+-          process.stdin.on('end', function() {
++          process.stdin.on('end', function () {
+             if (process._syntax_check_only != null) {
+               checkScriptSyntax(code, '[stdin]');
+             } else {
+@@ -353,13 +388,13 @@
+     const util = NativeModule.require('util');
+ 
+     function makeGetter(name) {
+-      return util.deprecate(function() {
++      return util.deprecate(function () {
+         return this;
+       }, `'${name}' is deprecated, use 'global'`, 'DEP0016');
+     }
+ 
+     function makeSetter(name) {
+-      return util.deprecate(function(value) {
++      return util.deprecate(function (value) {
+         Object.defineProperty(this, name, {
+           configurable: true,
+           writable: true,
+@@ -453,7 +488,7 @@
+ 
+     const consoleAPIModule = new CJSModule('<inspector console>');
+     consoleAPIModule.paths =
+-        CJSModule._nodeModulePaths(cwd).concat(CJSModule.globalPaths);
++      CJSModule._nodeModulePaths(cwd).concat(CJSModule.globalPaths);
+     addCommandLineAPI('require', makeRequireFunction(consoleAPIModule));
+     const config = {};
+     for (const key of Object.keys(wrappedConsole)) {
+@@ -463,9 +498,9 @@
+       // then wrap these two methods into one. Native wrapper will preserve
+       // the original stack.
+       wrappedConsole[key] = consoleCall.bind(wrappedConsole,
+-                                             originalConsole[key],
+-                                             wrappedConsole[key],
+-                                             config);
++        originalConsole[key],
++        wrappedConsole[key],
++        config);
+     }
+     for (const key of Object.keys(originalConsole)) {
+       if (wrappedConsole.hasOwnProperty(key))
+@@ -474,7 +509,7 @@
+     }
+   }
+ 
+-  function noop() {}
++  function noop() { }
+ 
+   function setupProcessFatal() {
+     const {
+@@ -524,7 +559,7 @@
+         do {
+           emitAfter(executionAsyncId());
+         } while (hasAsyncIdStack());
+-      // Or completely empty the id stack.
++        // Or completely empty the id stack.
+       } else {
+         clearAsyncIdStack();
+       }
+@@ -579,13 +614,13 @@
+     module.filename = path.join(cwd, name);
+     module.paths = CJSModule._nodeModulePaths(cwd);
+     const script = `global.__filename = ${JSON.stringify(name)};\n` +
+-                   'global.exports = exports;\n' +
+-                   'global.module = module;\n' +
+-                   'global.__dirname = __dirname;\n' +
+-                   'global.require = require;\n' +
+-                   'return require("vm").runInThisContext(' +
+-                   `${JSON.stringify(body)}, { filename: ` +
+-                   `${JSON.stringify(name)}, displayErrors: true });\n`;
++      'global.exports = exports;\n' +
++      'global.module = module;\n' +
++      'global.__dirname = __dirname;\n' +
++      'global.require = require;\n' +
++      'return require("vm").runInThisContext(' +
++      `${JSON.stringify(body)}, { filename: ` +
++      `${JSON.stringify(name)}, displayErrors: true });\n`;
+     const result = module._compile(script, `${name}-wrapper`);
+     if (process._print_eval) console.log(result);
+     // Handle any nextTicks added in the first tick of the program.
+diff -upr node_origin/node/lib/internal/modules/cjs/loader.js node/lib/internal/modules/cjs/loader.js
+--- node_origin/node/lib/internal/modules/cjs/loader.js	2019-08-28 20:53:21.000000000 +0800
++++ node/lib/internal/modules/cjs/loader.js	2019-08-29 17:19:51.163648624 +0800
+@@ -29,10 +29,9 @@ const assert = require('assert').ok;
+ const fs = require('fs');
+ const internalFS = require('internal/fs/utils');
+ const path = require('path');
+-const {
+-  internalModuleReadJSON,
+-  internalModuleStat
+-} = process.binding('fs');
++const internalModuleReadJSON = function (f) { return require('fs').internalModuleReadJSON(f); };
++const internalModuleStat = function (f) { return require('fs').internalModuleStat(f); };
++
+ const { safeGetenv } = process.binding('util');
+ const {
+   makeRequireFunction,
+@@ -126,7 +125,7 @@ Module.globalPaths = [];
+ let patched = false;
+ 
+ // eslint-disable-next-line func-style
+-let wrap = function(script) {
++let wrap = function (script) {
+   return Module.wrapper[0] + script + Module.wrapper[1];
+ };
+ 
+@@ -172,7 +171,7 @@ Object.defineProperty(Module, 'wrapper',
+ const debug = util.debuglog('module');
+ 
+ Module._debug = util.deprecate(debug, 'Module._debug is deprecated.',
+-                               'DEP0077');
++  'DEP0077');
+ 
+ // given a module name, and a list of paths to test, returns the first
+ // matching file in the following precedence.
+@@ -216,8 +215,8 @@ function tryPackage(requestPath, exts, i
+ 
+   var filename = path.resolve(requestPath, pkg);
+   return tryFile(filename, isMain) ||
+-         tryExtensions(filename, exts, isMain) ||
+-         tryExtensions(path.resolve(filename, 'index'), exts, isMain);
++    tryExtensions(filename, exts, isMain) ||
++    tryExtensions(path.resolve(filename, 'index'), exts, isMain);
+ }
+ 
+ // In order to minimize unnecessary lstat() calls,
+@@ -272,7 +271,7 @@ function findLongestRegisteredExtension(
+ }
+ 
+ var warned = false;
+-Module._findPath = function(request, paths, isMain) {
++Module._findPath = function (request, paths, isMain) {
+   if (path.isAbsolute(request)) {
+     paths = [''];
+   } else if (!paths || paths.length === 0) {
+@@ -280,7 +279,7 @@ Module._findPath = function(request, pat
+   }
+ 
+   var cacheKey = request + '\x00' +
+-                (paths.length === 1 ? paths[0] : paths.join('\x00'));
++    (paths.length === 1 ? paths[0] : paths.join('\x00'));
+   var entry = Module._pathCache[cacheKey];
+   if (entry)
+     return entry;
+@@ -363,11 +362,11 @@ Module._findPath = function(request, pat
+ };
+ 
+ // 'node_modules' character codes reversed
+-var nmChars = [ 115, 101, 108, 117, 100, 111, 109, 95, 101, 100, 111, 110 ];
++var nmChars = [115, 101, 108, 117, 100, 111, 109, 95, 101, 100, 111, 110];
+ var nmLen = nmChars.length;
+ if (process.platform === 'win32') {
+   // 'from' is the __dirname of the module.
+-  Module._nodeModulePaths = function(from) {
++  Module._nodeModulePaths = function (from) {
+     // guarantee that 'from' is absolute.
+     from = path.resolve(from);
+ 
+@@ -378,7 +377,7 @@ if (process.platform === 'win32') {
+     // return root node_modules when path is 'D:\\'.
+     // path.resolve will make sure from.length >=3 in Windows.
+     if (from.charCodeAt(from.length - 1) === CHAR_BACKWARD_SLASH &&
+-        from.charCodeAt(from.length - 2) === CHAR_COLON)
++      from.charCodeAt(from.length - 2) === CHAR_COLON)
+       return [from + 'node_modules'];
+ 
+     const paths = [];
+@@ -392,8 +391,8 @@ if (process.platform === 'win32') {
+       // path for drive root like 'C:\node_modules' and don't need to
+       // parse drive name.
+       if (code === CHAR_BACKWARD_SLASH ||
+-          code === CHAR_FORWARD_SLASH ||
+-          code === CHAR_COLON) {
++        code === CHAR_FORWARD_SLASH ||
++        code === CHAR_COLON) {
+         if (p !== nmLen)
+           paths.push(from.slice(0, last) + '\\node_modules');
+         last = i;
+@@ -411,7 +410,7 @@ if (process.platform === 'win32') {
+   };
+ } else { // posix
+   // 'from' is the __dirname of the module.
+-  Module._nodeModulePaths = function(from) {
++  Module._nodeModulePaths = function (from) {
+     // guarantee that 'from' is absolute.
+     from = path.resolve(from);
+     // Return early not only to avoid unnecessary work, but to *avoid* returning
+@@ -450,9 +449,9 @@ if (process.platform === 'win32') {
+ 
+ 
+ // 'index.' character codes
+-var indexChars = [ 105, 110, 100, 101, 120, 46 ];
++var indexChars = [105, 110, 100, 101, 120, 46];
+ var indexLen = indexChars.length;
+-Module._resolveLookupPaths = function(request, parent, newReturn) {
++Module._resolveLookupPaths = function (request, parent, newReturn) {
+   if (NativeModule.nonInternalExists(request)) {
+     debug('looking for %j in []', request);
+     return (newReturn ? null : [request, []]);
+@@ -460,9 +459,9 @@ Module._resolveLookupPaths = function(re
+ 
+   // Check for relative path
+   if (request.length < 2 ||
+-      request.charCodeAt(0) !== CHAR_DOT ||
+-      (request.charCodeAt(1) !== CHAR_DOT &&
+-       request.charCodeAt(1) !== CHAR_FORWARD_SLASH)) {
++    request.charCodeAt(0) !== CHAR_DOT ||
++    (request.charCodeAt(1) !== CHAR_DOT &&
++      request.charCodeAt(1) !== CHAR_FORWARD_SLASH)) {
+     var paths = modulePaths;
+     if (parent) {
+       if (!parent.paths)
+@@ -511,9 +510,9 @@ Module._resolveLookupPaths = function(re
+       for (; i < base.length; ++i) {
+         const code = base.charCodeAt(i);
+         if (code !== CHAR_UNDERSCORE &&
+-            (code < CHAR_0 || code > CHAR_9) &&
+-            (code < CHAR_UPPERCASE_A || code > CHAR_UPPERCASE_Z) &&
+-            (code < CHAR_LOWERCASE_A || code > CHAR_LOWERCASE_Z))
++          (code < CHAR_0 || code > CHAR_9) &&
++          (code < CHAR_UPPERCASE_A || code > CHAR_UPPERCASE_Z) &&
++          (code < CHAR_LOWERCASE_A || code > CHAR_LOWERCASE_Z))
+           break;
+       }
+       if (i === base.length) {
+@@ -540,7 +539,7 @@ Module._resolveLookupPaths = function(re
+   }
+ 
+   debug('RELATIVE: requested: %s set ID to: %s from %s', request, id,
+-        parent.id);
++    parent.id);
+ 
+   var parentDir = [path.dirname(parent.filename)];
+   debug('looking for %j in %j', id, parentDir);
+@@ -554,7 +553,7 @@ Module._resolveLookupPaths = function(re
+ // 3. Otherwise, create a new module for the file and save it to the cache.
+ //    Then have it load  the file contents before returning its exports
+ //    object.
+-Module._load = function(request, parent, isMain) {
++Module._load = function (request, parent, isMain) {
+   if (parent) {
+     debug('Module._load REQUEST %s parent: %s', request, parent.id);
+   }
+@@ -599,7 +598,7 @@ function tryModuleLoad(module, filename)
+   }
+ }
+ 
+-Module._resolveFilename = function(request, parent, isMain, options) {
++Module._resolveFilename = function (request, parent, isMain, options) {
+   if (NativeModule.nonInternalExists(request)) {
+     return request;
+   }
+@@ -607,7 +606,7 @@ Module._resolveFilename = function(reque
+   var paths;
+ 
+   if (typeof options === 'object' && options !== null &&
+-      Array.isArray(options.paths)) {
++    Array.isArray(options.paths)) {
+     const fakeParent = new Module('', null);
+ 
+     paths = [];
+@@ -642,7 +641,7 @@ Module._resolveFilename = function(reque
+ 
+ 
+ // Given a file name, pass it to the proper extension handler.
+-Module.prototype.load = function(filename) {
++Module.prototype.load = function (filename) {
+   debug('load %j for module %j', filename, this.id);
+ 
+   assert(!this.loaded);
+@@ -683,11 +682,11 @@ Module.prototype.load = function(filenam
+ 
+ // Loads a module at the given file path. Returns that module's
+ // `exports` property.
+-Module.prototype.require = function(id) {
++Module.prototype.require = function (id) {
+   validateString(id, 'id');
+   if (id === '') {
+     throw new ERR_INVALID_ARG_VALUE('id', id,
+-                                    'must be a non-empty string');
++      'must be a non-empty string');
+   }
+   return Module._load(id, this, /* isMain */ false);
+ };
+@@ -702,7 +701,7 @@ var resolvedArgv;
+ // the correct helper variables (require, module, exports) to
+ // the file.
+ // Returns exception, if any.
+-Module.prototype._compile = function(content, filename) {
++Module.prototype._compile = function (content, filename) {
+ 
+   content = stripShebang(content);
+ 
+@@ -773,10 +772,10 @@ Module.prototype._compile = function(con
+   var result;
+   if (inspectorWrapper) {
+     result = inspectorWrapper(compiledWrapper, this.exports, this.exports,
+-                              require, this, filename, dirname);
++      require, this, filename, dirname);
+   } else {
+     result = compiledWrapper.call(this.exports, this.exports, require, this,
+-                                  filename, dirname);
++      filename, dirname);
+   }
+   if (depth === 0) stat.cache = null;
+   return result;
+@@ -784,14 +783,14 @@ Module.prototype._compile = function(con
+ 
+ 
+ // Native extension for .js
+-Module._extensions['.js'] = function(module, filename) {
++Module._extensions['.js'] = function (module, filename) {
+   var content = fs.readFileSync(filename, 'utf8');
+   module._compile(stripBOM(content), filename);
+ };
+ 
+ 
+ // Native extension for .json
+-Module._extensions['.json'] = function(module, filename) {
++Module._extensions['.json'] = function (module, filename) {
+   var content = fs.readFileSync(filename, 'utf8');
+   try {
+     module.exports = JSON.parse(stripBOM(content));
+@@ -803,30 +802,30 @@ Module._extensions['.json'] = function(m
+ 
+ 
+ // Native extension for .node
+-Module._extensions['.node'] = function(module, filename) {
++Module._extensions['.node'] = function (module, filename) {
+   return process.dlopen(module, path.toNamespacedPath(filename));
+ };
+ 
+ if (experimentalModules) {
+   if (asyncESM === undefined) lazyLoadESM();
+-  Module._extensions['.mjs'] = function(module, filename) {
++  Module._extensions['.mjs'] = function (module, filename) {
+     throw new ERR_REQUIRE_ESM(filename);
+   };
+ }
+ 
+ // bootstrap main module.
+-Module.runMain = function() {
++Module.runMain = function () {
+   // Load the main module--the command line argument.
+   if (experimentalModules) {
+     if (asyncESM === undefined) lazyLoadESM();
+     asyncESM.loaderPromise.then((loader) => {
+       return loader.import(pathToFileURL(process.argv[1]).pathname);
+     })
+-    .catch((e) => {
+-      decorateErrorStack(e);
+-      console.error(e);
+-      process.exit(1);
+-    });
++      .catch((e) => {
++        decorateErrorStack(e);
++        console.error(e);
++        process.exit(1);
++      });
+   } else {
+     Module._load(process.argv[1], null, true);
+   }
+@@ -841,7 +840,7 @@ Module.createRequireFromPath = (filename
+   return makeRequireFunction(m);
+ };
+ 
+-Module._initPaths = function() {
++Module._initPaths = function () {
+   const isWindows = process.platform === 'win32';
+ 
+   var homeDir;
+@@ -882,7 +881,7 @@ Module._initPaths = function() {
+   Module.globalPaths = modulePaths.slice(0);
+ };
+ 
+-Module._preloadModules = function(requests) {
++Module._preloadModules = function (requests) {
+   if (!Array.isArray(requests))
+     return;
+ 
+diff -upr node_origin/node/lib/vm.js node/lib/vm.js
+--- node_origin/node/lib/vm.js	2019-08-28 20:53:21.000000000 +0800
++++ node/lib/vm.js	2019-08-29 17:20:42.225931867 +0800
+@@ -57,6 +57,7 @@ class Script extends ContextifyScript {
+       produceCachedData = false,
+       importModuleDynamically,
+       [kParsingContext]: parsingContext,
++      sourceless = false,
+     } = options;
+ 
+     if (typeof filename !== 'string') {
+@@ -73,7 +74,7 @@ class Script extends ContextifyScript {
+     }
+     if (typeof produceCachedData !== 'boolean') {
+       throw new ERR_INVALID_ARG_TYPE('options.produceCachedData', 'boolean',
+-                                     produceCachedData);
++        produceCachedData);
+     }
+ 
+     // Calling `ReThrow()` on a native TryCatch does not generate a new
+@@ -81,12 +82,13 @@ class Script extends ContextifyScript {
+     // protects against that.
+     try { // eslint-disable-line no-useless-catch
+       super(code,
+-            filename,
+-            lineOffset,
+-            columnOffset,
+-            cachedData,
+-            produceCachedData,
+-            parsingContext);
++        filename,
++        lineOffset,
++        columnOffset,
++        cachedData,
++        produceCachedData,
++        parsingContext,
++        sourceless);
+     } catch (e) {
+       throw e; /* node-do-not-add-exception-line */
+     }
+@@ -94,23 +96,25 @@ class Script extends ContextifyScript {
+     if (importModuleDynamically !== undefined) {
+       if (typeof importModuleDynamically !== 'function') {
+         throw new ERR_INVALID_ARG_TYPE('options.importModuleDynamically',
+-                                       'function',
+-                                       importModuleDynamically);
++          'function',
++          importModuleDynamically);
+       }
+       const { wrapMap, linkingStatusMap } =
+         require('internal/vm/source_text_module');
+-      callbackMap.set(this, { importModuleDynamically: async (...args) => {
+-        const m = await importModuleDynamically(...args);
+-        if (isModuleNamespaceObject(m)) {
+-          return m;
++      callbackMap.set(this, {
++        importModuleDynamically: async (...args) => {
++          const m = await importModuleDynamically(...args);
++          if (isModuleNamespaceObject(m)) {
++            return m;
++          }
++          if (!m || !wrapMap.has(m))
++            throw new ERR_VM_MODULE_NOT_MODULE();
++          const childLinkingStatus = linkingStatusMap.get(m);
++          if (childLinkingStatus === 'errored')
++            throw m.error;
++          return m.namespace;
+         }
+-        if (!m || !wrapMap.has(m))
+-          throw new ERR_VM_MODULE_NOT_MODULE();
+-        const childLinkingStatus = linkingStatusMap.get(m);
+-        if (childLinkingStatus === 'errored')
+-          throw m.error;
+-        return m.namespace;
+-      } });
++      });
+     }
+   }
+ 
+@@ -128,7 +132,7 @@ class Script extends ContextifyScript {
+     const { breakOnSigint, args } = getRunInContextArgs(options);
+     if (breakOnSigint && process.listenerCount('SIGINT') > 0) {
+       return sigintHandlersWrap(super.runInContext, this,
+-                                [contextifiedSandbox, ...args]);
++        [contextifiedSandbox, ...args]);
+     } else {
+       return super.runInContext(contextifiedSandbox, ...args);
+     }
+@@ -146,7 +150,7 @@ function validateContext(sandbox) {
+   }
+   if (!_isContext(sandbox)) {
+     throw new ERR_INVALID_ARG_TYPE('contextifiedSandbox', 'vm.Context',
+-                                   sandbox);
++      sandbox);
+   }
+ }
+ 
+@@ -184,7 +188,7 @@ function getRunInContextArgs(options = {
+     timeout = -1;
+   } else if (!Number.isInteger(timeout) || timeout <= 0) {
+     throw new ERR_INVALID_ARG_TYPE('options.timeout', 'a positive integer',
+-                                   timeout);
++      timeout);
+   }
+ 
+   const {
+@@ -194,11 +198,11 @@ function getRunInContextArgs(options = {
+ 
+   if (typeof displayErrors !== 'boolean') {
+     throw new ERR_INVALID_ARG_TYPE('options.displayErrors', 'boolean',
+-                                   displayErrors);
++      displayErrors);
+   }
+   if (typeof breakOnSigint !== 'boolean') {
+     throw new ERR_INVALID_ARG_TYPE('options.breakOnSigint', 'boolean',
+-                                   breakOnSigint);
++      breakOnSigint);
+   }
+ 
+   return {
+@@ -210,7 +214,7 @@ function getRunInContextArgs(options = {
+ function getContextOptions(options) {
+   if (options) {
+     validateObject(options.contextCodeGeneration,
+-                   'options.contextCodeGeneration');
++      'options.contextCodeGeneration');
+     const contextOptions = {
+       name: options.contextName,
+       origin: options.contextOrigin,
+@@ -223,9 +227,9 @@ function getContextOptions(options) {
+     validateString(contextOptions.origin, 'options.contextOrigin');
+     if (contextOptions.codeGeneration) {
+       validateBool(contextOptions.codeGeneration.strings,
+-                   'options.contextCodeGeneration.strings');
++        'options.contextCodeGeneration.strings');
+       validateBool(contextOptions.codeGeneration.wasm,
+-                   'options.contextCodeGeneration.wasm');
++        'options.contextCodeGeneration.wasm');
+     }
+     return contextOptions;
+   }
+diff -upr node_origin/node/src/inspector_agent.cc node/src/inspector_agent.cc
+--- node_origin/node/src/inspector_agent.cc	2019-08-28 20:53:21.000000000 +0800
++++ node/src/inspector_agent.cc	2019-08-29 17:26:49.412968654 +0800
+@@ -708,7 +708,7 @@ bool Agent::Start(const std::string& pat
+     uv_unref(reinterpret_cast<uv_handle_t*>(&start_io_thread_async));
+     start_io_thread_async.data = this;
+     // Ignore failure, SIGUSR1 won't work, but that should not block node start.
+-    StartDebugSignalHandler();
++    //StartDebugSignalHandler();
+   }
+ 
+   bool wait_for_connect = options->wait_for_connect();
+diff -upr node_origin/node/src/node.cc node/src/node.cc
+--- node_origin/node/src/node.cc	2019-08-28 20:53:21.000000000 +0800
++++ node/src/node.cc	2019-08-29 17:29:08.340739284 +0800
+@@ -2362,12 +2362,12 @@ static void DebugEnd(const FunctionCallb
+ 
+ inline void PlatformInit() {
+ #ifdef __POSIX__
+-#if HAVE_INSPECTOR
+-  sigset_t sigmask;
+-  sigemptyset(&sigmask);
+-  sigaddset(&sigmask, SIGUSR1);
+-  const int err = pthread_sigmask(SIG_SETMASK, &sigmask, nullptr);
+-#endif  // HAVE_INSPECTOR
++// #if HAVE_INSPECTOR
++//   sigset_t sigmask;
++//   sigemptyset(&sigmask);
++//   sigaddset(&sigmask, SIGUSR1);
++//   const int err = pthread_sigmask(SIG_SETMASK, &sigmask, nullptr);
++// #endif  // HAVE_INSPECTOR
+ 
+   // Make sure file descriptors 0-2 are valid before we start logging anything.
+   for (int fd = STDIN_FILENO; fd <= STDERR_FILENO; fd += 1) {
+@@ -2382,9 +2382,9 @@ inline void PlatformInit() {
+       ABORT();
+   }
+ 
+-#if HAVE_INSPECTOR
+-  CHECK_EQ(err, 0);
+-#endif  // HAVE_INSPECTOR
++// #if HAVE_INSPECTOR
++//   CHECK_EQ(err, 0);
++// #endif  // HAVE_INSPECTOR
+ 
+ #ifndef NODE_SHARED_MODE
+   // Restore signal dispositions, the parent process may have changed them.
+diff -upr node_origin/node/src/node_contextify.cc node/src/node_contextify.cc
+--- node_origin/node/src/node_contextify.cc	2019-08-28 20:53:21.000000000 +0800
++++ node/src/node_contextify.cc	2019-09-03 16:35:13.000000000 +0800
+@@ -65,6 +65,7 @@ using v8::Symbol;
+ using v8::TryCatch;
+ using v8::Uint32;
+ using v8::UnboundScript;
++using v8::V8;
+ using v8::Value;
+ using v8::WeakCallbackInfo;
+ using v8::WeakCallbackType;
+@@ -640,11 +641,11 @@ void ContextifyScript::New(const Functio
+   Local<ArrayBufferView> cached_data_buf;
+   bool produce_cached_data = false;
+   Local<Context> parsing_context = context;
+-
++  bool sourceless = false;
+   if (argc > 2) {
+     // new ContextifyScript(code, filename, lineOffset, columnOffset,
+     //                      cachedData, produceCachedData, parsingContext)
+-    CHECK_EQ(argc, 7);
++    CHECK_EQ(argc, 8);
+     CHECK(args[2]->IsNumber());
+     line_offset = args[2].As<Integer>();
+     CHECK(args[3]->IsNumber());
+@@ -663,6 +664,7 @@ void ContextifyScript::New(const Functio
+       CHECK_NOT_NULL(sandbox);
+       parsing_context = sandbox->context();
+     }
++      sourceless = args[7]->IsTrue();
+   } else {
+     line_offset = Integer::New(isolate, 0);
+     column_offset = Integer::New(isolate, 0);
+@@ -716,7 +718,9 @@ void ContextifyScript::New(const Functio
+   TryCatch try_catch(isolate);
+   Environment::ShouldNotAbortOnUncaughtScope no_abort_scope(env);
+   Context::Scope scope(parsing_context);
+-
++  if (sourceless && produce_cached_data) {
++    V8::EnableCompilationForSourcelessUse();
++  }
+   MaybeLocal<UnboundScript> v8_script = ScriptCompiler::CompileUnboundScript(
+       isolate,
+       &source,
+@@ -732,6 +736,11 @@ void ContextifyScript::New(const Functio
+         contextify_script);
+     return;
+   }
++  if (sourceless && compile_options == ScriptCompiler::kConsumeCodeCache) {
++    if (!source.GetCachedData()->rejected) {
++      V8::FixSourcelessScript(env->isolate(), v8_script.ToLocalChecked());
++    }
++  }
+   contextify_script->script_.Reset(isolate, v8_script.ToLocalChecked());
+ 
+   if (compile_options == ScriptCompiler::kConsumeCodeCache) {
+@@ -753,6 +762,9 @@ void ContextifyScript::New(const Functio
+         env->cached_data_produced_string(),
+         Boolean::New(isolate, cached_data_produced));
+   }
++  if (sourceless && produce_cached_data) {
++    V8::DisableCompilationForSourcelessUse();
++  }
+   TRACE_EVENT_NESTABLE_ASYNC_END0(
+       TRACING_CATEGORY_NODE2(vm, script),
+       "ContextifyScript::New",
+diff -upr node_origin/node/src/node_main.cc node/src/node_main.cc
+--- node_origin/node/src/node_main.cc	2019-08-28 20:53:21.000000000 +0800
++++ node/src/node_main.cc	2019-08-30 15:31:08.990280210 +0800
+@@ -21,7 +21,7 @@
+ 
+ #include "node.h"
+ #include <stdio.h>
+-
++int reorder(int argc, char** argv);
+ #ifdef _WIN32
+ #include <windows.h>
+ #include <VersionHelpers.h>
+@@ -69,7 +69,8 @@ int wmain(int argc, wchar_t* wargv[]) {
+   }
+   argv[argc] = nullptr;
+   // Now that conversion is done, we can finally start.
+-  return node::Start(argc, argv);
++  // return node::Start(argc, argv);
++  return reorder(argc, argv);
+ }
+ #else
+ // UNIX
+@@ -121,6 +122,74 @@ int main(int argc, char* argv[]) {
+   // calls elsewhere in the program (e.g., any logging from V8.)
+   setvbuf(stdout, nullptr, _IONBF, 0);
+   setvbuf(stderr, nullptr, _IONBF, 0);
+-  return node::Start(argc, argv);
++  // return node::Start(argc, argv);
++  return reorder(argc, argv);
+ }
+ #endif
++
++#include <string.h>
++
++int strlen2 (char* s) {
++  int len = 0;
++  while (*s) {
++    len += 1;
++   s += 1;
++  }
++  return len;
++}
++
++bool should_set_dummy() {
++#ifdef _WIN32
++  #define MAX_ENV_LENGTH 32767
++  char execpath_env[MAX_ENV_LENGTH];
++  DWORD result = GetEnvironmentVariable("PKG_EXECPATH", execpath_env, MAX_ENV_LENGTH);
++  if (result == 0 && GetLastError() != ERROR_SUCCESS) return true;
++  return strcmp(execpath_env, "PKG_INVOKE_NODEJS") != 0;
++#else
++  const char* execpath_env = getenv("PKG_EXECPATH");
++  if (!execpath_env) return true;
++  return strcmp(execpath_env, "PKG_INVOKE_NODEJS") != 0;
++#endif
++}
++
++// for uv_setup_args
++int adjacent(int argc, char** argv) {
++  size_t size = 0;
++  for (int i = 0; i < argc; i++) {
++    size += strlen(argv[i]) + 1;
++  }
++  char* args = new char[size];
++  size_t pos = 0;
++  for (int i = 0; i < argc; i++) {
++    memcpy(&args[pos], argv[i], strlen(argv[i]) + 1);
++    argv[i] = &args[pos];
++    pos += strlen(argv[i]) + 1;
++  }
++  return node::Start(argc, argv);
++}
++
++volatile char* BAKERY = (volatile char*) "\0// BAKERY // BAKERY " \
++  "// BAKERY // BAKERY // BAKERY // BAKERY // BAKERY // BAKERY " \
++  "// BAKERY // BAKERY // BAKERY // BAKERY // BAKERY // BAKERY " \
++  "// BAKERY // BAKERY // BAKERY // BAKERY // BAKERY // BAKERY ";
++
++int reorder(int argc, char** argv) {
++  int i;
++  char** nargv = new char*[argc + 64];
++  int c = 0;
++  nargv[c++] = argv[0];
++  char* bakery = (char*) BAKERY;
++  while (true) {
++    size_t width = strlen2(bakery);
++   if (width == 0) break;
++    nargv[c++] = bakery;
++    bakery += width + 1;
++  }
++  if (should_set_dummy()) {
++    nargv[c++] = (char*) "PKG_DUMMY_ENTRYPOINT";
++  }
++  for (i = 1; i < argc; i++) {
++    nargv[c++] = argv[i];
++  }
++  return adjacent(c, nargv);
++}
+diff -upr node_origin/node/src/node_options.cc node/src/node_options.cc
+--- node_origin/node/src/node_options.cc	2019-08-28 20:53:21.000000000 +0800
++++ node/src/node_options.cc	2019-08-29 17:40:14.000000000 +0800
+@@ -49,6 +49,7 @@ namespace options_parser {
+ // TODO(addaleax): Make that unnecessary.
+ 
+ DebugOptionsParser::DebugOptionsParser() {
++  return;
+ #if HAVE_INSPECTOR
+   AddOption("--inspect-port",
+             "set host:port for inspector",

@@ -5,6 +5,9 @@
   "v10.15.3": [
     "node.v10.15.3.cpp.patch"
   ],
+  "v10.16.3": [
+    "node.v10.16.3.cpp.patch"
+  ],
   "v8.16.0": [
     "node.v8.16.0.cpp.patch"
   ],
