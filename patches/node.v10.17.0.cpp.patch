@@ -107,7 +107,7 @@
    VMState<PARSER> state(isolate);
  
    // Create a character stream for the parser.
-   Handle<String> source(String::cast(info->script()->source()));
+   Handle<String> source(String::cast(info->script()->source()), isolate);
 @@ -55,10 +56,11 @@
  bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
                     Isolate* isolate) {
@@ -117,7 +117,7 @@
 +  if (info->script()->source()->IsUndefined(isolate)) return false;
  
    // Create a character stream for the parser.
-   Handle<String> source(String::cast(info->script()->source()));
+   Handle<String> source(String::cast(info->script()->source()), isolate);
    source = String::Flatten(source);
    isolate->counters()->total_parse_size()->Increment(source->length());
 --- node/deps/v8/src/snapshot/code-serializer.cc
@@ -259,12 +259,12 @@
      } else if (NativeModule.exists('_third_party_main')) {
 --- node/lib/internal/modules/cjs/loader.js
 +++ node/lib/internal/modules/cjs/loader.js
-@@ -28,14 +28,12 @@
+@@ -27,14 +27,12 @@
+ const vm = require('vm');
  const assert = require('assert').ok;
  const fs = require('fs');
  const internalFS = require('internal/fs/utils');
  const path = require('path');
- const { URL } = require('url');
 -const {
 -  internalModuleReadJSON,
 -  internalModuleStat
@@ -274,8 +274,8 @@
  const { safeGetenv } = process.binding('util');
  const {
    makeRequireFunction,
+   normalizeReferrerURL,
    requireDepth,
-   stripBOM,
 --- node/lib/vm.js
 +++ node/lib/vm.js
 @@ -55,10 +55,11 @@
@@ -290,7 +290,7 @@
      if (typeof filename !== 'string') {
        throw new ERR_INVALID_ARG_TYPE('options.filename', 'string', filename);
      }
-@@ -81,11 +82,12 @@
+@@ -84,11 +85,12 @@
              filename,
              lineOffset,
              columnOffset,
@@ -306,7 +306,7 @@
      if (importModuleDynamically !== undefined) {
 --- node/src/inspector_agent.cc
 +++ node/src/inspector_agent.cc
-@@ -695,12 +695,10 @@
+@@ -705,12 +705,10 @@
      CHECK_EQ(0, uv_async_init(parent_env_->event_loop(),
                                &start_io_thread_async,
                                StartIoThreadAsyncCallback));
@@ -321,7 +321,7 @@
      wait_for_connect = parent_handle_->WaitForConnect();
 --- node/src/node.cc
 +++ node/src/node.cc
-@@ -2341,17 +2341,10 @@
+@@ -2369,17 +2369,10 @@
  }
  
  
@@ -339,7 +339,7 @@
      struct stat ignored;
      if (fstat(fd, &ignored) == 0)
        continue;
-@@ -2361,14 +2354,10 @@
+@@ -2389,14 +2382,10 @@
        ABORT();
      if (fd != open("/dev/null", O_RDWR))
        ABORT();
@@ -357,10 +357,10 @@
 --- node/src/node_contextify.cc
 +++ node/src/node_contextify.cc
 @@ -63,10 +63,11 @@
+ using v8::String;
  using v8::Symbol;
  using v8::TryCatch;
  using v8::Uint32;
- using v8::Uint8Array;
  using v8::UnboundScript;
 +using v8::V8;
  using v8::Value;
@@ -368,10 +368,10 @@
  using v8::WeakCallbackType;
  
  // The vm module executes code in a sandboxed environment with a different
-@@ -629,15 +630,16 @@
+@@ -638,15 +639,16 @@
    Local<Integer> line_offset;
    Local<Integer> column_offset;
-   Local<Uint8Array> cached_data_buf;
+   Local<ArrayBufferView> cached_data_buf;
    bool produce_cached_data = false;
    Local<Context> parsing_context = context;
 +  bool sourceless = false;
@@ -386,7 +386,7 @@
      CHECK(args[3]->IsNumber());
      column_offset = args[3].As<Integer>();
      if (!args[4]->IsUndefined()) {
-@@ -652,10 +654,11 @@
+@@ -661,10 +663,11 @@
            ContextifyContext::ContextFromContextifiedSandbox(
                env, args[6].As<Object>());
        CHECK_NOT_NULL(sandbox);
@@ -398,7 +398,7 @@
      column_offset = Integer::New(isolate, 0);
    }
  
-@@ -706,10 +709,14 @@
+@@ -715,10 +718,14 @@
  
    TryCatch try_catch(isolate);
    Environment::ShouldNotAbortOnUncaughtScope no_abort_scope(env);
@@ -413,7 +413,7 @@
        &source,
        compile_options);
  
-@@ -721,10 +728,17 @@
+@@ -730,10 +737,17 @@
          TRACING_CATEGORY_NODE2(vm, script),
          "ContextifyScript::New",
          contextify_script);
@@ -431,7 +431,7 @@
    if (compile_options == ScriptCompiler::kConsumeCodeCache) {
      args.This()->Set(
          env->cached_data_rejected_string(),
-@@ -742,10 +756,15 @@
+@@ -751,10 +765,15 @@
      }
      args.This()->Set(
          env->cached_data_produced_string(),
@@ -554,7 +554,7 @@
 +}
 --- node/src/node_options.cc
 +++ node/src/node_options.cc
-@@ -47,10 +47,11 @@
+@@ -55,10 +55,11 @@
  // XXX: If you add an option here, please also add it to doc/node.1 and
  // doc/api/cli.md
  // TODO(addaleax): Make that unnecessary.

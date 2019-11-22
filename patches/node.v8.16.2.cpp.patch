@@ -266,7 +266,7 @@
  
 --- node/src/env.h
 +++ node/src/env.h
-@@ -265,10 +265,11 @@
+@@ -266,10 +266,11 @@
    V(shell_string, "shell")                                                    \
    V(signal_string, "signal")                                                  \
    V(size_string, "size")                                                      \
