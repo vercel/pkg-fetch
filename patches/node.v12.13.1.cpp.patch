@@ -56,6 +56,21 @@
  RegisteredExtension::RegisteredExtension(std::unique_ptr<Extension> extension)
      : extension_(std::move(extension)) {}
  
+--- node/deps/v8/src/codegen/compiler.cc
++++ node/deps/v8/src/codegen/compiler.cc
+@@ -2001,11 +2001,11 @@
+     // First check per-isolate compilation cache.
+     maybe_result = compilation_cache->LookupScript(
+         source, script_details.name_obj, script_details.line_offset,
+         script_details.column_offset, origin_options, isolate->native_context(),
+         language_mode);
+-    if (!maybe_result.is_null()) {
++    if (!maybe_result.is_null() && source_length) {
+       compile_timer.set_hit_isolate_cache();
+     } else if (can_consume_code_cache) {
+       compile_timer.set_consuming_code_cache();
+       // Then check cached code provided by embedder.
+       HistogramTimerScope timer(isolate->counters()->compile_deserialize());
 --- node/deps/v8/src/objects/js-objects.cc
 +++ node/deps/v8/src/objects/js-objects.cc
 @@ -5470,10 +5470,13 @@
@@ -72,6 +87,27 @@
      int start_position = class_positions.start();
      int end_position = class_positions.end();
      Handle<String> script_source(
+--- node/deps/v8/src/objects/shared-function-info-inl.h
++++ node/deps/v8/src/objects/shared-function-info-inl.h
+@@ -502,10 +502,18 @@
+   // check if it is old. Note, this is done this way since this function can be
+   // called by the concurrent marker.
+   Object data = function_data();
+   if (!data.IsBytecodeArray()) return false;
+ 
++  Object script_obj = script();
++  if (!script_obj.IsUndefined()) {
++    Script script = Script::cast(script_obj);
++    if (script.source().IsUndefined()) {
++      return false;
++    }
++  }
++
+   if (mode == BytecodeFlushMode::kStressFlushBytecode) return true;
+ 
+   BytecodeArray bytecode = BytecodeArray::cast(data);
+ 
+   return bytecode.IsOld();
 --- node/deps/v8/src/parsing/parsing.cc
 +++ node/deps/v8/src/parsing/parsing.cc
 @@ -19,10 +19,11 @@
