@@ -1,9 +1,18 @@
 {
+  "v12.13.1": [
+    "node.v12.13.1.cpp.patch"
+  ],
   "v12.2.0": [
     "node.v12.2.0.cpp.patch"
   ],
+  "v10.17.0": [
+    "node.v10.17.0.cpp.patch"
+  ],
   "v10.15.3": [
     "node.v10.15.3.cpp.patch"
+  ],
+  "v8.16.2": [
+    "node.v8.16.2.cpp.patch"
   ],
   "v8.16.0": [
     "node.v8.16.0.cpp.patch"
