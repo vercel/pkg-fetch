@@ -75,14 +75,17 @@ require('../lib/github.js').GitHub = class {
     actions.push([ 'getRelease', tag ].join(' '));
     return undefined;
   }
+
   getReleaseDraft (tag) {
     actions.push([ 'getReleaseDraft', tag ].join(' '));
     return undefined;
   }
+
   createRelease (tag) {
     actions.push([ 'createRelease', tag ].join(' '));
     return { upload_url: 'https://example.com/assets{?name,label}', assets };
   }
+
   uploadAsset (local, release, name) {
     assert(local === lastLocal); // test it here. too flaky to push to actions
     actions.push([ 'uploadAsset', JSON.stringify(release), name ].join(' '));
