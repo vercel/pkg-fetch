@@ -5,8 +5,8 @@
   "v13.12.0": [
     "node.v13.12.0.cpp.patch"
   ],
-  "v12.16.1": [
-    "node.v12.16.1.cpp.patch"
+  "v12.18.1": [
+    "node.v12.18.1.cpp.patch"
   ],
   "v12.13.1": [
     "node.v12.13.1.cpp.patch"
