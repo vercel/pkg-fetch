@@ -20,6 +20,9 @@
   "v12.2.0": [
     "node.v12.2.0.cpp.patch"
   ],
+  "v10.21.0": [
+    "node.v10.21.0.cpp.patch"
+  ],
   "v10.17.0": [
     "node.v10.17.0.cpp.patch"
   ],
