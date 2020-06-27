@@ -29,6 +29,9 @@
   "v10.15.3": [
     "node.v10.15.3.cpp.patch"
   ],
+  "v8.17.0": [
+    "node.v8.17.0.cpp.patch"
+  ],
   "v8.16.2": [
     "node.v8.16.2.cpp.patch"
   ],
