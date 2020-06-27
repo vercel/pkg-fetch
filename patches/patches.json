@@ -1,4 +1,7 @@
 {
+  "v14.4.0": [
+    "node.v14.4.0.cpp.patch"
+  ],
   "v14.0.0": [
     "node.v14.0.0.cpp.patch"
   ],
