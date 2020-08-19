@@ -49,6 +49,11 @@ function getConfigureArgs(major: number): string[] {
   // bundled npm package manager
   args.push('--without-npm');
 
+  // custom ones
+  if (process.env.PKG_BUILD_CONFIGURE_ARGS) {
+    args.push(...process.env.PKG_BUILD_CONFIGURE_ARGS.split(' '));
+  }
+
   return args;
 }
 
