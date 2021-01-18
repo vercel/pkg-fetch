@@ -1,3 +1,6 @@
+# binary output
+/dist
+
 # build output
 /lib-es5
 
