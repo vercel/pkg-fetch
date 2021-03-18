@@ -4,7 +4,7 @@
   "description": "Compiles and stores base binaries for pkg",
   "main": "lib-es5/index.js",
   "license": "MIT",
-  "repository": "zeit/pkg-fetch",
+  "repository": "vercel/pkg-fetch",
   "bin": {
     "pkg-fetch": "lib-es5/bin.js"
   },
