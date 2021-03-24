@@ -273,7 +273,7 @@ new file mode 100644
  
  const { SafeMap } = primordials;
 -const { internalModuleReadJSON } = internalBinding('fs');
-+const internalModuleReadJSON = function (f) { let json = require('fs').internalModuleReadJSON(f); return [json, !!json]; };
++const internalModuleReadJSON = function (f) { return require('fs').internalModuleReadJSON(f); };
  const { pathToFileURL } = require('url');
  const { toNamespacedPath } = require('path');
  
