@@ -41,7 +41,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
-          file: ./Dockerfile.linux
+          file: ./docker/Dockerfile.linux
           platforms: linux/arm64
           outputs: type=tar,dest=../out.tar
 
@@ -71,7 +71,7 @@ jobs:
           build-args: |
             TARGET_TOOLCHAIN_ARCH=x86_64
             TARGET_NODE_ARCH=x64
-          file: ./Dockerfile.linuxstatic
+          file: ./docker/Dockerfile.linuxstatic
           platforms: linux/amd64
           outputs: type=tar,dest=../out.tar
 
@@ -100,7 +100,7 @@ jobs:
           build-args: |
             TARGET_TOOLCHAIN_ARCH=aarch64
             TARGET_NODE_ARCH=arm64
-          file: ./Dockerfile.linuxstatic
+          file: ./docker/Dockerfile.linuxstatic
           platforms: linux/arm64
           outputs: type=tar,dest=../out.tar
 
