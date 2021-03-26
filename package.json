@@ -65,7 +65,7 @@
     "bin": "node lib-es5/bin.js",
     "lint": "eslint lib || true",
     "prepare": "npm run build",
-    "prepublishOnly": "npm run lint && npm test",
+    "prepublishOnly": "npm run lint",
     "start": "node lib-es5/upload.js",
     "test": "ava"
   },
