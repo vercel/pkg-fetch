@@ -78,6 +78,9 @@
       "@babel/register"
     ]
   },
+  "prettier": {
+    "singleQuote": true
+  },
   "simple-git-hooks": {
     "pre-commit": "npx lint-staged"
   },

@@ -1,8 +1,5 @@
 {
-  "extends": [
-    "airbnb-base",
-    "prettier"
-  ],
+  "extends": ["airbnb-base", "prettier"],
   "parser": "@babel/eslint-parser",
   "parserOptions": {
     "sourceType": "module"
