@@ -1,0 +1,188 @@
+name: Build and publish Node binaries
+
+on:
+  workflow_dispatch:
+    inputs:
+      node:
+        description: "Node major version"
+        required: false
+
+jobs:
+  linux-x64:
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup node
+        uses: actions/setup-node@v1
+        with:
+          node-version: 15
+
+      - name: Build nodejs
+        run: |
+          npm install
+          npm run start
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: linux-x64
+          path: dist
+
+  linux-arm64:
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Build
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./Dockerfile.linux
+          platforms: linux/arm64
+          outputs: type=tar,dest=../out.tar
+
+      - name: Extract binaries from Docker image
+        run: |
+          tar xvf ../out.tar root/pkg-fetch/dist
+          mv root/pkg-fetch/dist dist
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: linux-arm64
+          path: dist
+
+  linuxstatic-x64:
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Build
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          build-args: |
+            TARGET_TOOLCHAIN_ARCH=x86_64
+            TARGET_NODE_ARCH=x64
+          file: ./Dockerfile.linuxstatic
+          platforms: linux/amd64
+          outputs: type=tar,dest=../out.tar
+
+      - name: Extract binaries from Docker image
+        run: |
+          tar xvf ../out.tar root/pkg-fetch/dist
+          mv root/pkg-fetch/dist dist
+      - uses: actions/upload-artifact@v2
+        with:
+          name: linuxstatic-x64
+          path: dist
+
+  linuxstatic-arm64:
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Build
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          build-args: |
+            TARGET_TOOLCHAIN_ARCH=aarch64
+            TARGET_NODE_ARCH=arm64
+          file: ./Dockerfile.linuxstatic
+          platforms: linux/arm64
+          outputs: type=tar,dest=../out.tar
+
+      - name: Extract binaries from Docker image
+        run: |
+          tar xvf ../out.tar root/pkg-fetch/dist
+          mv root/pkg-fetch/dist dist
+      - uses: actions/upload-artifact@v2
+        with:
+          name: linuxstatic-arm64
+          path: dist
+
+  windows-x64:
+    runs-on: windows-2019
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Use Node.js 15
+        uses: actions/setup-node@v1
+        with:
+          node-version: 15
+
+      - run: npm install
+
+      - run: choco install nasm
+
+      - run: npm run start
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: windows-x64
+          path: dist
+
+  windows-arm64:
+    runs-on: windows-2019
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Use Node.js 15
+        uses: actions/setup-node@v1
+        with:
+          node-version: 15
+
+      - run: npm install
+
+      - run: choco install nasm
+
+      - run: npm run start
+        env:
+          TARGET_ARCH: arm64
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: windows-arm64
+          path: dist
+
+  macos-x64:
+    runs-on: macos-11.0
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest
+
+      - name: Use Node.js 15
+        uses: actions/setup-node@v1
+        with:
+          node-version: 15
+
+      - run: npm install
+
+      - run: npm run start
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: macos-x64
+          path: dist

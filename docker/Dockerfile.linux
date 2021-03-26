@@ -1,0 +1,13 @@
+FROM node:buster
+
+USER root:root
+
+WORKDIR /root/pkg-fetch/
+
+COPY . ./
+
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential
+
+RUN npm install
+
+RUN npm run start
