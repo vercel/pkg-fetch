@@ -61,10 +61,10 @@
     "simple-git-hooks": ">=2.0.3"
   },
   "scripts": {
-    "babel": "node test/rimraf-es5.js && babel lib --out-dir lib-es5",
+    "build": "node test/rimraf-es5.js && babel lib --out-dir lib-es5",
     "bin": "node lib-es5/bin.js",
     "lint": "eslint lib || true",
-    "prepare": "npm run babel",
+    "prepare": "npm run build",
     "prepublishOnly": "npm run lint && npm test",
     "start": "node lib-es5/upload.js",
     "test": "ava"

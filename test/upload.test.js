@@ -1,10 +1,10 @@
 /* eslint-disable camelcase */
 
-import LogMock from "./log-mock.js";
 import assert from "assert";
 import fs from "fs";
 import path from "path";
 import test from "ava";
+import LogMock from "./log-mock";
 
 process.env.GITHUB_USERNAME = "suppress upload error";
 
@@ -23,16 +23,20 @@ const patchesJson = require("../patches/patches.json");
 const newPatchesJson = require("./patches.json");
 
 for (const nodeVersion in patchesJson) {
-  delete patchesJson[nodeVersion];
+  if (patchesJson[nodeVersion]) {
+    delete patchesJson[nodeVersion];
+  }
 }
 
 for (const nodeVersion in newPatchesJson) {
-  patchesJson[nodeVersion] = newPatchesJson[nodeVersion];
+  if (newPatchesJson[nodeVersion]) {
+    patchesJson[nodeVersion] = newPatchesJson[nodeVersion];
+  }
 }
 
 require("../lib/log.js").log = new LogMock(actions);
 
-require("../lib/spawn.js").spawn = function (cmd, args, opts) {
+require("../lib/spawn.js").spawn = (cmd, args, opts) => {
   assert(opts);
   assert(opts.cwd);
   if (cmd === "git" && args[0] === "clone") {
@@ -56,16 +60,17 @@ require("../lib/spawn.js").spawn = function (cmd, args, opts) {
   actions.push([cmd, args.join(" "), JSON.stringify(opts)].join(" "));
 };
 
-require("../lib/spawn.js").progress = function () {};
+require("../lib/spawn.js").progress = () => {};
 
-require("../lib/verify.js").verify = function () {
+require("../lib/verify.js").verify = () => {
   actions.push("verify");
 };
 
-require("../lib/copy-file.js").copyFile = function (src, dest) {
+require("../lib/copy-file.js").copyFile = (src, dest) => {
   src = relative(src);
-  const shortDest =
-    path.basename(path.dirname(dest)) + "/" + path.basename(dest);
+  const shortDest = `${path.basename(path.dirname(dest))}/${path.basename(
+    dest
+  )}`;
   actions.push(["copyFile", src, shortDest].join(" ")); // full dest is flaky
   lastLocal = dest;
 };
@@ -98,7 +103,10 @@ test("upload", async (t) => {
     throw new Error("RUN THE TEST ONLY ON MACOS-X64");
   }
 
-  const { main } = require("../lib/upload.js");
+  process.env.MAKE_JOB_COUNT = 1;
+  // eslint-disable-next-line global-require
+  const { main } = require("../lib/upload");
+
   await main();
   const mustBe = [
     "getRelease v1337.2",
@@ -181,7 +189,7 @@ test("upload", async (t) => {
     'uploadAsset {"upload_url":"https://example.com/assets{?name,label}","assets":[{"name":"uploaded-v1337.2-node-v0.12.15-macos-x64"},{"name":"uploaded-v1337.2-node-v4.4.7-macos-x64"}]} uploaded-v1337.2-node-v6.3.1-macos-x64',
   ];
   for (let i = 0; i < actions.length; i += 1) {
-    t.is(actions[i] + ` [[[${i}]]]`, mustBe[i] + ` [[[${i}]]]`);
+    t.is(`${actions[i]} [[[${i}]]]`, `${mustBe[i]} [[[${i}]]]`);
   }
   t.is(actions.length, mustBe.length);
 });
