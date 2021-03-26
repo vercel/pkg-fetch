@@ -2,10 +2,6 @@ name: Build and publish Node binaries
 
 on:
   workflow_dispatch:
-    inputs:
-      node:
-        description: "Node major version"
-        required: false
 
 jobs:
   linux-x64:
