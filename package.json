@@ -43,29 +43,31 @@
     "unique-temp-dir": "^1.0.0"
   },
   "devDependencies": {
-    "@babel/cli": "^7.8.4",
-    "@babel/core": "^7.9.0",
-    "@babel/plugin-transform-async-to-generator": "^7.8.3",
-    "@babel/plugin-transform-runtime": "^7.9.0",
-    "@babel/preset-env": "^7.9.0",
-    "@babel/register": "^7.9.0",
+    "@babel/cli": "^7.13.10",
+    "@babel/core": "^7.13.10",
+    "@babel/eslint-parser": "^7.13.10",
+    "@babel/plugin-transform-async-to-generator": "^7.13.0",
+    "@babel/plugin-transform-runtime": "^7.13.10",
+    "@babel/preset-env": "^7.13.12",
+    "@babel/register": "^7.13.8",
     "ava": "^2.4.0",
     "babel-eslint": "^10.1.0",
-    "eslint": "^6.8.0",
-    "eslint-config-klopov": "^1.0.2"
+    "eslint": "^7.22.0",
+    "eslint-config-airbnb-base": "^14.2.1",
+    "eslint-config-prettier": "^8.1.0",
+    "eslint-plugin-import": "^2.22.1",
+    "lint-staged": ">=10",
+    "prettier": "^2.2.1",
+    "simple-git-hooks": ">=2.0.3"
   },
   "scripts": {
-    "babel": "node test/rimraf-es5.js && babel lib --out-dir lib-es5",
+    "build": "node test/rimraf-es5.js && babel lib --out-dir lib-es5",
     "bin": "node lib-es5/bin.js",
-    "lint": "eslint-klopov . || true",
-    "prepare": "npm run babel",
-    "prepublishOnly": "eslint-klopov . && npm test",
+    "lint": "eslint lib || true",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run lint",
     "start": "node lib-es5/upload.js",
     "test": "ava"
-  },
-  "eslintConfig": {
-    "extends": "klopov",
-    "parser": "babel-eslint"
   },
   "ava": {
     "failFast": true,
@@ -75,5 +77,14 @@
     "require": [
       "@babel/register"
     ]
+  },
+  "prettier": {
+    "singleQuote": true
+  },
+  "simple-git-hooks": {
+    "pre-commit": "npx lint-staged"
+  },
+  "lint-staged": {
+    "*.{js,css,md}": "prettier --write"
   }
 }
