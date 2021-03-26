@@ -13,7 +13,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v1
         with:
-          node-version: 15
+          node-version: '14.x'
 
       - name: Build nodejs
         run: |
@@ -119,10 +119,10 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Use Node.js 15
+      - name: Setup Nodejs
         uses: actions/setup-node@v1
         with:
-          node-version: 15
+          node-version: '14.x'
 
       - run: npm install
 
@@ -141,10 +141,10 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Use Node.js 15
+      - name: Setup Nodejs
         uses: actions/setup-node@v1
         with:
-          node-version: 15
+          node-version: '14.x'
 
       - run: npm install
 
@@ -169,10 +169,10 @@ jobs:
         with:
           xcode-version: latest
 
-      - name: Use Node.js 15
+      - name: Setup Nodejs
         uses: actions/setup-node@v1
         with:
-          node-version: 15
+          node-version: '14.x'
 
       - run: npm install
 
