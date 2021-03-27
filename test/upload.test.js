@@ -34,9 +34,9 @@ for (const nodeVersion in newPatchesJson) {
   }
 }
 
-require('../lib/log.js').log = new LogMock(actions);
+require('../lib-es5/log.js').log = new LogMock(actions);
 
-require('../lib/spawn.js').spawn = (cmd, args, opts) => {
+require('../lib-es5/spawn.js').spawn = (cmd, args, opts) => {
   assert(opts);
   assert(opts.cwd);
   if (cmd === 'git' && args[0] === 'clone') {
@@ -60,13 +60,13 @@ require('../lib/spawn.js').spawn = (cmd, args, opts) => {
   actions.push([cmd, args.join(' '), JSON.stringify(opts)].join(' '));
 };
 
-require('../lib/spawn.js').progress = () => {};
+require('../lib-es5/spawn.js').progress = () => {};
 
-require('../lib/verify.js').verify = () => {
+require('../lib-es5/verify.js').verify = () => {
   actions.push('verify');
 };
 
-require('../lib/copy-file.js').copyFile = (src, dest) => {
+require('../lib-es5/copy-file.js').copyFile = (src, dest) => {
   src = relative(src);
   const shortDest = `${path.basename(path.dirname(dest))}/${path.basename(
     dest
@@ -75,7 +75,7 @@ require('../lib/copy-file.js').copyFile = (src, dest) => {
   lastLocal = dest;
 };
 
-require('../lib/github.js').GitHub = class {
+require('../lib-es5/github.js').GitHub = class {
   getRelease(tag) {
     actions.push(['getRelease', tag].join(' '));
     return undefined;
@@ -105,7 +105,7 @@ test('upload', async (t) => {
 
   process.env.MAKE_JOB_COUNT = 1;
   // eslint-disable-next-line global-require
-  const { main } = require('../lib/upload');
+  const { main } = require('../lib-es5/upload');
 
   await main();
   const mustBe = [

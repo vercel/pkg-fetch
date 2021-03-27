@@ -3,7 +3,7 @@
 
 import assert from 'assert';
 
-export default function thresholds(cmd, nodeVersion) {
+export default function thresholds(cmd: string, nodeVersion = '') {
   if (cmd === 'clone') {
     return {
       'ving objects:   0%': 0,

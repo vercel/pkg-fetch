@@ -1,6 +1,6 @@
 import { chmod, stat } from 'fs-extra';
 
-export async function plusx(file) {
+export async function plusx(file: string) {
   const s = await stat(file);
   const newMode = s.mode | 64 | 8 | 1;
   if (s.mode === newMode) return;
