@@ -1,78 +1,102 @@
-import path from 'path';
-import { hostPlatform, targetArchs } from './system';
-import { localPlace, remotePlace } from './places';
-import { log, wasReported } from './log';
-import { Cloud } from './cloud';
-import build from './build';
-import patchesJson from '../patches/patches.json';
-import { verify } from './verify';
-import { version } from '../package.json';
-import { getMajor } from './get-major';
+import fs from "fs-extra";
+import path from "path";
 
-const cloud = new Cloud({ owner: 'zeit', repo: 'pkg-fetch' });
+import { hostArch, hostPlatform } from "./system.js";
+import { localPlace, remotePlace } from "./places.js";
+import { log } from "./log.js";
+import { Cloud } from "./cloud.js";
+import build from "./build.js";
+import patchesJson from "../patches/patches.json";
+import { verify } from "./verify.js";
+import { version } from "../package.json";
+import semver from 'semver';
 
-export function dontBuild(
-  nodeVersion: string,
-  targetPlatform: string,
-  targetArch: string
-) {
-  // binaries are not provided for x86 anymore
-  if (targetPlatform !== 'win' && targetArch === 'x86') {
-    return true;
-  }
+const cloud = new Cloud({ owner: 'vercel', repo: 'pkg-fetch' });
 
-  // https://support.apple.com/en-us/HT201948
-  // don't disable macos-x86 because it is not possible
-  // to cross-compile for x86 from macos otherwise
-  const major = getMajor(nodeVersion);
+/**
+ * Returns latest 3 lts versions available in patches
+ */
+function latestLts() : string[] {
 
-  // node 0.12 does not compile on arm
-  if (/^arm/.test(targetArch) && major === 0) return true;
-  if (targetPlatform === 'freebsd' && major < 4) return true;
-  if (targetPlatform === 'alpine' && (targetArch !== 'x64' || major < 6))
-    return true;
+  const availableVersions = Object.keys(patchesJson).sort((nv1, nv2) => (semver.lt(nv1, nv2) ? 1 : -1));
 
-  return false;
+  const majors = availableVersions.map((v) => `^${semver.major(v)}.0`)
+
+  const latest = [...new Set(majors)].slice(0, 3)
+
+  return latest.map((l) => semver.maxSatisfying(availableVersions, l)).filter((v) => !!v);
 }
 
 export async function main() {
-  if (!process.env.GITHUB_USERNAME) {
-    throw wasReported('No github credentials. Upload will fail!');
+  if (!process.env.GITHUB_TOKEN) {
+    log.warn("No github credentials. Upload skipped!");
   }
 
-  for (const nodeVersion in patchesJson) {
-    if (!patchesJson[nodeVersion as keyof typeof patchesJson]) {
-      continue;
+  const nodeVersions = latestLts();
+
+  log.info(`Node versions: ${nodeVersions.join(' ')}`);
+
+  for (const nodeVersion of nodeVersions) {
+    const targetArchs = [];
+
+    if (process.env.TARGET_ARCH) {
+      targetArchs.push(process.env.TARGET_ARCH);
+    } else {
+      targetArchs.push(hostArch);
     }
 
+    log.info(`Target architectures: ${targetArchs.join()}`);
+
     for (const targetArch of targetArchs) {
-      if (dontBuild(nodeVersion, hostPlatform, targetArch)) continue;
       const local = localPlace({
-        from: 'built',
+        from: "built",
         arch: targetArch,
         nodeVersion,
         platform: hostPlatform,
         version,
       });
+
       const remote = remotePlace({
         arch: targetArch,
         nodeVersion,
         platform: hostPlatform,
         version,
       });
-      if (await cloud.alreadyUploaded(remote)) continue;
+
       const short = path.basename(local);
+
+      if (process.env.GITHUB_TOKEN && await cloud.alreadyUploaded(remote)) {
+        log.info(`Node ${short} already present on remote, skip...`);
+        continue;
+      }
+
       log.info(`Building ${short}...`);
       await build(nodeVersion, targetArch, local);
-      log.info(`Verifying ${short}...`);
-      await verify(local);
-      log.info(`Uploading ${short}...`);
-      try {
-        await cloud.upload(local, remote);
-      } catch (error) {
-        // TODO catch only network errors
-        if (!error.wasReported) log.error(error);
-        log.info('Meanwhile i will continue making binaries');
+
+      if (hostArch === targetArch) {
+        log.info(`Verifying ${short}...`);
+        await verify(local);
+      }
+
+      if (process.env.GITHUB_TOKEN) {
+        if (await cloud.alreadyUploaded(remote)) continue;
+
+        log.info(`Uploading ${short}...`);
+
+        try {
+          await cloud.upload(local, remote);
+        } catch (error) {
+          // TODO catch only network errors
+          if (!error.wasReported) log.error(error);
+          log.info("Meanwhile i will continue making binaries");
+        }
+      } else {
+        log.info(`Expected asset name: ${remote.name}`);
+
+        const distFolder = path.join(__dirname, "../dist");
+
+        await fs.mkdirp(distFolder);
+        await fs.move(local, path.join(distFolder, remote.name));
       }
     }
   }

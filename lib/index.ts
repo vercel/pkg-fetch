@@ -18,7 +18,7 @@ import build from './build';
 import patchesJson from '../patches/patches.json';
 import { version } from '../package.json';
 
-const cloud = new Cloud({ owner: 'zeit', repo: 'pkg-fetch' });
+const cloud = new Cloud({ owner: 'vercel', repo: 'pkg-fetch' });
 
 async function exists(file: string) {
   try {
