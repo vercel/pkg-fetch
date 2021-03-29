@@ -63,7 +63,6 @@
     "@types/semver": "^7.3.4",
     "@typescript-eslint/eslint-plugin": "^4.19.0",
     "@typescript-eslint/parser": "^4.19.0",
-    "ava": "^2.4.0",
     "babel-eslint": "^10.1.0",
     "eslint": "^7.22.0",
     "eslint-config-airbnb-base": "^14.2.1",
@@ -82,17 +81,7 @@
     "lint": "eslint lib || true",
     "prepare": "npm run build",
     "prepublishOnly": "npm run lint",
-    "start": "node lib-es5/upload.js",
-    "test": "ava"
-  },
-  "ava": {
-    "failFast": true,
-    "files": [
-      "test/*.test.js"
-    ],
-    "require": [
-      "@babel/register"
-    ]
+    "start": "node lib-es5/upload.js"
   },
   "prettier": {
     "singleQuote": true
