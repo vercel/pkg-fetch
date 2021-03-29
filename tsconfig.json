@@ -12,7 +12,8 @@
     "resolveJsonModule": true,
     "rootDir": ".",
     "outDir": ".",
-    "composite": true
+    "composite": true,
+    "downlevelIteration": true
   },
   "files": ["package.json", "places.json", "patches/patches.json"]
 }
