@@ -2,7 +2,11 @@ name: Build and publish Node binaries
 
 on:
   workflow_dispatch:
-
+    inputs:
+      node:
+        description: 'Node version to build'
+        required: true
+        default: '10'
 jobs:
   linux-x64:
     runs-on: ubuntu-20.04
@@ -13,7 +17,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v1
         with:
-          node-version: '14.x'
+          node-version: ${{github.event.inputs.type}}
 
       - name: Build nodejs
         run: |
@@ -122,7 +126,7 @@ jobs:
       - name: Setup Nodejs
         uses: actions/setup-node@v1
         with:
-          node-version: '14.x'
+          node-version: ${{github.event.inputs.type}}
 
       - run: npm install
 
@@ -144,7 +148,7 @@ jobs:
       - name: Setup Nodejs
         uses: actions/setup-node@v1
         with:
-          node-version: '14.x'
+          node-version: ${{github.event.inputs.type}}
 
       - run: npm install
 
@@ -172,7 +176,7 @@ jobs:
       - name: Setup Nodejs
         uses: actions/setup-node@v1
         with:
-          node-version: '14.x'
+          node-version: ${{github.event.inputs.type}}
 
       - run: npm install
 
