@@ -7,21 +7,31 @@ import build from './build';
 import patchesJson from '../patches/patches.json';
 import { verify } from './verify';
 import { version } from '../package.json';
+import { getMajor } from './get-major';
 
 const cloud = new Cloud({ owner: 'zeit', repo: 'pkg-fetch' });
 
-export function dontBuild(nodeVersion, targetPlatform, targetArch) {
+export function dontBuild(
+  nodeVersion: string,
+  targetPlatform: string,
+  targetArch: string
+) {
   // binaries are not provided for x86 anymore
-  if (targetPlatform !== 'win' && targetArch === 'x86') return true;
+  if (targetPlatform !== 'win' && targetArch === 'x86') {
+    return true;
+  }
+
   // https://support.apple.com/en-us/HT201948
   // don't disable macos-x86 because it is not possible
   // to cross-compile for x86 from macos otherwise
-  const major = nodeVersion.match(/^v?(\d+)/)[1] | 0;
+  const major = getMajor(nodeVersion);
+
   // node 0.12 does not compile on arm
   if (/^arm/.test(targetArch) && major === 0) return true;
   if (targetPlatform === 'freebsd' && major < 4) return true;
   if (targetPlatform === 'alpine' && (targetArch !== 'x64' || major < 6))
     return true;
+
   return false;
 }
 
@@ -31,7 +41,7 @@ export async function main() {
   }
 
   for (const nodeVersion in patchesJson) {
-    if (!patchesJson[nodeVersion]) {
+    if (!patchesJson[nodeVersion as keyof typeof patchesJson]) {
       continue;
     }
 

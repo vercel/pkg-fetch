@@ -2,32 +2,50 @@ import byline from 'byline';
 import chip from 'child_process';
 import fs from 'fs';
 import { log } from './log';
+import getThresholds from './thresholds';
 
 const MAX_LINES = 20;
 const DEBUG_THRESHOLDS = false;
 
-function errorLines(lines) {
+type OutputLine = [number, string];
+
+function errorLines(lines: OutputLine[]) {
   return lines
     .slice(-MAX_LINES)
     .map((line) => line[1])
     .join('\n');
 }
 
-export function spawn(cmd, args, opts) {
-  const child = chip.spawn(cmd, args, opts);
-  const stdout = byline(child.stdout);
-  const stderr = byline(child.stderr);
-  const lines = [];
+class ObservablePromise extends Promise<void> {
+  thresholds?: ReturnType<typeof getThresholds>;
 
-  let onData = (data) => {
+  child!: chip.ChildProcess;
+
+  lines: OutputLine[] = [];
+}
+
+export function spawn(cmd: string, args: (string)[], opts: chip.SpawnOptions = {}) {
+  const child = chip.spawn(cmd, args, opts);
+  const stdout = child.stdout && byline(child.stdout);
+  const stderr = child.stderr && byline(child.stderr);
+  const lines: OutputLine[] = [];
+
+  let onData = (data: string) => {
     const time = new Date().getTime();
     lines.push([time, data.toString()]); // TODO chalk stdout/stderr?
-    const { thresholds } = this; // eslint-disable-line no-invalid-this
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    const { thresholds } = this as ObservablePromise;
+
     if (thresholds) {
       for (const key in thresholds) {
         if (data.indexOf(key) >= 0) {
-          const p = thresholds[key];
-          log.showProgress(p);
+          const p = thresholds[key as keyof typeof thresholds];
+          
+          if (p !== undefined) {
+            log.showProgress(p);
+          }
+
           if (DEBUG_THRESHOLDS) {
             lines.push([time, '************']);
             lines.push([time, `${p}: ${key}`]);
@@ -38,7 +56,7 @@ export function spawn(cmd, args, opts) {
     }
   };
 
-  const promise = new Promise((resolve, reject) => {
+  const promise = new ObservablePromise((resolve, reject) => {
     child.on('error', (error) => {
       // eslint-disable-next-line no-console
       console.error(errorLines(lines)); // dont use `log` here
@@ -55,19 +73,26 @@ export function spawn(cmd, args, opts) {
   });
 
   onData = onData.bind(promise);
+
   if (stdout) stdout.on('data', onData);
   if (stderr) stderr.on('data', onData);
 
   promise.child = child;
   promise.lines = lines;
+
   return promise;
 }
 
-export function progress(promise, thresholds) {
+export function progress(
+  promise: ObservablePromise,
+  thresholds: ReturnType<typeof getThresholds>
+) {
   promise.thresholds = thresholds;
   const { child, lines } = promise;
-  log.enableProgress(promise.child.spawnfile);
+
+  log.enableProgress(child.spawnfile);
   log.showProgress(0);
+
   const start = new Date().getTime();
   child.on('close', () => {
     if (DEBUG_THRESHOLDS) {
@@ -78,8 +103,10 @@ export function progress(promise, thresholds) {
             `${((100 * (line[0] - start)) / (finish - start)) | 0}: ${line[1]}`
         )
         .join('\n');
+
       fs.writeFileSync(`${child.spawnfile}.debug`, content);
     }
+
     log.showProgress(100);
     log.disableProgress();
   });

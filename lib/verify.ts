@@ -93,7 +93,7 @@ const script = `
   console.log('ok');
 `;
 
-export async function verify(local) {
+export async function verify(local: string) {
   await plusx(local);
   await spawn(local, ['-e', script], {
     env: { PKG_EXECPATH: 'PKG_INVOKE_NODEJS' },
