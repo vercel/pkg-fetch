@@ -1,11 +1,11 @@
 import fs from 'fs';
 import { spawnSync } from 'child_process';
 
-function getHostAbi () {
-  return 'm' + process.versions.modules;
+function getHostAbi() {
+  return `m${process.versions.modules}`;
 }
 
-export function abiToNodeRange (abi) {
+export function abiToNodeRange(abi: string) {
   if (/^m?14/.test(abi)) return 'node0.12';
   if (/^m?46/.test(abi)) return 'node4';
   if (/^m?47/.test(abi)) return 'node5';
@@ -21,13 +21,13 @@ export function abiToNodeRange (abi) {
   return abi;
 }
 
-export function isValidNodeRange (nodeRange) {
+export function isValidNodeRange(nodeRange: string) {
   if (nodeRange === 'latest') return true;
-  if (!(/^node/.test(nodeRange))) return false;
+  if (!/^node/.test(nodeRange)) return false;
   return true;
 }
 
-export function toFancyPlatform (platform) {
+export function toFancyPlatform(platform: string) {
   if (platform === 'darwin') return 'macos';
   if (platform === 'lin') return 'linux';
   if (platform === 'mac') return 'macos';
@@ -37,69 +37,101 @@ export function toFancyPlatform (platform) {
   return platform;
 }
 
-function detectAlpine () {
+function detectAlpine() {
   const { platform } = process;
-  if (platform !== 'linux') return false;
+
+  if (platform !== 'linux') {
+    return false;
+  }
+
   // https://github.com/sass/node-sass/issues/1589#issuecomment-265292579
   const ldd = spawnSync('ldd').stderr.toString();
-  if (/\bmusl\b/.test(ldd)) return true;
-  const lddNode = spawnSync('ldd', [ process.execPath ]).stdout.toString();
+
+  if (/\bmusl\b/.test(ldd)) {
+    return true;
+  }
+
+  const lddNode = spawnSync('ldd', [process.execPath]).stdout.toString();
   return /\bmusl\b/.test(lddNode);
 }
 
 const isAlpine = detectAlpine();
 
-function getHostPlatform () {
+function getHostPlatform() {
   const { platform } = process;
-  if (isAlpine) return 'alpine';
+
+  if (isAlpine) {
+    return 'alpine';
+  }
+
   return toFancyPlatform(platform);
 }
 
-function getKnownPlatforms () {
-  return [ 'alpine', 'freebsd', 'linux', 'macos', 'win' ];
+function getKnownPlatforms() {
+  return ['alpine', 'freebsd', 'linux', 'macos', 'win'];
 }
 
-export function toFancyArch (arch) {
+export function toFancyArch(arch: string) {
   if (arch === 'ia32') return 'x86';
   if (arch === 'x86_64') return 'x64';
   return arch;
 }
 
-function getArmUnameArch () {
-  const uname = spawnSync('uname', [ '-a' ]);
-  if (uname.error) return '';
+function getArmUnameArch() {
+  const uname = spawnSync('uname', ['-a']);
+
+  if (uname.error) {
+    return '';
+  }
+
   let unameOut = uname.stdout && uname.stdout.toString();
   unameOut = (unameOut || '').toLowerCase();
+
   if (unameOut.includes('aarch64')) return 'arm64';
   if (unameOut.includes('arm64')) return 'arm64';
   if (unameOut.includes('armv7')) return 'armv7';
+
   return '';
 }
 
-function getArmHostArch () {
+function getArmHostArch() {
   const cpu = fs.readFileSync('/proc/cpuinfo', 'utf8');
-  if (cpu.indexOf('vfpv3') >= 0) return 'armv7';
+
+  if (cpu.indexOf('vfpv3') >= 0) {
+    return 'armv7';
+  }
+
   let name = cpu.split('model name')[1];
-  if (name) name = name.split(':')[1];
-  if (name) name = name.split('\n')[0];
+
+  if (name) [, name] = name.split(':');
+  if (name) [name] = name.split('\n');
   if (name && name.indexOf('ARMv7') >= 0) return 'armv7';
+
   return 'armv6';
 }
 
-function getHostArch () {
+function getHostArch() {
   const { arch } = process;
-  if (arch === 'arm') return getArmUnameArch() || getArmHostArch();
+
+  if (arch === 'arm') {
+    return getArmUnameArch() || getArmHostArch();
+  }
+
   return toFancyArch(arch);
 }
 
-function getTargetArchs () {
+function getTargetArchs() {
   const arch = getHostArch();
-  if (arch === 'x64') return [ 'x64', 'x86' ];
-  return [ arch ];
+
+  if (arch === 'x64') {
+    return ['x64', 'x86'];
+  }
+
+  return [arch];
 }
 
-function getKnownArchs () {
-  return [ 'x64', 'x86', 'armv6', 'armv7', 'arm64', 'ppc64', 's390x' ];
+function getKnownArchs() {
+  return ['x64', 'x86', 'armv6', 'armv7', 'arm64', 'ppc64', 's390x'];
 }
 
 export const hostAbi = getHostAbi();

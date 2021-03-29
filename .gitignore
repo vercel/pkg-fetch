@@ -8,3 +8,7 @@
 npm-debug.log
 
 /.vscode
+yarn-error.log
+
+# TypeScript incremental compilation cache
+*.tsbuildinfo

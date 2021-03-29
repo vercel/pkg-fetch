@@ -1,29 +1,26 @@
 class LogMock {
-  constructor (actions) {
+  constructor(actions) {
     this.actions = actions;
   }
 
-  info (text) {
+  info(text) {
     this.actions.push(`> ${text}`);
   }
 
-  warn (text) {
+  warn(text) {
     this.actions.push(`> WARN ${text}`);
   }
 
-  error (text) {
+  error(text) {
     if (text.message) text = text.message;
     this.actions.push(`> ERR! ${text}`);
   }
 
-  enableProgress () {
-  }
+  enableProgress() {}
 
-  showProgress () {
-  }
+  showProgress() {}
 
-  disableProgress () {
-  }
+  disableProgress() {}
 }
 
 export default LogMock;
