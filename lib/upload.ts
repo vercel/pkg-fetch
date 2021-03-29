@@ -24,7 +24,7 @@ function latestLts() : string[] {
 
   const latest = [...new Set(majors)].slice(0, 3)
 
-  return latest.map((l) => semver.maxSatisfying(availableVersions, l)).filter((v) => !!v);
+  return latest.map((l) => semver.maxSatisfying(availableVersions, l)).filter((v) => v !== null);
 }
 
 export async function main() {
