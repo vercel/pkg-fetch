@@ -29,8 +29,8 @@ export class GitHub {
     this.owner = owner;
     this.repo = repo;
 
-    const { GITHUB_USERNAME, GITHUB_PASSWORD } = process.env;
-    const auth = { user: GITHUB_USERNAME, pass: GITHUB_PASSWORD };
+    const { GITHUB_USERNAME, GITHUB_PASSWORD, GITHUB_TOKEN } = process.env;
+    const auth = { user: GITHUB_USERNAME || 'vercel', pass: GITHUB_PASSWORD || GITHUB_TOKEN };
 
     this.request = request.defaults({
       auth: auth.user ? auth : undefined,
