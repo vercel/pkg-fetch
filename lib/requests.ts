@@ -1,7 +1,8 @@
+import axios, { AxiosError } from 'axios';
 import fs from 'fs-extra';
 import path from 'path';
-import progress from 'request-progress';
-import request from 'request';
+import { promisify } from 'util';
+import stream from 'stream';
 
 import { log, wasReported } from './log';
 
@@ -13,55 +14,34 @@ export async function downloadUrl(url: string, file: string) {
 
   fs.mkdirpSync(path.dirname(tempFile));
 
-  return new Promise<request.Response>((resolve, reject) => {
-    const headers = { Accept: 'application/octet-stream' };
-    const ws = fs.createWriteStream(tempFile);
-    let result: request.Response;
+  const ws = fs.createWriteStream(tempFile);
 
-    const req = progress(
-      request.defaults({ timeout: 30 * 1000 }).get(
-        url,
-        {
-          headers,
-        },
-        (error, response) => {
-          if (error) {
-            log.disableProgress();
-            return reject(wasReported(error.message));
-          }
-          if (response.statusCode !== 200) {
-            log.disableProgress();
-            const message = `${response.statusCode} ${response.body}`;
-            return reject(wasReported(message, url));
-          }
-          result = response;
+  return axios
+    .get(url, { responseType: 'stream' })
+    .then(({ data, headers }) => {
+      const totalSize = headers['content-length'];
+      let currentSize = 0;
+
+      data.on('data', (chunk: string) => {
+        if (totalSize != null && totalSize !== 0) {
+          currentSize += chunk.length;
+          log.showProgress((currentSize / totalSize) * 100);
         }
-      )
-    );
+      });
+      data.pipe(ws);
 
-    req.on('progress', (state) => {
-      let p;
-
-      if (state.size && state.size.transferred && state.size.total) {
-        p = state.size.transferred / state.size.total;
+      return promisify(stream.finished)(ws).then(() => {
+        log.showProgress(100);
+        log.disableProgress();
+        fs.moveSync(tempFile, file);
+      });
+    })
+    .catch((e: AxiosError) => {
+      log.disableProgress();
+      if (e.response) {
+        throw wasReported(`${e.response.status}`);
       } else {
-        p = state.percentage;
+        throw wasReported(e.message);
       }
-
-      log.showProgress(p * 100);
     });
-
-    req.pipe(ws);
-
-    ws.on('close', () => {
-      log.showProgress(100);
-      log.disableProgress();
-
-      fs.moveSync(tempFile, file);
-      resolve(result);
-    }).on('error', (error) => {
-      log.disableProgress();
-      reject(wasReported(error.message));
-    });
-  });
 }
