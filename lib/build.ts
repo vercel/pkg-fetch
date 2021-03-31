@@ -1,13 +1,13 @@
 import os from 'os';
 import { mkdirp, remove } from 'fs-extra';
 import path from 'path';
-import { progress, spawn } from './spawn';
+import { spawnSync } from 'child_process';
+
 import { copyFile } from './copy-file';
 import { hostPlatform } from './system';
 import { log } from './log';
 import patchesJson from '../patches/patches.json';
 import { tempPath } from './temp-path';
-import thresholds from './thresholds';
 import { getMajor } from './get-major';
 
 let buildPath: string;
@@ -37,10 +37,8 @@ async function gitClone(nodeVersion: string) {
     nodeRepo,
     'node/.git',
   ];
-  const promise = spawn('git', args, { cwd: buildPath });
-  progress(promise, thresholds('clone'));
 
-  await promise;
+  spawnSync('git', args, { cwd: buildPath, stdio: 'inherit' });
 }
 
 async function gitResetHard(nodeVersion: string) {
@@ -54,7 +52,7 @@ async function gitResetHard(nodeVersion: string) {
     'commit' in patches && patches.commit ? patches.commit : nodeVersion;
   const args = ['--work-tree', '.', 'reset', '--hard', commit];
 
-  await spawn('git', args, { cwd: nodePath });
+  spawnSync('git', args, { cwd: nodePath, stdio: 'inherit' });
 }
 
 async function applyPatches(nodeVersion: string) {
@@ -74,7 +72,7 @@ async function applyPatches(nodeVersion: string) {
   for (const patch of patches) {
     const patchPath = path.join(patchesPath, patch);
     const args = ['-p1', '-i', patchPath];
-    await spawn('patch', args, { cwd: nodePath });
+    spawnSync('patch', args, { cwd: nodePath, stdio: 'inherit' });
   }
 }
 
@@ -87,9 +85,7 @@ async function compileOnWindows(nodeVersion: string, targetArch: string) {
     args.push('nosign', 'noperfctr');
   }
 
-  const promise = spawn('cmd', args, { cwd: nodePath });
-  progress(promise, thresholds('vcbuild', nodeVersion));
-  await promise;
+  spawnSync('cmd', args, { cwd: nodePath, stdio: 'inherit' });
 
   if (major <= 10) {
     return path.join(nodePath, 'Release/node.exe');
@@ -133,18 +129,22 @@ async function compileOnUnix(nodeVersion: string, targetArch: string) {
   }
 
   // TODO same for windows?
-  await spawn('./configure', args, { cwd: nodePath });
-  const make = hostPlatform === 'freebsd' ? 'gmake' : 'make';
-  const promise = spawn(make, ['-j', String(MAKE_JOB_COUNT)], {
-    cwd: nodePath,
-  });
-  progress(promise, thresholds('make', nodeVersion));
-  await promise;
+  spawnSync('./configure', args, { cwd: nodePath, stdio: 'inherit' });
+
+  spawnSync(
+    hostPlatform === 'freebsd' ? 'gmake' : 'make',
+    ['-j', String(MAKE_JOB_COUNT)],
+    {
+      cwd: nodePath,
+      stdio: 'inherit',
+    }
+  );
+
   const output = path.join(nodePath, 'out/Release/node');
 
   // https://github.com/mhart/alpine-node/blob/base-7.4.0/Dockerfile#L36
   if (hostPlatform === 'alpine') {
-    await spawn('paxctl', ['-cm', output]);
+    spawnSync('paxctl', ['-cm', output], { stdio: 'inherit' });
   }
 
   return output;

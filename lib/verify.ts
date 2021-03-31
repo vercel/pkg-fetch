@@ -1,5 +1,6 @@
+import { spawnSync } from 'child_process';
+
 import { plusx } from './chmod';
-import { spawn } from './spawn';
 
 const script = `
   var vm = require('vm');
@@ -95,7 +96,8 @@ const script = `
 
 export async function verify(local: string) {
   await plusx(local);
-  await spawn(local, ['-e', script], {
+  spawnSync(local, ['-e', script], {
     env: { PKG_EXECPATH: 'PKG_INVOKE_NODEJS' },
+    stdio: 'inherit',
   });
 }
