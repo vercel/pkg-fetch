@@ -16,6 +16,7 @@ import { log, wasReported } from './log';
 import build from './build';
 import { downloadUrl } from './requests';
 import patchesJson from '../patches/patches.json';
+import { plusx } from './chmod';
 import { version } from '../package.json';
 
 async function download(
@@ -26,6 +27,7 @@ async function download(
 
   try {
     await downloadUrl(url, local);
+    await plusx(local);
   } catch {
     return false;
   }

@@ -31,14 +31,13 @@
   },
   "dependencies": {
     "@babel/runtime": "^7.9.2",
+    "axios": "^0.21.1",
     "byline": "^5.0.0",
     "chalk": "^4.1.0",
     "expand-template": "^2.0.3",
     "fs-extra": "^9.1.0",
     "isomorphic-fetch": "^3.0.0",
     "progress": "^2.0.3",
-    "request": "^2.88.2",
-    "request-progress": "^3.0.0",
     "semver": "^7.3.5",
     "unique-temp-dir": "^1.0.0",
     "yargs": "^16.2.0"
@@ -58,7 +57,6 @@
     "@types/isomorphic-fetch": "^0.0.35",
     "@types/node": "^14.14.37",
     "@types/progress": "^2.0.3",
-    "@types/request": "^2.48.5",
     "@types/semver": "^7.3.4",
     "@types/yargs": "^16.0.1",
     "@typescript-eslint/eslint-plugin": "^4.19.0",
