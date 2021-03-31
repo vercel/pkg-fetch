@@ -1,0 +1,84 @@
+name: Build Node binaries for Linux
+
+on:
+  workflow_dispatch:
+
+jobs:
+  linux-x64:
+    runs-on: ubuntu-20.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        target-node: [8, 10, 12, 14]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Login to Red Hat Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: registry.redhat.io
+          username: ${{ secrets.REDHAT_USERNAME }}
+          password: ${{ secrets.REDHAT_PASSWORD }}
+
+      - name: Build
+        uses: docker/build-push-action@v2
+        with:
+          build-args: |
+            PKG_FETCH_OPTION_n=node${{ matrix.target-node }}
+          context: .
+          file: ./Dockerfile.linux
+          platforms: linux/amd64
+          outputs: type=tar,dest=../out.tar
+
+      - name: Extract binaries from Docker image
+        run: |
+          tar xvf ../out.tar opt/app-root/src/.pkg-cache
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: node${{ matrix.target-node }}-linux-x64
+          path: opt/app-root/src/.pkg-cache/**/built-*
+
+  linux-arm64:
+    runs-on: ubuntu-18.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        target-node: [8, 10, 12, 14]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Use Node.js 14
+        uses: actions/setup-node@v1
+        with:
+          node-version: 14
+
+      - run: sudo apt update
+      - run: sudo apt install -y gcc-8-aarch64-linux-gnu g++-8-aarch64-linux-gnu binutils-aarch64-linux-gnu
+
+      - run: yarn install
+
+      - run: yarn start --node-range node${{ matrix.target-node }} --arch arm64
+        env:
+          CC: /usr/bin/aarch64-linux-gnu-gcc-8
+          CXX: /usr/bin/aarch64-linux-gnu-g++-8
+          AR: /usr/bin/aarch64-linux-gnu-ar
+          NM: /usr/bin/aarch64-linux-gnu-nm
+          READELF: /usr/bin/aarch64-linux-gnu-readelf
+          CC_host: /usr/bin/gcc
+          CXX_host: /usr/bin/g++
+          AR_host: /usr/bin/ar
+          NM_host: /usr/bin/nm
+          READELF_host: /usr/bin/readelf
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: node${{ matrix.target-node }}-linux-arm64
+          path: /home/runner/.pkg-cache/**/built-*
