@@ -11,14 +11,27 @@ import {
   toFancyPlatform,
 } from './system';
 import * as system from './system';
-import { localPlace, remotePlace } from './places';
+import { localPlace, remotePlace, Remote } from './places';
 import { log, wasReported } from './log';
-import { Cloud } from './cloud';
 import build from './build';
+import { downloadUrl } from './requests';
 import patchesJson from '../patches/patches.json';
 import { version } from '../package.json';
 
-const cloud = new Cloud({ owner: 'zeit', repo: 'pkg-fetch' });
+async function download(
+  { tag, name }: Remote,
+  local: string
+): Promise<boolean> {
+  const url = `https://github.com/vercel/pkg-fetch/releases/download/${tag}/${name}`;
+
+  try {
+    await downloadUrl(url, local);
+  } catch {
+    return false;
+  }
+
+  return true;
+}
 
 async function exists(file: string) {
   try {
@@ -111,13 +124,13 @@ export async function need(opts: NeedOptions) {
 
   if (!forceBuild) {
     if (dryRun) return 'fetched';
-    if (await cloud.download(remote, fetched)) return fetched;
+    if (await download(remote, fetched)) return fetched;
 
     fetchFailed = true;
   }
 
   if (!dryRun && fetchFailed) {
-    log.info('Not found in GitHub releases:', JSON.stringify(remote));
+    log.info('Not found in remote cache:', JSON.stringify(remote));
   }
 
   if (!dryRun) {

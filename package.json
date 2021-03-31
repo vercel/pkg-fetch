@@ -78,10 +78,10 @@
   "scripts": {
     "build": "rimraf lib-es5 && tsc --build lib",
     "bin": "node lib-es5/bin.js",
-    "lint": "eslint lib || true",
+    "lint": "eslint lib",
     "prepare": "npm run build",
     "prepublishOnly": "npm run lint",
-    "start": "node lib-es5/upload.js"
+    "start": "node lib-es5/bin.js"
   },
   "prettier": {
     "singleQuote": true
