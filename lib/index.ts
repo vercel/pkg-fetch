@@ -131,6 +131,9 @@ export async function need(opts: NeedOptions) {
 
   if (!dryRun && fetchFailed) {
     log.info('Not found in remote cache:', JSON.stringify(remote));
+    if (forceFetch) {
+      throw wasReported(`Failed to fetch.`);
+    }
   }
 
   if (!dryRun) {
