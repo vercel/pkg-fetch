@@ -5,6 +5,7 @@ import yargs from 'yargs';
 import { hostPlatform, hostArch } from './system';
 import { log } from './log';
 import { need } from './index';
+import { verify } from './verify';
 import { version } from '../package.json';
 
 async function main() {
@@ -13,6 +14,7 @@ async function main() {
     .option('node-range', { alias: 'n', default: 'latest', type: 'string' })
     .option('platform', { alias: 'p', default: hostPlatform, type: 'string' })
     .option('arch', { alias: 'a', default: hostArch, type: 'string' })
+    .option('test', { alias: 't', type: 'boolean' })
     .option('force-fetch', {
       alias: 'f',
       type: 'boolean',
@@ -31,6 +33,7 @@ async function main() {
     'node-range': nodeRange,
     platform,
     arch,
+    test,
     'force-fetch': forceFetch,
     'force-build': forceBuild,
   } = argv;
@@ -44,6 +47,10 @@ async function main() {
   });
 
   log.info(local);
+
+  if (test) {
+    await verify(local);
+  }
 }
 
 main().catch((error) => {
