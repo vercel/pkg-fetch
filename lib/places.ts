@@ -42,7 +42,13 @@ export function localPlace(opts: LocalPlaceOptions) {
 interface RemotePlaceOptions extends PlaceOptions {
   tag?: string;
 }
-export function remotePlace(opts: RemotePlaceOptions) {
+
+export interface Remote {
+  tag: string;
+  name: string;
+}
+
+export function remotePlace(opts: RemotePlaceOptions): Remote {
   const p = placesJson.remotePlace;
   const { version } = opts;
   const tag = tagFromVersion(version);

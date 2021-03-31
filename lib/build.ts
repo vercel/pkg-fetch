@@ -1,26 +1,22 @@
 import os from 'os';
-import { mkdirp, remove } from 'fs-extra';
+import fs from 'fs-extra';
 import path from 'path';
 import { spawnSync } from 'child_process';
+import uniqueTempDir from 'unique-temp-dir';
 
-import { copyFile } from './copy-file';
 import { hostPlatform } from './system';
 import { log } from './log';
 import patchesJson from '../patches/patches.json';
-import { tempPath } from './temp-path';
-import { getMajor } from './get-major';
 
-let buildPath: string;
-
-if (process.env.GITHUB_USERNAME) {
-  buildPath = path.join(__dirname, '..', 'precompile');
-} else {
-  buildPath = tempPath();
-}
-
+const buildPath = uniqueTempDir();
 const nodePath = path.join(buildPath, 'node');
 const patchesPath = path.resolve(__dirname, '../patches');
 const nodeRepo = 'https://github.com/nodejs/node';
+
+function getMajor(nodeVersion: string) {
+  const [, version] = nodeVersion.match(/^v?(\d+)/) || ['', 0];
+  return Number(version) | 0;
+}
 
 async function gitClone(nodeVersion: string) {
   log.info('Cloning Node.js repository from GitHub...');
@@ -166,13 +162,15 @@ export default async function build(
   targetArch: string,
   local: string
 ) {
-  await remove(buildPath);
-  await mkdirp(buildPath);
+  await fs.remove(buildPath);
+  await fs.mkdirp(buildPath);
+
   await gitClone(nodeVersion);
   await gitResetHard(nodeVersion);
   await applyPatches(nodeVersion);
   const output = await compile(nodeVersion, targetArch);
-  await mkdirp(path.dirname(local));
-  await copyFile(output, local);
-  await remove(buildPath);
+
+  await fs.mkdirp(path.dirname(local));
+  await fs.copy(output, local);
+  await fs.remove(buildPath);
 }
