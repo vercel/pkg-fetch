@@ -4,7 +4,7 @@ import path from 'path';
 import { spawnSync } from 'child_process';
 import uniqueTempDir from 'unique-temp-dir';
 
-import { hostPlatform } from './system';
+import { hostArch, hostPlatform } from './system';
 import { log } from './log';
 import patchesJson from '../patches/patches.json';
 
@@ -106,6 +106,12 @@ async function compileOnUnix(nodeVersion: string, targetArch: string) {
 
   if (cpu) {
     args.push('--dest-cpu', cpu);
+  }
+
+  if (hostArch !== targetArch) {
+    log.warn('Cross compiling!');
+    log.warn('You are responsible for appropriate env like CC, CC_host, etc.');
+    args.push('--cross-compiling');
   }
 
   // first of all v8_inspector introduces the use
