@@ -8,7 +8,7 @@ import { hostArch, hostPlatform } from './system';
 import { log } from './log';
 import patchesJson from '../patches/patches.json';
 
-const buildPath = uniqueTempDir();
+const buildPath = path.resolve(process.env.PKG_BUILD_PATH || uniqueTempDir());
 const nodePath = path.join(buildPath, 'node');
 const patchesPath = path.resolve(__dirname, '../patches');
 const nodeRepo = 'https://github.com/nodejs/node';
