@@ -3,7 +3,6 @@ import path from 'path';
 import semver from 'semver';
 import {
   abiToNodeRange,
-  hostArch,
   hostPlatform, // eslint-disable-line no-duplicate-imports
   isValidNodeRange,
   knownArchs,
@@ -145,12 +144,6 @@ export async function need(opts: NeedOptions) {
   if (hostPlatform !== platform) {
     throw wasReported(
       `Not able to build for '${opts.platform}' here, only for '${hostPlatform}'`
-    );
-  }
-
-  if (hostArch !== arch) {
-    throw wasReported(
-      `Not able to build for '${opts.arch}' here, only for '${hostArch}'`
     );
   }
 
