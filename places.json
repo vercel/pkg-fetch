@@ -1,4 +1,0 @@
-{
-  "localPlace": "{from}-{nodeVersion}-{platform}-{arch}",
-  "remotePlace": "node-{nodeVersion}-{platform}-{arch}"
-}

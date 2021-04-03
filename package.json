@@ -10,8 +10,7 @@
   },
   "files": [
     "lib-es5/*.js",
-    "patches/*",
-    "places.json"
+    "patches/*"
   ],
   "babel": {
     "plugins": [
@@ -34,7 +33,6 @@
     "axios": "^0.21.1",
     "byline": "^5.0.0",
     "chalk": "^4.1.0",
-    "expand-template": "^2.0.3",
     "fs-extra": "^9.1.0",
     "isomorphic-fetch": "^3.0.0",
     "progress": "^2.0.3",
