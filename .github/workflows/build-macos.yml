@@ -26,9 +26,9 @@ jobs:
 
       - run: yarn install
 
-      - run: yarn start --node-range node${{ matrix.target-node }}
+      - run: yarn start --node-range node${{ matrix.target-node }} --output dist
 
       - uses: actions/upload-artifact@v2
         with:
           name: node${{ matrix.target-node }}-macos-x64
-          path: /Users/runner/.pkg-cache/**/built-*
+          path: dist/*

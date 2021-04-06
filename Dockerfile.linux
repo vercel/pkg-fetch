@@ -19,4 +19,4 @@ RUN npm install -g yarn
 
 RUN yarn install
 
-RUN yarn start --node-range $PKG_FETCH_OPTION_n
+RUN yarn start --node-range $PKG_FETCH_OPTION_n --output dist

@@ -29,14 +29,14 @@ jobs:
 
       - run: choco install nasm
 
-      - run: yarn start --node-range node${{ matrix.target-node }} --arch ${{ matrix.target-arch }}
+      - run: yarn start --node-range node${{ matrix.target-node }} --arch ${{ matrix.target-arch }} --output dist
         env:
           PKG_BUILD_PATH: build
 
       - uses: actions/upload-artifact@v2
         with:
           name: node${{ matrix.target-node }}-windows-${{ matrix.target-arch }}
-          path: C:\\Users\\runneradmin\\.pkg-cache\\**\\built-*
+          path: dist\\*
 
   windows-vs2019:
     runs-on: windows-2019
@@ -59,9 +59,9 @@ jobs:
 
       - run: choco install nasm
 
-      - run: yarn start --node-range node${{ matrix.target-node }} --arch ${{ matrix.target-arch }}
+      - run: yarn start --node-range node${{ matrix.target-node }} --arch ${{ matrix.target-arch }} --output dist
 
       - uses: actions/upload-artifact@v2
         with:
           name: node${{ matrix.target-node }}-windows-${{ matrix.target-arch }}
-          path: C:\\Users\\runneradmin\\.pkg-cache\\**\\built-*
+          path: dist\\*
