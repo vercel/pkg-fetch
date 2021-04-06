@@ -1,0 +1,67 @@
+name: Build Node binaries for Windows
+
+on:
+  workflow_dispatch:
+
+jobs:
+  windows-vs2017:
+    runs-on: windows-2016
+
+    strategy:
+      fail-fast: false
+      matrix:
+        target-node: [8, 10, 12]
+        target-arch: [x64]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '2.x'
+
+      - name: Use Node.js 14
+        uses: actions/setup-node@v1
+        with:
+          node-version: 14
+
+      - run: yarn install
+
+      - run: choco install nasm
+
+      - run: yarn start --node-range node${{ matrix.target-node }} --arch ${{ matrix.target-arch }}
+        env:
+          PKG_BUILD_PATH: build
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: node${{ matrix.target-node }}-windows-${{ matrix.target-arch }}
+          path: C:\\Users\\runneradmin\\.pkg-cache\\**\\built-*
+
+  windows-vs2019:
+    runs-on: windows-2019
+
+    strategy:
+      fail-fast: false
+      matrix:
+        target-node: [14]
+        target-arch: [x64, arm64]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Use Node.js 14
+        uses: actions/setup-node@v1
+        with:
+          node-version: 14
+
+      - run: yarn install
+
+      - run: choco install nasm
+
+      - run: yarn start --node-range node${{ matrix.target-node }} --arch ${{ matrix.target-arch }}
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: node${{ matrix.target-node }}-windows-${{ matrix.target-arch }}
+          path: C:\\Users\\runneradmin\\.pkg-cache\\**\\built-*
