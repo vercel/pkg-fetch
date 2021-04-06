@@ -10,58 +10,24 @@
   },
   "files": [
     "lib-es5/*.js",
-    "patches/*",
-    "places.json"
+    "patches/*"
   ],
-  "babel": {
-    "plugins": [
-      "@babel/plugin-transform-async-to-generator",
-      "@babel/plugin-transform-runtime"
-    ],
-    "presets": [
-      [
-        "@babel/preset-env",
-        {
-          "targets": {
-            "node": "4"
-          }
-        }
-      ]
-    ]
-  },
   "dependencies": {
-    "@babel/runtime": "^7.9.2",
     "axios": "^0.21.1",
-    "byline": "^5.0.0",
     "chalk": "^4.1.0",
-    "expand-template": "^2.0.3",
     "fs-extra": "^9.1.0",
-    "isomorphic-fetch": "^3.0.0",
     "progress": "^2.0.3",
     "semver": "^7.3.5",
-    "unique-temp-dir": "^1.0.0",
     "yargs": "^16.2.0"
   },
   "devDependencies": {
-    "@babel/cli": "^7.13.10",
-    "@babel/core": "^7.13.10",
-    "@babel/eslint-parser": "^7.13.10",
-    "@babel/plugin-transform-async-to-generator": "^7.13.0",
-    "@babel/plugin-transform-runtime": "^7.13.10",
-    "@babel/preset-env": "^7.13.12",
-    "@babel/register": "^7.13.8",
-    "@octokit/core": "^3.3.1",
-    "@octokit/plugin-rest-endpoint-methods": "^5.0.0",
-    "@types/byline": "^4.2.32",
     "@types/fs-extra": "^9.0.9",
-    "@types/isomorphic-fetch": "^0.0.35",
     "@types/node": "^14.14.37",
     "@types/progress": "^2.0.3",
     "@types/semver": "^7.3.4",
     "@types/yargs": "^16.0.1",
     "@typescript-eslint/eslint-plugin": "^4.19.0",
     "@typescript-eslint/parser": "^4.19.0",
-    "babel-eslint": "^10.1.0",
     "eslint": "^7.22.0",
     "eslint-config-airbnb-base": "^14.2.1",
     "eslint-config-prettier": "^8.1.0",

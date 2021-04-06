@@ -1,14 +1,17 @@
-import os from 'os';
+import crypto from 'crypto';
 import fs from 'fs-extra';
+import os from 'os';
 import path from 'path';
 import { spawnSync } from 'child_process';
-import uniqueTempDir from 'unique-temp-dir';
 
 import { hostArch, hostPlatform } from './system';
 import { log } from './log';
 import patchesJson from '../patches/patches.json';
 
-const buildPath = path.resolve(process.env.PKG_BUILD_PATH || uniqueTempDir());
+const buildPath = path.resolve(
+  process.env.PKG_BUILD_PATH ||
+    path.join(os.tmpdir(), `pkg.${crypto.randomBytes(12).toString('hex')}`)
+);
 const nodePath = path.join(buildPath, 'node');
 const patchesPath = path.resolve(__dirname, '../patches');
 const nodeRepo = 'https://github.com/nodejs/node';

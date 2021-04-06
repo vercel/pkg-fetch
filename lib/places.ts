@@ -1,10 +1,6 @@
 import { major, minor } from 'semver';
-import expandTemplate from 'expand-template';
 import os from 'os';
 import path from 'path';
-import placesJson from '../places.json';
-
-const expand = expandTemplate();
 
 const { PKG_CACHE_PATH } = process.env;
 const IGNORE_TAG = Boolean(process.env.PKG_IGNORE_TAG);
@@ -29,18 +25,18 @@ interface LocalPlaceOptions extends PlaceOptions {
   from: string;
 }
 
-export function localPlace(opts: LocalPlaceOptions) {
-  const p = placesJson.localPlace;
-  const { version } = opts;
-  const atHome = IGNORE_TAG
-    ? path.join(cachePath, p)
-    : path.join(cachePath, tagFromVersion(version), p);
+export function localPlace({
+  from,
+  version,
+  nodeVersion,
+  platform,
+  arch,
+}: LocalPlaceOptions) {
+  const binDir = IGNORE_TAG
+    ? path.join(cachePath)
+    : path.join(cachePath, tagFromVersion(version));
 
-  return expand(path.resolve(atHome), opts);
-}
-
-interface RemotePlaceOptions extends PlaceOptions {
-  tag?: string;
+  return path.resolve(binDir, `${from}-${nodeVersion}-${platform}-${arch}`);
 }
 
 export interface Remote {
@@ -48,10 +44,14 @@ export interface Remote {
   name: string;
 }
 
-export function remotePlace(opts: RemotePlaceOptions): Remote {
-  const p = placesJson.remotePlace;
-  const { version } = opts;
-  const tag = tagFromVersion(version);
-  Object.assign(opts, { tag });
-  return { tag, name: expand(p, opts) };
+export function remotePlace({
+  version,
+  nodeVersion,
+  platform,
+  arch,
+}: PlaceOptions): Remote {
+  return {
+    tag: tagFromVersion(version),
+    name: `node-${nodeVersion}-${platform}-${arch}`,
+  };
 }

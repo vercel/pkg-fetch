@@ -14,5 +14,5 @@
     "outDir": ".",
     "composite": true
   },
-  "files": ["package.json", "places.json", "patches/patches.json"]
+  "files": ["package.json", "patches/patches.json"]
 }
