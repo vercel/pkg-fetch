@@ -166,6 +166,26 @@ async function compile(nodeVersion: string, targetArch: string) {
   return compileOnUnix(nodeVersion, targetArch);
 }
 
+async function hash(filePath: string): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    const resultHash = crypto.createHash('sha256');
+    const input = fs.createReadStream(filePath);
+
+    input.on('error', (e) => {
+      reject(e);
+    });
+
+    input.on('readable', () => {
+      const data = input.read();
+      if (data) {
+        resultHash.update(data);
+      } else {
+        resolve(resultHash.digest('hex'));
+      }
+    });
+  });
+}
+
 export default async function build(
   nodeVersion: string,
   targetArch: string,
@@ -177,9 +197,16 @@ export default async function build(
   await gitClone(nodeVersion);
   await gitResetHard(nodeVersion);
   await applyPatches(nodeVersion);
+
   const output = await compile(nodeVersion, targetArch);
+  const outputHash = await hash(output);
 
   await fs.mkdirp(path.dirname(local));
   await fs.copy(output, local);
+  await fs.promises.writeFile(
+    `${local}.sha256sum`,
+    `${outputHash}  ${path.basename(local)}
+`
+  );
   await fs.remove(buildPath);
 }
