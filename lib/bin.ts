@@ -24,6 +24,7 @@ async function main() {
       type: 'boolean',
     })
     .conflicts('force-fetch', 'force-build')
+    .option('output', { alias: 'o', type: 'string' })
     .version(version)
     .alias('v', 'version')
     .help()
@@ -36,6 +37,7 @@ async function main() {
     test,
     'force-fetch': forceFetch,
     'force-build': forceBuild,
+    output,
   } = argv;
 
   const local = await need({
@@ -44,6 +46,7 @@ async function main() {
     arch,
     forceFetch,
     forceBuild,
+    output,
   });
 
   log.info(local);

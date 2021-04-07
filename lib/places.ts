@@ -23,20 +23,31 @@ interface PlaceOptions {
 
 interface LocalPlaceOptions extends PlaceOptions {
   from: string;
+  output?: string;
 }
 
 export function localPlace({
   from,
+  output,
   version,
   nodeVersion,
   platform,
   arch,
 }: LocalPlaceOptions) {
-  const binDir = IGNORE_TAG
-    ? path.join(cachePath)
-    : path.join(cachePath, tagFromVersion(version));
+  let binDir: string;
 
-  return path.resolve(binDir, `${from}-${nodeVersion}-${platform}-${arch}`);
+  if (output) {
+    binDir = path.resolve(output);
+  } else {
+    binDir = IGNORE_TAG
+      ? path.join(cachePath)
+      : path.join(cachePath, tagFromVersion(version));
+  }
+
+  return path.resolve(
+    binDir,
+    `${output ? 'node' : from}-${nodeVersion}-${platform}-${arch}`
+  );
 }
 
 export interface Remote {

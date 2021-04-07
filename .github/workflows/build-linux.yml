@@ -37,12 +37,12 @@ jobs:
 
       - name: Extract binaries from Docker image
         run: |
-          tar xvf ../out.tar opt/app-root/src/.pkg-cache
+          tar xvf ../out.tar root/pkg-fetch/dist
 
       - uses: actions/upload-artifact@v2
         with:
           name: node${{ matrix.target-node }}-linux-x64
-          path: opt/app-root/src/.pkg-cache/**/built-*
+          path: root/pkg-fetch/dist/*
 
   linux-arm64:
     runs-on: ubuntu-18.04
@@ -65,7 +65,7 @@ jobs:
 
       - run: yarn install
 
-      - run: yarn start --node-range node${{ matrix.target-node }} --arch arm64
+      - run: yarn start --node-range node${{ matrix.target-node }} --arch arm64 --output dist
         env:
           CC: /usr/bin/aarch64-linux-gnu-gcc-8
           CXX: /usr/bin/aarch64-linux-gnu-g++-8
@@ -81,4 +81,4 @@ jobs:
       - uses: actions/upload-artifact@v2
         with:
           name: node${{ matrix.target-node }}-linux-arm64
-          path: /home/runner/.pkg-cache/**/built-*
+          path: dist/*
