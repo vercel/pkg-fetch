@@ -38,6 +38,7 @@ export async function downloadUrl(url: string, file: string) {
     })
     .catch((e: AxiosError) => {
       log.disableProgress();
+      fs.rmSync(tempFile);
       if (e.response) {
         throw wasReported(`${e.response.status}`);
       } else {
