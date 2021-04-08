@@ -21,7 +21,7 @@ function getMajor(nodeVersion: string) {
   return Number(version) | 0;
 }
 
-function getConfigureArgs(): string[] {
+function getConfigureArgs(major: number): string[] {
   const args: string[] = [];
 
   // first of all v8_inspector introduces the use
@@ -34,6 +34,13 @@ function getConfigureArgs(): string[] {
   // https://github.com/mhart/alpine-node/blob/base-7.4.0/Dockerfile#L33
   if (hostPlatform === 'alpine') {
     args.push('--without-snapshot');
+  }
+
+  // Link Time Optimization
+  if (major >= 12) {
+    if (hostPlatform === 'linux' || hostPlatform === 'alpine') {
+      args.push('--enable-lto');
+    }
   }
 
   return args;
@@ -113,7 +120,7 @@ async function compileOnWindows(nodeVersion: string, targetArch: string) {
 
   spawnSync('cmd', args, {
     cwd: nodePath,
-    env: { ...process.env, config_flags: getConfigureArgs().join(' ') },
+    env: { ...process.env, config_flags: getConfigureArgs(major).join(' ') },
     stdio: 'inherit',
   });
 
@@ -148,7 +155,7 @@ async function compileOnUnix(nodeVersion: string, targetArch: string) {
     args.push('--cross-compiling');
   }
 
-  args.concat(getConfigureArgs());
+  args.concat(getConfigureArgs(getMajor(nodeVersion)));
 
   // TODO same for windows?
   spawnSync('./configure', args, { cwd: nodePath, stdio: 'inherit' });
