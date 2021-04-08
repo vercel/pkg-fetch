@@ -49,6 +49,9 @@ function getConfigureArgs(major: number): string[] {
   // bundled npm package manager
   args.push('--without-npm');
 
+  // Small ICU
+  args.push('--with-intl=small-icu');
+
   return args;
 }
 
