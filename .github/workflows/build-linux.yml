@@ -72,6 +72,7 @@ jobs:
           AR: /usr/bin/aarch64-linux-gnu-ar
           NM: /usr/bin/aarch64-linux-gnu-nm
           READELF: /usr/bin/aarch64-linux-gnu-readelf
+          STRIP: /usr/bin/aarch64-linux-gnu-strip
           CC_host: /usr/bin/gcc
           CXX_host: /usr/bin/g++
           AR_host: /usr/bin/ar

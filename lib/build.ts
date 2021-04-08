@@ -21,6 +21,37 @@ function getMajor(nodeVersion: string) {
   return Number(version) | 0;
 }
 
+function getConfigureArgs(major: number): string[] {
+  const args: string[] = [];
+
+  // first of all v8_inspector introduces the use
+  // of `prime_rehash_policy` symbol that requires
+  // GLIBCXX_3.4.18 on some systems
+  // also we don't support any kind of debugging
+  // against packaged apps, hence v8_inspector is useless
+  args.push('--without-inspector');
+
+  // https://github.com/mhart/alpine-node/blob/base-7.4.0/Dockerfile#L33
+  if (hostPlatform === 'alpine') {
+    args.push('--without-snapshot');
+  }
+
+  // Link Time Optimization
+  if (major >= 12) {
+    if (hostPlatform === 'linux' || hostPlatform === 'alpine') {
+      args.push('--enable-lto');
+    }
+  }
+
+  // DTrace
+  args.push('--without-dtrace');
+
+  // bundled npm package manager
+  args.push('--without-npm');
+
+  return args;
+}
+
 async function gitClone(nodeVersion: string) {
   log.info('Cloning Node.js repository from GitHub...');
 
@@ -77,14 +108,27 @@ async function applyPatches(nodeVersion: string) {
 
 async function compileOnWindows(nodeVersion: string, targetArch: string) {
   const args = [];
-  args.push('/c', 'vcbuild.bat', targetArch, 'noetw');
+  args.push('/c', 'vcbuild.bat', targetArch);
   const major = getMajor(nodeVersion);
 
+  // Event Tracing for Windows
+  args.push('noetw');
+
+  // Performance counters on Windows
   if (major <= 10) {
-    args.push('nosign', 'noperfctr');
+    args.push('noperfctr');
   }
 
-  spawnSync('cmd', args, { cwd: nodePath, stdio: 'inherit' });
+  // Link Time Code Generation
+  if (major >= 12) {
+    args.push('ltcg');
+  }
+
+  spawnSync('cmd', args, {
+    cwd: nodePath,
+    env: { ...process.env, config_flags: getConfigureArgs(major).join(' ') },
+    stdio: 'inherit',
+  });
 
   if (major <= 10) {
     return path.join(nodePath, 'Release/node.exe');
@@ -117,21 +161,7 @@ async function compileOnUnix(nodeVersion: string, targetArch: string) {
     args.push('--cross-compiling');
   }
 
-  // first of all v8_inspector introduces the use
-  // of `prime_rehash_policy` symbol that requires
-  // GLIBCXX_3.4.18 on some systems
-  // also we don't support any kind of debugging
-  // against packaged apps, hence v8_inspector is useless
-  const major = getMajor(nodeVersion);
-
-  if (major >= 6) {
-    args.push('--without-inspector');
-  }
-
-  // https://github.com/mhart/alpine-node/blob/base-7.4.0/Dockerfile#L33
-  if (hostPlatform === 'alpine') {
-    args.push('--without-snapshot');
-  }
+  args.concat(getConfigureArgs(getMajor(nodeVersion)));
 
   // TODO same for windows?
   spawnSync('./configure', args, { cwd: nodePath, stdio: 'inherit' });
@@ -147,10 +177,9 @@ async function compileOnUnix(nodeVersion: string, targetArch: string) {
 
   const output = path.join(nodePath, 'out/Release/node');
 
-  // https://github.com/mhart/alpine-node/blob/base-7.4.0/Dockerfile#L36
-  if (hostPlatform === 'alpine') {
-    spawnSync('paxctl', ['-cm', output], { stdio: 'inherit' });
-  }
+  spawnSync(process.env.STRIP || 'strip', [output], {
+    stdio: 'inherit',
+  });
 
   return output;
 }
