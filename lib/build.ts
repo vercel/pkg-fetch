@@ -177,6 +177,10 @@ async function compileOnUnix(nodeVersion: string, targetArch: string) {
 
   const output = path.join(nodePath, 'out/Release/node');
 
+  spawnSync(process.env.STRIP || 'strip', [output], {
+    stdio: 'inherit',
+  });
+
   return output;
 }
 
