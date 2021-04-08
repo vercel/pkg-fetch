@@ -43,6 +43,12 @@ function getConfigureArgs(major: number): string[] {
     }
   }
 
+  // DTrace
+  args.push('--without-dtrace');
+
+  // bundled npm package manager
+  args.push('--without-npm');
+
   return args;
 }
 
