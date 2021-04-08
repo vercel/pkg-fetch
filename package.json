@@ -10,6 +10,7 @@
   },
   "files": [
     "lib-es5/*.js",
+    "lib-es5/*.ts",
     "patches/*"
   ],
   "dependencies": {
