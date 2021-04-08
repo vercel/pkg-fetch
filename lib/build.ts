@@ -106,6 +106,11 @@ async function compileOnWindows(nodeVersion: string, targetArch: string) {
     args.push('noperfctr');
   }
 
+  // Link Time Code Generation
+  if (major >= 12) {
+    args.push('ltcg');
+  }
+
   spawnSync('cmd', args, {
     cwd: nodePath,
     env: { ...process.env, config_flags: getConfigureArgs().join(' ') },
