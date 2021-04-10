@@ -1,0 +1,15 @@
+FROM node:14.16.1-alpine3.13
+
+ARG PKG_FETCH_OPTION_n
+
+USER root:root
+
+WORKDIR /root/pkg-fetch/
+
+COPY . ./
+
+RUN apk add --update --no-cache git curl make python3 g++ gcc gcc-doc linux-headers
+
+RUN yarn install
+
+RUN yarn start --node-range $PKG_FETCH_OPTION_n --output dist
