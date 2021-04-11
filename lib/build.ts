@@ -110,9 +110,9 @@ async function applyPatches(nodeVersion: string) {
 }
 
 async function compileOnWindows(nodeVersion: string, targetArch: string) {
-  const args = [];
-  args.push('/c', 'vcbuild.bat', targetArch);
+  const args = ['/c', 'vcbuild.bat', targetArch];
   const major = getMajor(nodeVersion);
+  const config_flags = getConfigureArgs(major);
 
   // Event Tracing for Windows
   args.push('noetw');
@@ -127,9 +127,17 @@ async function compileOnWindows(nodeVersion: string, targetArch: string) {
     args.push('ltcg');
   }
 
+  // Can't cross compile for arm64 with small-icu
+  if (
+    hostArch !== targetArch &&
+    !config_flags.includes('--with-intl=full-icu')
+  ) {
+    config_flags.push('--without-intl');
+  }
+
   spawnSync('cmd', args, {
     cwd: nodePath,
-    env: { ...process.env, config_flags: getConfigureArgs(major).join(' ') },
+    env: { ...process.env, config_flags: config_flags.join(' ') },
     stdio: 'inherit',
   });
 
