@@ -8,7 +8,7 @@ WORKDIR /root/pkg-fetch/
 
 COPY . ./
 
-RUN apk add --update --no-cache git curl make python3 g++ gcc gcc-doc linux-headers
+RUN apk add --update --no-cache git curl make python2 python3 g++ gcc gcc-doc linux-headers
 
 RUN yarn install
 

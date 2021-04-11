@@ -25,7 +25,7 @@ jobs:
             PKG_FETCH_OPTION_n=node${{ matrix.target-node }}
           context: .
           file: ./Dockerfile.alpine
-          platforms: alpine/amd64
+          platforms: linux/amd64
           outputs: type=tar,dest=../out.tar
 
       - name: Extract binaries from Docker image
