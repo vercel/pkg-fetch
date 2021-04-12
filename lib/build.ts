@@ -31,9 +31,13 @@ function getConfigureArgs(major: number): string[] {
   // against packaged apps, hence v8_inspector is useless
   args.push('--without-inspector');
 
-  // https://github.com/mhart/alpine-node/blob/base-7.4.0/Dockerfile#L33
   if (hostPlatform === 'alpine') {
+    // https://github.com/mhart/alpine-node/blob/base-7.4.0/Dockerfile#L33
     args.push('--without-snapshot');
+
+    // Statically Link against libgcc and libstdc++ libraries. See vercel/pkg#555.
+    // libgcc and libstdc++ grant GCC Runtime Library Exception of GPL
+    args.push('--partly-static');
   }
 
   // Link Time Optimization
