@@ -145,9 +145,11 @@ export async function need(opts: NeedOptions) {
   }
 
   if (hostPlatform !== platform) {
-    throw wasReported(
-      `Not able to build for '${opts.platform}' here, only for '${hostPlatform}'`
-    );
+    if (hostPlatform !== 'alpine' || platform !== 'linuxstatic') {
+      throw wasReported(
+        `Not able to build for '${opts.platform}' here, only for '${hostPlatform}'`
+      );
+    }
   }
 
   if (knownArchs.indexOf(arch) < 0) {
@@ -160,7 +162,7 @@ export async function need(opts: NeedOptions) {
     return 'built';
   }
 
-  await build(nodeVersion, arch, built);
+  await build(nodeVersion, arch, platform, built);
   return built;
 }
 

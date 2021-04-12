@@ -68,7 +68,7 @@ function getHostPlatform() {
 }
 
 function getKnownPlatforms() {
-  return ['alpine', 'freebsd', 'linux', 'macos', 'win'];
+  return ['alpine', 'freebsd', 'linux', 'linuxstatic', 'macos', 'win'];
 }
 
 export function toFancyArch(arch: string) {

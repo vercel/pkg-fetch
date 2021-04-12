@@ -1,10 +1,10 @@
-name: Build Node binaries for Alpine
+name: Build Node binaries for Linux static
 
 on:
   workflow_dispatch:
 
 jobs:
-  alpine:
+  linuxstatic:
     runs-on: ubuntu-20.04
 
     strategy:
@@ -31,7 +31,7 @@ jobs:
             TARGET_TOOLCHAIN_ARCH=${{ matrix.target-toolchain }}
             PKG_FETCH_OPTION_a=${{ matrix.target-arch }}
             PKG_FETCH_OPTION_n=node${{ matrix.target-node }}
-            PKG_FETCH_OPTION_p=alpine
+            PKG_FETCH_OPTION_p=linuxstatic
           context: .
           file: ./Dockerfile.alpine
           platforms: linux/amd64
@@ -43,5 +43,5 @@ jobs:
 
       - uses: actions/upload-artifact@v2
         with:
-          name: node${{ matrix.target-node }}-alpine-${{ matrix.target-arch }}
+          name: node${{ matrix.target-node }}-linuxstatic-${{ matrix.target-arch }}
           path: root/pkg-fetch/dist/*
