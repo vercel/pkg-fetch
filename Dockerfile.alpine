@@ -4,6 +4,7 @@ FROM muslcc/x86_64:$TARGET_TOOLCHAIN_ARCH-linux-musl
 
 ARG PKG_FETCH_OPTION_a
 ARG PKG_FETCH_OPTION_n
+ARG PKG_FETCH_OPTION_p
 
 USER root:root
 
@@ -34,4 +35,4 @@ COPY . ./
 
 RUN yarn install
 
-RUN yarn start --force-build --arch $PKG_FETCH_OPTION_a --node-range $PKG_FETCH_OPTION_n --output dist
+RUN yarn start --force-build --arch $PKG_FETCH_OPTION_a --node-range $PKG_FETCH_OPTION_n --platform $PKG_FETCH_OPTION_p --output dist

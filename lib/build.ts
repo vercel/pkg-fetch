@@ -21,7 +21,7 @@ function getMajor(nodeVersion: string) {
   return Number(version) | 0;
 }
 
-function getConfigureArgs(major: number): string[] {
+function getConfigureArgs(major: number, targetPlatform: string): string[] {
   const args: string[] = [];
 
   // first of all v8_inspector introduces the use
@@ -38,6 +38,10 @@ function getConfigureArgs(major: number): string[] {
     // Statically Link against libgcc and libstdc++ libraries. See vercel/pkg#555.
     // libgcc and libstdc++ grant GCC Runtime Library Exception of GPL
     args.push('--partly-static');
+  }
+
+  if (targetPlatform === 'linuxstatic') {
+    args.push('--fully-static');
   }
 
   // Link Time Optimization
@@ -113,10 +117,14 @@ async function applyPatches(nodeVersion: string) {
   }
 }
 
-async function compileOnWindows(nodeVersion: string, targetArch: string) {
+async function compileOnWindows(
+  nodeVersion: string,
+  targetArch: string,
+  targetPlatform: string
+) {
   const args = ['/c', 'vcbuild.bat', targetArch];
   const major = getMajor(nodeVersion);
-  const config_flags = getConfigureArgs(major);
+  const config_flags = getConfigureArgs(major, targetPlatform);
 
   // Event Tracing for Windows
   args.push('noetw');
@@ -154,7 +162,11 @@ async function compileOnWindows(nodeVersion: string, targetArch: string) {
 
 const { MAKE_JOB_COUNT = os.cpus().length } = process.env;
 
-async function compileOnUnix(nodeVersion: string, targetArch: string) {
+async function compileOnUnix(
+  nodeVersion: string,
+  targetArch: string,
+  targetPlatform: string
+) {
   const args = [];
   const cpu = {
     x86: 'ia32',
@@ -176,7 +188,7 @@ async function compileOnUnix(nodeVersion: string, targetArch: string) {
     args.push('--cross-compiling');
   }
 
-  args.push(...getConfigureArgs(getMajor(nodeVersion)));
+  args.push(...getConfigureArgs(getMajor(nodeVersion), targetPlatform));
 
   // TODO same for windows?
   spawnSync('./configure', args, { cwd: nodePath, stdio: 'inherit' });
@@ -199,15 +211,19 @@ async function compileOnUnix(nodeVersion: string, targetArch: string) {
   return output;
 }
 
-async function compile(nodeVersion: string, targetArch: string) {
+async function compile(
+  nodeVersion: string,
+  targetArch: string,
+  targetPlatform: string
+) {
   log.info('Compiling Node.js from sources...');
   const win = hostPlatform === 'win';
 
   if (win) {
-    return compileOnWindows(nodeVersion, targetArch);
+    return compileOnWindows(nodeVersion, targetArch, targetPlatform);
   }
 
-  return compileOnUnix(nodeVersion, targetArch);
+  return compileOnUnix(nodeVersion, targetArch, targetPlatform);
 }
 
 async function hash(filePath: string): Promise<string> {
@@ -233,6 +249,7 @@ async function hash(filePath: string): Promise<string> {
 export default async function build(
   nodeVersion: string,
   targetArch: string,
+  targetPlatform: string,
   local: string
 ) {
   await fs.remove(buildPath);
@@ -242,7 +259,7 @@ export default async function build(
   await gitResetHard(nodeVersion);
   await applyPatches(nodeVersion);
 
-  const output = await compile(nodeVersion, targetArch);
+  const output = await compile(nodeVersion, targetArch, targetPlatform);
   const outputHash = await hash(output);
 
   await fs.mkdirp(path.dirname(local));
