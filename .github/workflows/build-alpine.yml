@@ -1,0 +1,46 @@
+name: Build Node binaries for Alpine
+
+on:
+  workflow_dispatch:
+
+jobs:
+  alpine:
+    runs-on: ubuntu-20.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        target-node: [8, 10, 12, 14]
+        target-arch: [x64, arm64]
+        include:
+          - target-arch: x64
+            target-toolchain: x86_64
+          - target-arch: arm64
+            target-toolchain: aarch64
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Build
+        uses: docker/build-push-action@v2
+        with:
+          build-args: |
+            TARGET_TOOLCHAIN_ARCH=${{ matrix.target-toolchain }}
+            PKG_FETCH_OPTION_a=${{ matrix.target-arch }}
+            PKG_FETCH_OPTION_n=node${{ matrix.target-node }}
+          context: .
+          file: ./Dockerfile.alpine
+          platforms: linux/amd64
+          outputs: type=tar,dest=../out.tar
+
+      - name: Extract binaries from Docker image
+        run: |
+          tar xvf ../out.tar root/pkg-fetch/dist
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: node${{ matrix.target-node }}-alpine-${{ matrix.target-arch }}
+          path: root/pkg-fetch/dist/*
