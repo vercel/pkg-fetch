@@ -172,7 +172,7 @@ async function compileOnUnix(nodeVersion: string, targetArch: string) {
     args.push('--cross-compiling');
   }
 
-  args.concat(getConfigureArgs(getMajor(nodeVersion)));
+  args.push(...getConfigureArgs(getMajor(nodeVersion)));
 
   // TODO same for windows?
   spawnSync('./configure', args, { cwd: nodePath, stdio: 'inherit' });
