@@ -65,7 +65,7 @@ jobs:
 
       - run: yarn install
 
-      - run: yarn start --node-range node${{ matrix.target-node }} --arch arm64 --output dist
+      - run: yarn start --force-build --node-range node${{ matrix.target-node }} --arch arm64 --output dist
         env:
           CC: /usr/bin/aarch64-linux-gnu-gcc-8
           CXX: /usr/bin/aarch64-linux-gnu-g++-8
