@@ -8,11 +8,11 @@ WORKDIR /root/pkg-fetch/
 
 COPY . ./
 
-RUN yum install -y glibc-headers kernel-headers git make patch python2 python3 rh-nodejs14-npm && scl enable rh-nodejs14 bash
+RUN yum install -y glibc-headers kernel-headers git make patch python2 rh-nodejs14-npm rh-python38-python && scl enable rh-nodejs14 bash && scl enable rh-python38 bash
 
-ENV LD_LIBRARY_PATH /opt/rh/rh-nodejs14/root/usr/lib64:$LD_LIBRARY_PATH
-ENV MANPATH /opt/rh/rh-nodejs14/root/usr/share/man:$MANPATH
-ENV PATH /opt/rh/rh-nodejs14/root/usr/bin:$PATH
+ENV LD_LIBRARY_PATH /opt/rh/rh-python38/root/usr/lib64:/opt/rh/rh-nodejs14/root/usr/lib64:$LD_LIBRARY_PATH
+ENV MANPATH /opt/rh/rh-python38/root/usr/share/man:/opt/rh/rh-nodejs14/root/usr/share/man:$MANPATH
+ENV PATH /opt/rh/rh-python38/root/usr/bin:/opt/rh/rh-nodejs14/root/usr/bin:$PATH
 ENV PYTHONPATH /opt/rh/rh-nodejs14/root/usr/lib/python2.7/site-packages
 
 RUN npm install -g yarn
