@@ -555,3 +555,16 @@ index 0240b2ef58..4d661ea0f3 100644
    AddOption("--inspect-port",
              "set host:port for inspector",
              &DebugOptions::host_port,
+diff --git node/common.gypi node/common.gypi
+index 79a22ac0fa..cea46e2779 100644
+--- node/common.gypi
++++ node/common.gypi
+@@ -164,7 +164,7 @@
+           'v8_enable_handle_zapping': 0,
+           'pgo_generate': ' -fprofile-generate ',
+           'pgo_use': ' -fprofile-use -fprofile-correction ',
+-          'lto': ' -flto=4 -fuse-linker-plugin -ffat-lto-objects ',
++          'lto': ' -flto=4 -ffat-lto-objects ',
+           'conditions': [
+             ['node_shared != "true"', {
+               'MSVC_runtimeType': 0    # MultiThreaded (/MT)
