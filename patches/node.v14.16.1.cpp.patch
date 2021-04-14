@@ -617,3 +617,16 @@ index 79a22ac0fa..cea46e2779 100644
            'conditions': [
              ['node_shared != "true"', {
                'MSVC_runtimeType': 0    # MultiThreaded (/MT)
+diff --git node/tools/icu/icu-generic.gyp node/tools/icu/icu-generic.gyp
+index 680f8528df..ff5f7681b2 100644
+--- node/tools/icu/icu-generic.gyp
++++ node/tools/icu/icu-generic.gyp
+@@ -52,7 +52,7 @@
+         'conditions': [
+           [ 'os_posix == 1 and OS != "mac" and OS != "ios"', {
+             'cflags': [ '-Wno-deprecated-declarations', '-Wno-strict-aliasing' ],
+-            'cflags_cc': [ '-frtti' ],
++            'cflags_cc': [ '-frtti', '-fno-lto' ],
+             'cflags_cc!': [ '-fno-rtti' ],
+           }],
+           [ 'OS == "mac" or OS == "ios"', {
