@@ -2,11 +2,11 @@ import crypto from 'crypto';
 import fs from 'fs-extra';
 import os from 'os';
 import path from 'path';
-import { spawnSync } from 'child_process';
 
 import { hostArch, hostPlatform } from './system';
 import { log } from './log';
 import patchesJson from '../patches/patches.json';
+import { spawn } from './utils';
 
 const buildPath = path.resolve(
   process.env.PKG_BUILD_PATH ||
@@ -76,7 +76,7 @@ async function gitClone(nodeVersion: string) {
     'node/.git',
   ];
 
-  spawnSync('git', args, { cwd: buildPath, stdio: 'inherit' });
+  await spawn('git', args, { cwd: buildPath, stdio: 'inherit' });
 }
 
 async function gitResetHard(nodeVersion: string) {
@@ -90,7 +90,7 @@ async function gitResetHard(nodeVersion: string) {
     'commit' in patches && patches.commit ? patches.commit : nodeVersion;
   const args = ['--work-tree', '.', 'reset', '--hard', commit];
 
-  spawnSync('git', args, { cwd: nodePath, stdio: 'inherit' });
+  await spawn('git', args, { cwd: nodePath, stdio: 'inherit' });
 }
 
 async function applyPatches(nodeVersion: string) {
@@ -110,7 +110,7 @@ async function applyPatches(nodeVersion: string) {
   for (const patch of patches) {
     const patchPath = path.join(patchesPath, patch);
     const args = ['-p1', '-i', patchPath];
-    spawnSync('patch', args, { cwd: nodePath, stdio: 'inherit' });
+    await spawn('patch', args, { cwd: nodePath, stdio: 'inherit' });
   }
 }
 
@@ -144,7 +144,7 @@ async function compileOnWindows(
     config_flags.push('--without-intl');
   }
 
-  spawnSync('cmd', args, {
+  await spawn('cmd', args, {
     cwd: nodePath,
     env: { ...process.env, config_flags: config_flags.join(' ') },
     stdio: 'inherit',
@@ -188,9 +188,9 @@ async function compileOnUnix(
   args.push(...getConfigureArgs(getMajor(nodeVersion), targetPlatform));
 
   // TODO same for windows?
-  spawnSync('./configure', args, { cwd: nodePath, stdio: 'inherit' });
+  await spawn('./configure', args, { cwd: nodePath, stdio: 'inherit' });
 
-  spawnSync(
+  await spawn(
     hostPlatform === 'freebsd' ? 'gmake' : 'make',
     ['-j', String(MAKE_JOB_COUNT)],
     {
@@ -201,7 +201,7 @@ async function compileOnUnix(
 
   const output = path.join(nodePath, 'out/Release/node');
 
-  spawnSync(process.env.STRIP || 'strip', [output], {
+  await spawn(process.env.STRIP || 'strip', [output], {
     stdio: 'inherit',
   });
 
