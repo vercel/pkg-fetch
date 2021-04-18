@@ -13,9 +13,8 @@ import * as system from './system';
 import { localPlace, remotePlace, Remote } from './places';
 import { log, wasReported } from './log';
 import build from './build';
-import { downloadUrl } from './requests';
+import { downloadUrl, plusx } from './utils';
 import patchesJson from '../patches/patches.json';
-import { plusx } from './chmod';
 import { version } from '../package.json';
 
 async function download(
