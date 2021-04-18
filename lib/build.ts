@@ -3,10 +3,10 @@ import fs from 'fs-extra';
 import os from 'os';
 import path from 'path';
 
+import { hash, spawn } from './utils';
 import { hostArch, hostPlatform } from './system';
 import { log } from './log';
 import patchesJson from '../patches/patches.json';
-import { spawn } from './utils';
 
 const buildPath = path.resolve(
   process.env.PKG_BUILD_PATH ||
@@ -221,26 +221,6 @@ async function compile(
   }
 
   return compileOnUnix(nodeVersion, targetArch, targetPlatform);
-}
-
-async function hash(filePath: string): Promise<string> {
-  return new Promise<string>((resolve, reject) => {
-    const resultHash = crypto.createHash('sha256');
-    const input = fs.createReadStream(filePath);
-
-    input.on('error', (e) => {
-      reject(e);
-    });
-
-    input.on('readable', () => {
-      const data = input.read();
-      if (data) {
-        resultHash.update(data);
-      } else {
-        resolve(resultHash.digest('hex'));
-      }
-    });
-  });
 }
 
 export default async function build(
