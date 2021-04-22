@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target-node: [8, 10, 12]
+        target-node: [10, 12]
         target-arch: [x64]
 
     steps:
@@ -44,7 +44,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target-node: [14]
+        target-node: [14, 16]
         target-arch: [x64, arm64]
 
     steps:
