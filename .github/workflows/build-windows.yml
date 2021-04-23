@@ -33,7 +33,13 @@ jobs:
         env:
           PKG_BUILD_PATH: build
 
+      - name: Check if binary is compiled
+        id: check_file
+        run: |
+          if (Test-Path -Path dist\\*.sha256sum -PathType Leaf) { echo "::set-output name=EXISTS::true" } else { echo "::set-output name=EXISTS::false" }
+
       - uses: actions/upload-artifact@v2
+        if: steps.check_file.outputs.EXISTS == 'true'
         with:
           name: node${{ matrix.target-node }}-windows-${{ matrix.target-arch }}
           path: dist\\*
@@ -61,7 +67,13 @@ jobs:
 
       - run: yarn start --node-range node${{ matrix.target-node }} --arch ${{ matrix.target-arch }} --output dist
 
+      - name: Check if binary is compiled
+        id: check_file
+        run: |
+          if (Test-Path -Path dist\\*.sha256sum -PathType Leaf) { echo "::set-output name=EXISTS::true" } else { echo "::set-output name=EXISTS::false" }
+
       - uses: actions/upload-artifact@v2
+        if: steps.check_file.outputs.EXISTS == 'true'
         with:
           name: node${{ matrix.target-node }}-windows-${{ matrix.target-arch }}
           path: dist\\*

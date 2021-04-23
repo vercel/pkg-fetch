@@ -39,7 +39,13 @@ jobs:
         run: |
           tar xvf ../out.tar root/pkg-fetch/dist
 
+      - name: Check if binary is compiled
+        id: check_file
+        run: |
+          (test -f root/pkg-fetch/dist/*.sha256sum && echo ::set-output name=EXISTS::true) || echo ::set-output name=EXISTS::false
+
       - uses: actions/upload-artifact@v2
+        if: steps.check_file.outputs.EXISTS == 'true'
         with:
           name: node${{ matrix.target-node }}-linux-x64
           path: root/pkg-fetch/dist/*
@@ -79,7 +85,13 @@ jobs:
           NM_host: /usr/bin/nm
           READELF_host: /usr/bin/readelf
 
+      - name: Check if binary is compiled
+        id: check_file
+        run: |
+          (test -f dist/*.sha256sum && echo ::set-output name=EXISTS::true) || echo ::set-output name=EXISTS::false
+
       - uses: actions/upload-artifact@v2
+        if: steps.check_file.outputs.EXISTS == 'true'
         with:
           name: node${{ matrix.target-node }}-linux-arm64
           path: dist/*
