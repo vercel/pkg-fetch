@@ -55,7 +55,13 @@ function getConfigureArgs(major: number, targetPlatform: string): string[] {
   args.push('--without-npm');
 
   // Small ICU
-  args.push('--with-intl=small-icu');
+  
+  
+  if (hostPlatform === 'win') {  
+    args.push('--with-intl=full-icu');
+  } else {
+    args.push('--with-intl=small-icu');
+  }
 
   return args;
 }
