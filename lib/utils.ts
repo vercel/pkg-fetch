@@ -1,52 +1,62 @@
-import axios, { AxiosError } from 'axios';
+import fetch from 'node-fetch';
 import crypto from 'crypto';
 import fs from 'fs-extra';
+import httpsProxyAgent from 'https-proxy-agent';
 import path from 'path';
-import { promisify } from 'util';
 import { spawnSync, SpawnSyncOptions } from 'child_process';
 import stream from 'stream';
 
 import { log, wasReported } from './log';
 
-export async function downloadUrl(url: string, file: string) {
+export async function downloadUrl(url: string, file: string): Promise<void> {
   log.enableProgress(path.basename(file));
   log.showProgress(0);
 
+  const proxy =
+    process.env.HTTPS_PROXY ??
+    process.env.https_proxy ??
+    process.env.HTTP_PROXY ??
+    process.env.http_proxy;
+
+  const res = await fetch(
+    url,
+    proxy ? { agent: httpsProxyAgent(proxy) } : undefined
+  );
+
+  if (!res.ok) {
+    log.disableProgress();
+    throw wasReported(`${res.status}: ${res.statusText}`);
+  }
+
   const tempFile = `${file}.downloading`;
-
   fs.mkdirpSync(path.dirname(tempFile));
-
   const ws = fs.createWriteStream(tempFile);
 
-  return axios
-    .get(url, { responseType: 'stream' })
-    .then(({ data, headers }) => {
-      const totalSize = headers['content-length'];
-      let currentSize = 0;
+  const totalSize = Number(res.headers.get('content-length'));
+  let currentSize = 0;
 
-      data.on('data', (chunk: string) => {
-        if (totalSize != null && totalSize !== 0) {
-          currentSize += chunk.length;
-          log.showProgress((currentSize / totalSize) * 100);
-        }
-      });
-      data.pipe(ws);
+  res.body.on('data', (chunk: Buffer) => {
+    if (totalSize != null && totalSize !== 0) {
+      currentSize += chunk.length;
+      log.showProgress((currentSize / totalSize) * 100);
+    }
+  });
+  res.body.pipe(ws);
 
-      return promisify(stream.finished)(ws).then(() => {
+  return new Promise<void>((resolve, reject) => {
+    stream.finished(ws, (err) => {
+      if (err) {
+        log.disableProgress();
+        fs.rmSync(tempFile);
+        reject(wasReported(`${err.name}: ${err.message}`));
+      } else {
         log.showProgress(100);
         log.disableProgress();
         fs.moveSync(tempFile, file);
-      });
-    })
-    .catch((e: AxiosError) => {
-      log.disableProgress();
-      fs.rmSync(tempFile);
-      if (e.response) {
-        throw wasReported(`${e.response.status}`);
-      } else {
-        throw wasReported(e.message);
+        resolve();
       }
     });
+  });
 }
 
 export async function hash(filePath: string): Promise<string> {
