@@ -207,9 +207,22 @@ async function compileOnUnix(
 
   const output = path.join(nodePath, 'out/Release/node');
 
-  await spawn(process.env.STRIP || 'strip', [output], {
-    stdio: 'inherit',
-  });
+  await spawn(
+    process.env.STRIP || 'strip',
+    // global symbols are required for native bindings on macOS
+    [...(targetPlatform === 'macos' ? ['-x'] : []), output],
+    {
+      stdio: 'inherit',
+    }
+  );
+
+  if (targetPlatform === 'macos') {
+    // Newer versions of Apple Clang automatically ad-hoc sign the compiled executable.
+    // However, for final executable to be signable, base binary MUST NOT have an existing signature.
+    await spawn('codesign', ['--remove-signature', output], {
+      stdio: 'inherit',
+    });
+  }
 
   return output;
 }
