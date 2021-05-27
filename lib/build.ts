@@ -43,7 +43,7 @@ function getConfigureArgs(major: number, targetPlatform: string): string[] {
 
   // Link Time Optimization
   if (major >= 12) {
-    if (hostPlatform === 'linux' || hostPlatform === 'alpine') {
+    if (hostPlatform !== 'win') {
       args.push('--enable-lto');
     }
   }
