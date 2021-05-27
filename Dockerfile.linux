@@ -1,12 +1,7 @@
 FROM registry.redhat.io/rhscl/devtoolset-10-toolchain-rhel7
 
-ARG PKG_FETCH_OPTION_n
-
 USER root:root
-
 WORKDIR /root/pkg-fetch/
-
-COPY . ./
 
 RUN yum install -y glibc-headers kernel-headers git make patch python2 rh-nodejs14-npm rh-python38-python && scl enable rh-nodejs14 bash && scl enable rh-python38 bash
 
@@ -17,6 +12,10 @@ ENV PYTHONPATH /opt/rh/rh-nodejs14/root/usr/lib/python2.7/site-packages
 
 RUN npm install -g yarn
 
+COPY . ./
+
 RUN yarn install
+
+ARG PKG_FETCH_OPTION_n
 
 RUN yarn start --node-range $PKG_FETCH_OPTION_n --output dist
