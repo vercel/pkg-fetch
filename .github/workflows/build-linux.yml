@@ -51,7 +51,7 @@ jobs:
           path: root/pkg-fetch/dist/*
 
   linux-arm64:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
 
     strategy:
       fail-fast: false
@@ -61,37 +61,32 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Use Node.js 14
-        uses: actions/setup-node@v1
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Build
+        uses: docker/build-push-action@v2
         with:
-          node-version: 14
+          build-args: |
+            TARGET_TOOLCHAIN_ARCH=aarch64
+            PKG_FETCH_OPTION_a=arm64
+            PKG_FETCH_OPTION_n=node${{ matrix.target-node }}
+          context: .
+          file: ./Dockerfile.linuxcross
+          platforms: linux/amd64
+          outputs: type=tar,dest=../out.tar
 
-      - run: sudo apt update
-      - run: sudo apt install -y gcc-8-aarch64-linux-gnu g++-8-aarch64-linux-gnu binutils-aarch64-linux-gnu
-
-      - run: yarn install
-
-      - run: yarn start --node-range node${{ matrix.target-node }} --arch arm64 --output dist
-        env:
-          CC: /usr/bin/aarch64-linux-gnu-gcc-8
-          CXX: /usr/bin/aarch64-linux-gnu-g++-8
-          AR: /usr/bin/aarch64-linux-gnu-ar
-          NM: /usr/bin/aarch64-linux-gnu-nm
-          READELF: /usr/bin/aarch64-linux-gnu-readelf
-          STRIP: /usr/bin/aarch64-linux-gnu-strip
-          CC_host: /usr/bin/gcc
-          CXX_host: /usr/bin/g++
-          AR_host: /usr/bin/ar
-          NM_host: /usr/bin/nm
-          READELF_host: /usr/bin/readelf
+      - name: Extract binaries from Docker image
+        run: |
+          tar xvf ../out.tar root/pkg-fetch/dist
 
       - name: Check if binary is compiled
         id: check_file
         run: |
-          (test -f dist/*.sha256sum && echo ::set-output name=EXISTS::true) || echo ::set-output name=EXISTS::false
+          (test -f root/pkg-fetch/dist/*.sha256sum && echo ::set-output name=EXISTS::true) || echo ::set-output name=EXISTS::false
 
       - uses: actions/upload-artifact@v2
         if: steps.check_file.outputs.EXISTS == 'true'
         with:
           name: node${{ matrix.target-node }}-linux-arm64
-          path: dist/*
+          path: root/pkg-fetch/dist/*
