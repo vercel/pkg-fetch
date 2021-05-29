@@ -9,8 +9,6 @@ export const EXPECTED_HASHES: Record<string, string> = {
     'f6a59f1ace2ef1f4bf976ff85d9a74bdc71bda098e8aa018e2a089c590aeedea',
   'node-v10.24.1-alpine-x64':
     '24f862b22a59ac0adb746d5bd3f2226c8eb2f6e1565a1cb4d2418c9cb0f3769e',
-  'node-v10.24.1-linux-arm64':
-    '091144e7c7c1946130ebd98b9855e2ec80b23011398ceea303254a6d25592d6d',
   'node-v10.24.1-linux-x64':
     'c59574f4ea7b1423bd7ef586887ea41c43cfb2a63431126af0de20291a3a94db',
   'node-v10.24.1-linuxstatic-arm64':
@@ -23,8 +21,6 @@ export const EXPECTED_HASHES: Record<string, string> = {
     'd4951df9ae437086cbb80c934249a24daaaaa71f67845a07b0c0a0af3cc48d56',
   'node-v12.22.1-alpine-x64':
     '19d2baad1d8b75221239c1fe5c2467b4ddb07fc4b02e0a034cedcb28f0d6e400',
-  'node-v12.22.1-linux-arm64':
-    'e642dcecaf6052aeca62943aa54c28464571232b753a27cb5698341760bf4234',
   'node-v12.22.1-linux-x64':
     '20911af9c855edc3e1e0f33032fcedc59487fc3d908ca78fc75a6d81d88ee8c7',
   'node-v12.22.1-linuxstatic-arm64':
@@ -50,17 +46,6 @@ export const EXPECTED_HASHES: Record<string, string> = {
   'node-v8.17.0-win-x64':
     '4556a06dc59a0196453ba5962ea077ea71fe566e4de1c92f73f057446d422251',
 
-  // 8452744e8d796fc1198f5315c1c92cc1cdb04f8f
-  // alpine: https://github.com/vercel/pkg-fetch/actions/runs/831966090
-  // linux: https://github.com/vercel/pkg-fetch/actions/runs/831966252
-  // linuxstatic: https://github.com/vercel/pkg-fetch/actions/runs/831966501
-  // macos: https://github.com/vercel/pkg-fetch/actions/runs/831967031
-  // win: https://github.com/vercel/pkg-fetch/actions/runs/834758544
-  'node-v10.24.1-macos-x64':
-    '8e11ce7982190252f5f39deac7b12997e21e0a24ef328510cb7fc9fc6a4ff86c',
-  'node-v12.22.1-macos-x64':
-    'aef181cbb6e7acc4129d70e8d34cf26f2d647ee7f11a44fe5e9052088cda7775',
-
   // d9345e4ea58a51b5aecdf4ff929e6d74ad5b4127
   // alpine: https://github.com/vercel/pkg-fetch/actions/runs/838900430
   // linux: https://github.com/vercel/pkg-fetch/actions/runs/838900527
@@ -71,25 +56,16 @@ export const EXPECTED_HASHES: Record<string, string> = {
     'be48a7f0594d1c86e469255313d9d8f0d701044fb310266e146fca9dc258768c',
   'node-v14.17.0-alpine-x64':
     '4816d449518ee55009a64d2029f91fabf6ab76386c690cfca6d742ff1d870721',
-  'node-v14.17.0-linux-arm64':
-    '96e368d7f5cd38e7ea9e3935ce46ae1165d898900a1c3f3b9a5a9ad6695bccab',
   'node-v14.17.0-linux-x64':
     '5494cebea7b448bb6498cbdedc9564fa66faa043dabf70723d6204d5dd3e7387',
   'node-v14.17.0-linuxstatic-arm64':
     'b9f427befbae96680e51f904814420dad17b11c45b277e091d8a52d7c7e36fc4',
   'node-v14.17.0-linuxstatic-x64':
     'eb2fff6b4122bc6bb6ed8da0e842590261955d687ea9169e6472ab1e199e2f6c',
-  'node-v14.17.0-macos-x64':
-    '0713a1b2beff0b3c66e60f339dedff7d9b94362c46ddc589acf8786e8c368a53',
   'node-v14.17.0-win-arm64':
     '7254797b23a35bb17f716e520eade00b7cbce01dade13894663d87bdf4f736ac',
   'node-v14.17.0-win-x64':
     '8cceb766ee9ab1d5b84d0aa1cf47642b4327dc2fa7345877604a8fe11b4d8e23',
-
-  // d9345e4ea58a51b5aecdf4ff929e6d74ad5b4127
-  // manual
-  'node-v14.17.0-macos-arm64':
-    'bf2070a4286e3a48f7a98c2fc31ff510df97f55a8c169edd6b4c6d6e4a1d3f95',
 
   // 4e3c59d1388cd46b56f32eda2f43aa1bf27a28ff
   // alpine: https://github.com/vercel/pkg-fetch/actions/runs/860350085
@@ -101,23 +77,50 @@ export const EXPECTED_HASHES: Record<string, string> = {
     '42d71dec87a3820b904a13c88265f75977cd7c75f354989e536315e733672031',
   'node-v16.2.0-alpine-x64':
     '5123f53637fd95c3e151802db509c4cbe378f39c70c93ad756618528866943b3',
-  'node-v16.2.0-linux-arm64':
-    'd2c20e515470b150759d45e81ea58091b13d6a2e9265e3a76ec542beff503e43',
   'node-v16.2.0-linux-x64':
     'e98de2aadd4ab420fdab4c0ee0ab153c499a46ae7cf5d345dc499040911598c5',
   'node-v16.2.0-linuxstatic-arm64':
     'b0e6090fe831017be09705e750601d056f9769102e8a55e3bad62542fb5f034d',
   'node-v16.2.0-linuxstatic-x64':
     'eb7922452d5243a2ef146030fdd4d88fe5b545c8809dc7c137c49fc19e516088',
-  'node-v16.2.0-macos-x64':
-    '94e396bd46fbdd965bd13194845ab54e3a4afe838ef906f9b5c543b6a87dc945',
   'node-v16.2.0-win-arm64':
     'db3c13b5ee9f825e92c69b481287709c7eb485bef2b73fb7793554dfc57ccb78',
   'node-v16.2.0-win-x64':
     'b088dfadc072496941390b34faedfeeedabc80d2cf1d6cb033ea6b7c611e1033',
 
-  // 4e3c59d1388cd46b56f32eda2f43aa1bf27a28ff
+  // 27e00d1d72ab4afda203edcd7a4f9601bc1d641c
+  // linux: https://github.com/vercel/pkg-fetch/actions/runs/888438143
+  // linuxstatic: https://github.com/vercel/pkg-fetch/actions/runs/888438190
+  // macos: https://github.com/vercel/pkg-fetch/actions/runs/888438236
+  'node-v10.24.1-linux-arm64':
+    'e3a3e5197e3f3d1063e3178786890b29493b8dfc31362f3417cce90ca7eb3e98',
+  'node-v10.24.1-linuxstatic-armv7':
+    '4933be03e394a82f5aa5fc4600b29392b2ce7eac24bd2ef8759f9a8e8c841990',
+  'node-v10.24.1-macos-x64':
+    '545833cab0688ba25f6285d3a99ab4b911a0474aa950b36a0ba05227b077d553',
+  'node-v12.22.1-linux-arm64':
+    '807dff5881521042382a21044ea6fc1e53a602b553c6fee98d8f8e25e238bc3d',
+  'node-v12.22.1-linuxstatic-armv7':
+    '6cd4dfe6ddfaaa82633cc08e765dec8f6f20381687e2587c4625288c3d152af6',
+  'node-v12.22.1-macos-x64':
+    '69e6cb84c0c7fa5218650174432bc050bc40c4720df37118b72d8b0fda5f67c8',
+  'node-v14.17.0-linux-arm64':
+    '2bb3a8ef2128e1620ce80a675825e7bf63a0cb302a23019a51a80fa73cb0926c',
+  'node-v14.17.0-linuxstatic-armv7':
+    'd1044e25f148b47e8072cb738ae8619730e1c465b8ae6af29e7e3a9fbb39a969',
+  'node-v14.17.0-macos-x64':
+    '58e720297a71466e80878de789e491af130deb0f4fd6f3eeab44fc09de65dcb4',
+  'node-v16.2.0-linux-arm64':
+    'ca3a2976342037b712ac616f5527417cf3a31963c49fd73ec2b1d47ce12a16a2',
+  'node-v16.2.0-linuxstatic-armv7':
+    'f7ddcace69bb06c8f40d4acd76c7111a568a3e05f868f8449c473ed7bfdd208c',
+  'node-v16.2.0-macos-x64':
+    'b19805ceb4b16218759f1e04943090df1a3c26e2f7b75d03459faa11f2624ee9',
+
+  // 27e00d1d72ab4afda203edcd7a4f9601bc1d641c
   // manual
+  'node-v14.17.0-macos-arm64':
+    'e975bdae85b9a1f10dca97c4db0639f5cea39c2b9e99e43f754b74acf4b20f2b',
   'node-v16.2.0-macos-arm64':
-    '4b50f82cba06c587cb257620751b76ea6c0121dd94aa1718111c772e5ea2f99e',
+    '6da62bbda278bc5913127ffc7a0c391d3cb2c5c16d9473b3c65af6dd090073cc',
 };
