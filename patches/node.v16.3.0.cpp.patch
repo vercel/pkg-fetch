@@ -1,118 +1,14 @@
 --- node/common.gypi
 +++ node/common.gypi
-@@ -164,17 +164,28 @@
-           'v8_enable_handle_zapping': 0,
-           'pgo_generate': ' -fprofile-generate ',
-           'pgo_use': ' -fprofile-use -fprofile-correction ',
--          'lto': ' -flto=4 -fuse-linker-plugin -ffat-lto-objects ',
-           'conditions': [
-             ['node_shared != "true"', {
-               'MSVC_runtimeType': 0    # MultiThreaded (/MT)
-             }, {
+@@ -171,7 +171,7 @@
                'MSVC_runtimeType': 2   # MultiThreadedDLL (/MD)
              }],
-+            ['llvm_version=="0.0"', {
+             ['llvm_version=="0.0"', {
+-              'lto': ' -flto=4 -fuse-linker-plugin -ffat-lto-objects ', # GCC
 +              'lto': ' -flto=4 -ffat-lto-objects ', # GCC
-+            }, {
-+              'lto': ' -flto ', # Clang
-+            }],
-           ],
-         },
-         'cflags': [ '-O3' ],
-         'conditions': [
-+          ['enable_lto=="true"', {
-+            'cflags': ['<(lto)'],
-+            'ldflags': ['<(lto)'],
-+            'xcode_settings': {
-+              'LLVM_LTO': 'YES',
-+            },
-+          }],
-           ['OS=="linux"', {
-             'conditions': [
-               ['node_section_ordering_info!=""', {
-@@ -206,10 +217,6 @@
-                 'cflags': ['<(pgo_use)'],
-                 'ldflags': ['<(pgo_use)'],
-               },],
--              ['enable_lto=="true"', {
--                'cflags': ['<(lto)'],
--                'ldflags': ['<(lto)'],
--              },],
-             ],
-           },],
-           ['OS == "android"', {
---- node/configure.py
-+++ node/configure.py
-@@ -173,7 +173,7 @@ parser.add_argument("--enable-lto",
-     dest="enable_lto",
-     default=None,
-     help="Enable compiling with lto of a binary. This feature is only available "
--         "on linux with gcc and g++ 5.4.1 or newer.")
-+         "with gcc 5.4.1+ or clang 3.9.1+.")
- 
- parser.add_argument("--link-module",
-     action="append",
-@@ -952,6 +952,7 @@ def get_gas_version(cc):
- # quite prepared to go that far yet.
- def check_compiler(o):
-   if sys.platform == 'win32':
-+    o['variables']['llvm_version'] = '0.0'
-     if not options.openssl_no_asm and options.dest_cpu in ('x86', 'x64'):
-       nasm_version = get_nasm_version('nasm')
-       o['variables']['nasm_version'] = nasm_version
-@@ -1131,12 +1132,19 @@ def configure_mips(o, target_arch):
-   host_byteorder = 'little' if target_arch in ('mipsel', 'mips64el') else 'big'
-   o['variables']['v8_host_byteorder'] = host_byteorder
- 
-+def clang_version_ge(version_checked):
-+  for compiler in [(CC, 'c'), (CXX, 'c++')]:
-+    ok, is_clang, clang_version, gcc_version = \
-+      try_check_compiler(compiler[0], compiler[1])
-+    if is_clang and clang_version >= version_checked:
-+      return True
-+  return False
- 
- def gcc_version_ge(version_checked):
-   for compiler in [(CC, 'c'), (CXX, 'c++')]:
--    ok, is_clang, clang_version, compiler_version = \
-+    ok, is_clang, clang_version, gcc_version = \
-       try_check_compiler(compiler[0], compiler[1])
--    if is_clang or compiler_version < version_checked:
-+    if is_clang or gcc_version < version_checked:
-       return False
-   return True
- 
-@@ -1217,18 +1225,19 @@ def configure_node(o):
-   o['variables']['enable_pgo_generate'] = b(options.enable_pgo_generate)
-   o['variables']['enable_pgo_use']      = b(options.enable_pgo_use)
- 
--  if flavor != 'linux' and (options.enable_lto):
-+  if flavor == 'win' and (options.enable_lto):
-     raise Exception(
--      'The lto option is supported only on linux.')
--
--  if flavor == 'linux':
--    if options.enable_lto:
--      version_checked = (5, 4, 1)
--      if not gcc_version_ge(version_checked):
--        version_checked_str = ".".join(map(str, version_checked))
--        raise Exception(
--          'The option --enable-lto is supported for gcc and gxx %s'
--          ' or newer only.' % (version_checked_str))
-+      'Use Link Time Code Generation instead.')
-+
-+  if options.enable_lto:
-+    gcc_version_checked = (5, 4, 1)
-+    clang_version_checked = (3, 9, 1)
-+    if not gcc_version_ge(gcc_version_checked) and not clang_version_ge(clang_version_checked):
-+      gcc_version_checked_str = ".".join(map(str, gcc_version_checked))
-+      clang_version_checked_str = ".".join(map(str, clang_version_checked))
-+      raise Exception(
-+        'The option --enable-lto is supported for gcc %s+'
-+        'or clang %s+ only.' % (gcc_version_checked_str, clang_version_checked_str))
- 
-   o['variables']['enable_lto'] = b(options.enable_lto)
- 
+             }, {
+               'lto': ' -flto ', # Clang
+             }],
 --- node/deps/v8/include/v8.h
 +++ node/deps/v8/include/v8.h
 @@ -9934,6 +9934,10 @@ class V8_EXPORT V8 {
@@ -339,7 +235,7 @@ index 0000000000..fb2d47f52b
  
 --- node/lib/vm.js
 +++ node/lib/vm.js
-@@ -78,6 +78,7 @@ class Script extends ContextifyScript {
+@@ -79,6 +79,7 @@ class Script extends ContextifyScript {
        produceCachedData = false,
        importModuleDynamically,
        [kParsingContext]: parsingContext,
@@ -347,7 +243,7 @@ index 0000000000..fb2d47f52b
      } = options;
  
      validateString(filename, 'options.filename');
-@@ -102,7 +103,8 @@ class Script extends ContextifyScript {
+@@ -103,7 +104,8 @@ class Script extends ContextifyScript {
              columnOffset,
              cachedData,
              produceCachedData,
@@ -367,7 +263,7 @@ index 0000000000..fb2d47f52b
        'lib/internal/bootstrap/pre_execution.js',
        'lib/internal/bootstrap/switches/does_own_process_state.js',
        'lib/internal/bootstrap/switches/does_not_own_process_state.js',
-@@ -1048,7 +1049,7 @@
+@@ -1049,7 +1050,7 @@
              'config.gypi'
            ],
            'outputs': [
@@ -425,7 +321,7 @@ index 0000000000..fb2d47f52b
    // Restore signal dispositions, the parent process may have changed them.
 --- node/src/node_contextify.cc
 +++ node/src/node_contextify.cc
-@@ -73,6 +73,7 @@ using v8::ScriptOrModule;
+@@ -74,6 +74,7 @@ using v8::ScriptOrModule;
  using v8::String;
  using v8::Uint32;
  using v8::UnboundScript;
@@ -433,7 +329,7 @@ index 0000000000..fb2d47f52b
  using v8::Value;
  using v8::WeakCallbackInfo;
  using v8::WeakCallbackType;
-@@ -686,11 +687,12 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -707,11 +708,12 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
    Local<ArrayBufferView> cached_data_buf;
    bool produce_cached_data = false;
    Local<Context> parsing_context = context;
@@ -447,7 +343,7 @@ index 0000000000..fb2d47f52b
      CHECK(args[2]->IsNumber());
      line_offset = args[2].As<Int32>()->Value();
      CHECK(args[3]->IsNumber());
-@@ -709,6 +711,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -730,6 +732,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
        CHECK_NOT_NULL(sandbox);
        parsing_context = sandbox->context();
      }
@@ -455,7 +351,7 @@ index 0000000000..fb2d47f52b
    }
  
    ContextifyScript* contextify_script =
-@@ -761,6 +764,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -782,6 +785,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
    ShouldNotAbortOnUncaughtScope no_abort_scope(env);
    Context::Scope scope(parsing_context);
  
@@ -466,7 +362,7 @@ index 0000000000..fb2d47f52b
    MaybeLocal<UnboundScript> v8_script = ScriptCompiler::CompileUnboundScript(
        isolate,
        &source,
-@@ -777,6 +784,13 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -798,6 +805,13 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
          contextify_script);
      return;
    }
@@ -480,7 +376,7 @@ index 0000000000..fb2d47f52b
    contextify_script->script_.Reset(isolate, v8_script.ToLocalChecked());
  
    Local<Context> env_context = env->context();
-@@ -803,6 +817,11 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -824,6 +838,11 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
          env->cached_data_produced_string(),
          Boolean::New(isolate, cached_data_produced)).Check();
    }
