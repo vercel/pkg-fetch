@@ -463,6 +463,9 @@ index 0000000000..fb2d47f52b
 +  "// BAKERY // BAKERY // BAKERY // BAKERY // BAKERY // BAKERY " \
 +  "// BAKERY // BAKERY // BAKERY // BAKERY // BAKERY // BAKERY ";
 +
++#ifdef __clang__
++__attribute__((optnone))
++#endif
 +int reorder(int argc, char** argv) {
 +  int i;
 +  char** nargv = new char*[argc + 64];
