@@ -540,7 +540,7 @@ index 0000000000..fb2d47f52b
  }
  #else
  // UNIX
-@@ -138,6 +140,73 @@ int main(int argc, char* argv[]) {
+@@ -138,6 +140,76 @@ int main(int argc, char* argv[]) {
    // calls elsewhere in the program (e.g., any logging from V8.)
    setvbuf(stdout, nullptr, _IONBF, 0);
    setvbuf(stderr, nullptr, _IONBF, 0);
