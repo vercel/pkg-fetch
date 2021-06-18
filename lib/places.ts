@@ -1,6 +1,7 @@
 import { major, minor } from 'semver';
 import os from 'os';
 import path from 'path';
+import { log } from './log';
 
 const { PKG_CACHE_PATH } = process.env;
 const IGNORE_TAG = Boolean(process.env.PKG_IGNORE_TAG);
@@ -43,11 +44,13 @@ export function localPlace({
       ? path.join(cachePath)
       : path.join(cachePath, tagFromVersion(version));
   }
-
-  return path.resolve(
+  
+  let file =  path.resolve(
     binDir,
     `${output ? 'node' : from}-${nodeVersion}-${platform}-${arch}`
   );
+  log.info('looking for node built in: ',file);
+  return file;
 }
 
 export interface Remote {
