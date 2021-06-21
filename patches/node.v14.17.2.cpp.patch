@@ -43,7 +43,7 @@
            ['OS == "android"', {
 --- node/configure.py
 +++ node/configure.py
-@@ -160,7 +160,7 @@ parser.add_option("--enable-lto",
+@@ -165,7 +165,7 @@ parser.add_option("--enable-lto",
      action="store_true",
      dest="enable_lto",
      help="Enable compiling with lto of a binary. This feature is only available "
@@ -52,7 +52,7 @@
  
  parser.add_option("--link-module",
      action="append",
-@@ -861,6 +861,7 @@ def get_gas_version(cc):
+@@ -866,6 +866,7 @@ def get_gas_version(cc):
  # quite prepared to go that far yet.
  def check_compiler(o):
    if sys.platform == 'win32':
@@ -60,7 +60,7 @@
      if not options.openssl_no_asm and options.dest_cpu in ('x86', 'x64'):
        nasm_version = get_nasm_version('nasm')
        o['variables']['nasm_version'] = nasm_version
-@@ -1040,12 +1041,19 @@ def configure_mips(o, target_arch):
+@@ -1045,12 +1046,19 @@ def configure_mips(o, target_arch):
    host_byteorder = 'little' if target_arch in ('mipsel', 'mips64el') else 'big'
    o['variables']['v8_host_byteorder'] = host_byteorder
  
@@ -82,7 +82,7 @@
        return False
    return True
  
-@@ -1126,18 +1134,19 @@ def configure_node(o):
+@@ -1131,18 +1139,19 @@ def configure_node(o):
    o['variables']['enable_pgo_generate'] = b(options.enable_pgo_generate)
    o['variables']['enable_pgo_use']      = b(options.enable_pgo_use)
  
@@ -344,7 +344,7 @@ index 0000000000..fb2d47f52b
      try {
 --- node/lib/internal/modules/cjs/loader.js
 +++ node/lib/internal/modules/cjs/loader.js
-@@ -71,7 +71,7 @@ const fs = require('fs');
+@@ -84,7 +84,7 @@ const fs = require('fs');
  const internalFS = require('internal/fs/utils');
  const path = require('path');
  const { sep } = path;
@@ -366,7 +366,7 @@ index 0000000000..fb2d47f52b
  
 --- node/lib/vm.js
 +++ node/lib/vm.js
-@@ -77,6 +77,7 @@ class Script extends ContextifyScript {
+@@ -78,6 +78,7 @@ class Script extends ContextifyScript {
        produceCachedData = false,
        importModuleDynamically,
        [kParsingContext]: parsingContext,
@@ -374,7 +374,7 @@ index 0000000000..fb2d47f52b
      } = options;
  
      validateString(filename, 'options.filename');
-@@ -104,7 +105,8 @@ class Script extends ContextifyScript {
+@@ -105,7 +106,8 @@ class Script extends ContextifyScript {
              columnOffset,
              cachedData,
              produceCachedData,
@@ -544,10 +544,9 @@ index 0000000000..fb2d47f52b
    // calls elsewhere in the program (e.g., any logging from V8.)
    setvbuf(stdout, nullptr, _IONBF, 0);
    setvbuf(stderr, nullptr, _IONBF, 0);
--  return node::Start(argc, argv);
 +  return reorder(argc, argv);
- }
- #endif
++}
++#endif
 +
 +#include <string.h>
 +
@@ -587,8 +586,8 @@ index 0000000000..fb2d47f52b
 +    argv[i] = &args[pos];
 +    pos += strlen(argv[i]) + 1;
 +  }
-+  return node::Start(argc, argv);
-+}
+   return node::Start(argc, argv);
+ }
 +
 +volatile char* BAKERY = (volatile char*) "\0// BAKERY // BAKERY " \
 +  "// BAKERY // BAKERY // BAKERY // BAKERY // BAKERY // BAKERY " \
@@ -597,7 +596,7 @@ index 0000000000..fb2d47f52b
 +
 +#ifdef __clang__
 +__attribute__((optnone))
-+#endif
+ #endif
 +int reorder(int argc, char** argv) {
 +  int i;
 +  char** nargv = new char*[argc + 64];
