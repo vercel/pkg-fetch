@@ -11,7 +11,7 @@
              }],
 --- node/deps/v8/include/v8.h
 +++ node/deps/v8/include/v8.h
-@@ -9934,6 +9934,10 @@ class V8_EXPORT V8 {
+@@ -9965,6 +9965,10 @@ class V8_EXPORT V8 {
                                        char** argv,
                                        bool remove_flags);
  
@@ -24,7 +24,7 @@
  
 --- node/deps/v8/src/api/api.cc
 +++ node/deps/v8/src/api/api.cc
-@@ -628,6 +628,29 @@ void V8::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags) {
+@@ -640,6 +640,29 @@ void V8::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags) {
                                         HelpOptions(HelpOptions::kDontExit));
  }
  
@@ -56,10 +56,10 @@
  RegisteredExtension::RegisteredExtension(std::unique_ptr<Extension> extension)
 --- node/deps/v8/src/codegen/compiler.cc
 +++ node/deps/v8/src/codegen/compiler.cc
-@@ -2840,7 +2840,7 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
+@@ -2875,7 +2875,7 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
+     maybe_result = compilation_cache->LookupScript(
          source, script_details.name_obj, script_details.line_offset,
-         script_details.column_offset, origin_options, isolate->native_context(),
-         language_mode);
+         script_details.column_offset, origin_options, language_mode);
 -    if (!maybe_result.is_null()) {
 +    if (!maybe_result.is_null() && source_length) {
        compile_timer.set_hit_isolate_cache();
@@ -67,7 +67,7 @@
        compile_timer.set_consuming_code_cache();
 --- node/deps/v8/src/objects/js-function.cc
 +++ node/deps/v8/src/objects/js-function.cc
-@@ -905,6 +905,9 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
+@@ -915,6 +915,9 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
    Handle<Object> maybe_class_positions = JSReceiver::GetDataProperty(
        function, isolate->factory()->class_positions_symbol());
    if (maybe_class_positions->IsClassPositions()) {
@@ -79,7 +79,7 @@
      int start_position = class_positions.start();
 --- node/deps/v8/src/objects/shared-function-info-inl.h
 +++ node/deps/v8/src/objects/shared-function-info-inl.h
-@@ -568,6 +568,14 @@ bool SharedFunctionInfo::ShouldFlushBytecode(BytecodeFlushMode mode) {
+@@ -575,6 +575,14 @@ bool SharedFunctionInfo::ShouldFlushBytecode(BytecodeFlushMode mode) {
    Object data = function_data(kAcquireLoad);
    if (!data.IsBytecodeArray()) return false;
  
@@ -114,7 +114,7 @@
    std::unique_ptr<Utf16CharacterStream> stream(
 --- node/deps/v8/src/snapshot/code-serializer.cc
 +++ node/deps/v8/src/snapshot/code-serializer.cc
-@@ -439,12 +439,10 @@ SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
+@@ -445,12 +445,10 @@ SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
    uint32_t magic_number = GetMagicNumber();
    if (magic_number != kMagicNumber) return MAGIC_NUMBER_MISMATCH;
    uint32_t version_hash = GetHeaderValue(kVersionHashOffset);
@@ -129,7 +129,7 @@
    if (payload_length > max_payload_length) return LENGTH_MISMATCH;
 --- node/lib/child_process.js
 +++ node/lib/child_process.js
-@@ -140,7 +140,7 @@ function fork(modulePath /* , args, options */) {
+@@ -164,7 +164,7 @@ function fork(modulePath /* , args, options */) {
    options.execPath = options.execPath || process.execPath;
    options.shell = false;
  
@@ -213,7 +213,7 @@ index 0000000000..fb2d47f52b
      try {
 --- node/lib/internal/modules/cjs/loader.js
 +++ node/lib/internal/modules/cjs/loader.js
-@@ -86,7 +86,7 @@ const fs = require('fs');
+@@ -84,7 +84,7 @@ const fs = require('fs');
  const internalFS = require('internal/fs/utils');
  const path = require('path');
  const { sep } = path;
@@ -263,7 +263,7 @@ index 0000000000..fb2d47f52b
        'lib/internal/bootstrap/pre_execution.js',
        'lib/internal/bootstrap/switches/does_own_process_state.js',
        'lib/internal/bootstrap/switches/does_not_own_process_state.js',
-@@ -1049,7 +1050,7 @@
+@@ -1050,7 +1051,7 @@
              'config.gypi'
            ],
            'outputs': [
@@ -412,10 +412,9 @@ index 0000000000..fb2d47f52b
    // calls elsewhere in the program (e.g., any logging from V8.)
    setvbuf(stdout, nullptr, _IONBF, 0);
    setvbuf(stderr, nullptr, _IONBF, 0);
--  return node::Start(argc, argv);
 +  return reorder(argc, argv);
- }
- #endif
++}
++#endif
 +
 +#include <string.h>
 +
@@ -455,8 +454,8 @@ index 0000000000..fb2d47f52b
 +    argv[i] = &args[pos];
 +    pos += strlen(argv[i]) + 1;
 +  }
-+  return node::Start(argc, argv);
-+}
+   return node::Start(argc, argv);
+ }
 +
 +volatile char* BAKERY = (volatile char*) "\0// BAKERY // BAKERY " \
 +  "// BAKERY // BAKERY // BAKERY // BAKERY // BAKERY // BAKERY " \
@@ -465,7 +464,7 @@ index 0000000000..fb2d47f52b
 +
 +#ifdef __clang__
 +__attribute__((optnone))
-+#endif
+ #endif
 +int reorder(int argc, char** argv) {
 +  int i;
 +  char** nargv = new char*[argc + 64];
