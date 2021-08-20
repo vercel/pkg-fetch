@@ -57,6 +57,12 @@ function getConfigureArgs(major: number, targetPlatform: string): string[] {
   // Small ICU
   args.push('--with-intl=small-icu');
 
+  // Workaround for nodejs/node#39313
+  // All supported macOS versions have zlib as a system library
+  if (targetPlatform === 'macos') {
+    args.push('--shared-zlib');
+  }
+
   return args;
 }
 
