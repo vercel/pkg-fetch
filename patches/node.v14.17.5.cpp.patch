@@ -146,7 +146,7 @@
  
 --- node/lib/child_process.js
 +++ node/lib/child_process.js
-@@ -126,7 +126,7 @@ function fork(modulePath /* , args, options */) {
+@@ -150,7 +150,7 @@ function fork(modulePath /* , args, options */) {
    options.execPath = options.execPath || process.execPath;
    options.shell = false;
  
@@ -205,7 +205,7 @@ index 0000000000..fb2d47f52b
 +}());
 --- node/lib/internal/bootstrap/pre_execution.js
 +++ node/lib/internal/bootstrap/pre_execution.js
-@@ -17,7 +17,12 @@ const { Buffer } = require('buffer');
+@@ -18,7 +18,12 @@ const { Buffer } = require('buffer');
  const { ERR_MANIFEST_ASSERT_INTEGRITY } = require('internal/errors').codes;
  const assert = require('internal/assert');
  
@@ -218,7 +218,7 @@ index 0000000000..fb2d47f52b
    // Patch the process object with legacy properties and normalizations
    patchProcessObject(expandArgv1);
    setupTraceCategoryState();
-@@ -86,7 +91,7 @@ function patchProcessObject(expandArgv1) {
+@@ -87,7 +92,7 @@ function patchProcessObject(expandArgv1) {
    process.argv[0] = process.execPath;
  
    if (expandArgv1 && process.argv[1] &&
@@ -229,7 +229,7 @@ index 0000000000..fb2d47f52b
      try {
 --- node/lib/internal/modules/cjs/loader.js
 +++ node/lib/internal/modules/cjs/loader.js
-@@ -84,7 +84,7 @@ const fs = require('fs');
+@@ -83,7 +83,7 @@ const fs = require('fs');
  const internalFS = require('internal/fs/utils');
  const path = require('path');
  const { sep } = path;
@@ -346,7 +346,7 @@ index 0000000000..fb2d47f52b
  using v8::Value;
  using v8::WeakCallbackInfo;
  using v8::WeakCallbackType;
-@@ -685,11 +686,12 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -686,11 +687,12 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
    Local<ArrayBufferView> cached_data_buf;
    bool produce_cached_data = false;
    Local<Context> parsing_context = context;
@@ -360,7 +360,7 @@ index 0000000000..fb2d47f52b
      CHECK(args[2]->IsNumber());
      line_offset = args[2].As<Integer>();
      CHECK(args[3]->IsNumber());
-@@ -708,6 +710,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -709,6 +711,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
        CHECK_NOT_NULL(sandbox);
        parsing_context = sandbox->context();
      }
@@ -368,7 +368,7 @@ index 0000000000..fb2d47f52b
    } else {
      line_offset = Integer::New(isolate, 0);
      column_offset = Integer::New(isolate, 0);
-@@ -762,6 +765,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -763,6 +766,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
    ShouldNotAbortOnUncaughtScope no_abort_scope(env);
    Context::Scope scope(parsing_context);
  
@@ -379,7 +379,7 @@ index 0000000000..fb2d47f52b
    MaybeLocal<UnboundScript> v8_script = ScriptCompiler::CompileUnboundScript(
        isolate,
        &source,
-@@ -778,6 +785,13 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -779,6 +786,13 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
          contextify_script);
      return;
    }
@@ -393,7 +393,7 @@ index 0000000000..fb2d47f52b
    contextify_script->script_.Reset(isolate, v8_script.ToLocalChecked());
  
    Local<Context> env_context = env->context();
-@@ -804,6 +818,11 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -805,6 +819,11 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
          env->cached_data_produced_string(),
          Boolean::New(isolate, cached_data_produced)).Check();
    }

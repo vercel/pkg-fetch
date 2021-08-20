@@ -1,7 +1,7 @@
 {
-  "v16.4.1": ["node.v16.4.1.cpp.patch"],
+  "v16.7.0": ["node.v16.7.0.cpp.patch"],
   "v14.17.5": ["node.v14.17.5.cpp.patch"],
-  "v12.22.2": ["node.v12.22.2.cpp.patch"],
+  "v12.22.5": ["node.v12.22.5.cpp.patch"],
   "v10.24.1": ["node.v10.24.1.cpp.patch"],
   "v8.17.0": ["node.v8.17.0.cpp.patch"]
 }

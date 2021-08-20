@@ -11,7 +11,7 @@
              }],
 --- node/deps/v8/include/v8.h
 +++ node/deps/v8/include/v8.h
-@@ -9965,6 +9965,10 @@ class V8_EXPORT V8 {
+@@ -10053,6 +10053,10 @@ class V8_EXPORT V8 {
                                        char** argv,
                                        bool remove_flags);
  
@@ -56,7 +56,7 @@
  RegisteredExtension::RegisteredExtension(std::unique_ptr<Extension> extension)
 --- node/deps/v8/src/codegen/compiler.cc
 +++ node/deps/v8/src/codegen/compiler.cc
-@@ -2875,7 +2875,7 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
+@@ -2832,7 +2832,7 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
      maybe_result = compilation_cache->LookupScript(
          source, script_details.name_obj, script_details.line_offset,
          script_details.column_offset, origin_options, language_mode);
@@ -67,7 +67,7 @@
        compile_timer.set_consuming_code_cache();
 --- node/deps/v8/src/objects/js-function.cc
 +++ node/deps/v8/src/objects/js-function.cc
-@@ -915,6 +915,9 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
+@@ -954,6 +954,9 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
    Handle<Object> maybe_class_positions = JSReceiver::GetDataProperty(
        function, isolate->factory()->class_positions_symbol());
    if (maybe_class_positions->IsClassPositions()) {
@@ -79,7 +79,7 @@
      int start_position = class_positions.start();
 --- node/deps/v8/src/objects/shared-function-info-inl.h
 +++ node/deps/v8/src/objects/shared-function-info-inl.h
-@@ -575,6 +575,14 @@ bool SharedFunctionInfo::ShouldFlushBytecode(BytecodeFlushMode mode) {
+@@ -569,6 +569,14 @@ bool SharedFunctionInfo::ShouldFlushBytecode(BytecodeFlushMode mode) {
    Object data = function_data(kAcquireLoad);
    if (!data.IsBytecodeArray()) return false;
  
@@ -114,7 +114,7 @@
    std::unique_ptr<Utf16CharacterStream> stream(
 --- node/deps/v8/src/snapshot/code-serializer.cc
 +++ node/deps/v8/src/snapshot/code-serializer.cc
-@@ -445,12 +445,10 @@ SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
+@@ -444,12 +444,10 @@ SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
    uint32_t magic_number = GetMagicNumber();
    if (magic_number != kMagicNumber) return MAGIC_NUMBER_MISMATCH;
    uint32_t version_hash = GetHeaderValue(kVersionHashOffset);
@@ -201,7 +201,7 @@ index 0000000000..fb2d47f52b
    // TODO(joyeecheung): this is also necessary for workers when they deserialize
    // this toggle from the snapshot.
    reconnectZeroFillToggle();
-@@ -99,7 +104,8 @@ function patchProcessObject(expandArgv1) {
+@@ -101,7 +106,8 @@ function patchProcessObject(expandArgv1) {
    process.argv[0] = process.execPath;
  
    if (expandArgv1 && process.argv[1] &&
@@ -213,7 +213,7 @@ index 0000000000..fb2d47f52b
      try {
 --- node/lib/internal/modules/cjs/loader.js
 +++ node/lib/internal/modules/cjs/loader.js
-@@ -84,7 +84,7 @@ const fs = require('fs');
+@@ -86,7 +86,7 @@ const fs = require('fs');
  const internalFS = require('internal/fs/utils');
  const path = require('path');
  const { sep } = path;
@@ -253,28 +253,9 @@ index 0000000000..fb2d47f52b
      } catch (e) {
        throw e; /* node-do-not-add-exception-line */
      }
---- node/node.gyp
-+++ node/node.gyp
-@@ -31,6 +31,7 @@
-       'lib/internal/bootstrap/environment.js',
-       'lib/internal/bootstrap/loaders.js',
-       'lib/internal/bootstrap/node.js',
-+      'lib/internal/bootstrap/pkg.js',
-       'lib/internal/bootstrap/pre_execution.js',
-       'lib/internal/bootstrap/switches/does_own_process_state.js',
-       'lib/internal/bootstrap/switches/does_not_own_process_state.js',
-@@ -1050,7 +1051,7 @@
-             'config.gypi'
-           ],
-           'outputs': [
--            '<(SHARED_INTERMEDIATE_DIR)/node_javascript.cc',
-+            '<(SHARED_INTERMEDIATE_DIR)/node_js.cc',
-           ],
-           'action': [
-             'python', '<@(_inputs)',
 --- node/src/inspector_agent.cc
 +++ node/src/inspector_agent.cc
-@@ -682,8 +682,6 @@ bool Agent::Start(const std::string& path,
+@@ -681,8 +681,6 @@ bool Agent::Start(const std::string& path,
                                StartIoThreadAsyncCallback));
      uv_unref(reinterpret_cast<uv_handle_t*>(&start_io_thread_async));
      start_io_thread_async.data = this;
