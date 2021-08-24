@@ -1,3 +1,14 @@
+--- node/common.gypi
++++ node/common.gypi
+@@ -171,7 +171,7 @@
+               'MSVC_runtimeType': 2   # MultiThreadedDLL (/MD)
+             }],
+             ['llvm_version=="0.0"', {
+-              'lto': ' -flto=4 -fuse-linker-plugin -ffat-lto-objects ', # GCC
++              'lto': ' -flto=4 -ffat-lto-objects ', # GCC
+             }, {
+               'lto': ' -flto ', # Clang
+             }],
 --- node/deps/v8/include/v8.h
 +++ node/deps/v8/include/v8.h
 @@ -9633,6 +9633,10 @@ class V8_EXPORT V8 {
