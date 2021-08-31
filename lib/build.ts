@@ -8,6 +8,10 @@ import { hostArch, hostPlatform } from './system';
 import { log } from './log';
 import patchesJson from '../patches/patches.json';
 
+// Optional PKG_SOURCE_TAR pointing to official Node.js source tarball to avoid
+// cloning in e.g. network restricted environments
+const tarPath = (process.env.PKG_SOURCE_TAR ?
+    path.resolve(process.env.PKG_SOURCE_TAR) : '')
 const buildPath = path.resolve(
   process.env.PKG_BUILD_PATH ||
     path.join(os.tmpdir(), `pkg.${crypto.randomBytes(12).toString('hex')}`)
@@ -58,6 +62,26 @@ function getConfigureArgs(major: number, targetPlatform: string): string[] {
   args.push('--with-intl=small-icu');
 
   return args;
+}
+
+async function tarExtract() {
+  log.info(`Extracting Node.js source tarball ${tarPath}`)
+
+  await fs.mkdirp(nodePath);
+
+  // This expects official Node.js tarballs that have node-vX.X.X/ top level
+  // directory. -C and --strip-components 1 are well adopted and work in GNU and
+  // on MacOS
+  const args = [
+    '-xf',
+    tarPath,
+    '-C',
+    nodePath,
+    '--strip-components',
+    '1',
+  ]
+
+  await spawn('tar', args, { stdio: 'inherit' });
 }
 
 async function gitClone(nodeVersion: string) {
@@ -254,8 +278,14 @@ export default async function build(
   await fs.remove(buildPath);
   await fs.mkdirp(buildPath);
 
-  await gitClone(nodeVersion);
-  await gitResetHard(nodeVersion);
+  // If tarPath is not set clone Node.js using git; otherwise just extract 
+  // source tarball.
+  if (tarPath === '') {
+    await gitClone(nodeVersion);
+    await gitResetHard(nodeVersion);
+  } else {
+    await tarExtract();
+  }
   await applyPatches(nodeVersion);
 
   const output = await compile(nodeVersion, targetArch, targetPlatform);

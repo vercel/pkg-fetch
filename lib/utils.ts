@@ -92,8 +92,11 @@ export async function spawn(
   args?: ReadonlyArray<string>,
   options?: SpawnSyncOptions
 ): Promise<void> {
-  const { error } = spawnSync(command, args, options);
+  const { status, error } = spawnSync(command, args, options);
   if (error) {
     throw error;
+  }
+  if (status !== 0) {
+    throw new Error(`non-zero exit code (${status}) from ${command}`)
   }
 }

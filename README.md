@@ -20,6 +20,15 @@ A utility to fetch or build patched Node binaries used by [pkg](https://github.c
 
 <em id="fn3">[3]</em>: [mandatory code signing](https://developer.apple.com/documentation/macos-release-notes/macos-big-sur-11_0_1-universal-apps-release-notes) is enforced by Apple.
 
+## Building Binaries
+
+In `--force-build` mode the source is cloned using `git` from [Node.js canonical repository][1]. Eventually, in e.g. network restricted environments it can be provided directly by setting environment variable `PKG_SOURCE_TAR` value to a path to [Node.js source tarball][2]. In such case tarball version must match desired Node.js range otherwise patching will fail. See all available [patches](patches/).
+
+Build directory can be changed by `PKG_BUILD_PATH` environment variable. Built (and fetched) binaries will be persisted in between the builds in `.pkg-cache/` in user's home directory if not overriden by value of `PKG_CACHE_PATH` environment variable.
+
+[1]: https://github.com/nodejs/node
+[2]: https://nodejs.org/en/download/releases/
+
 ## Security
 
 We do not expect this project to have vulnerabilities of its own. Nonetheless, as this project distributes prebuilt Node.js binaries,
