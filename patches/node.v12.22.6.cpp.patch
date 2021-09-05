@@ -401,6 +401,26 @@ index 0000000000..fb2d47f52b
        'lib/internal/bootstrap/pre_execution.js',
        'lib/internal/bootstrap/switches/does_own_process_state.js',
        'lib/internal/bootstrap/switches/does_not_own_process_state.js',
+@@ -430,6 +431,19 @@
+             'OTHER_LDFLAGS': [ '-Wl,-rpath,@loader_path', ],
+           },
+         }],
++        [ 'enable_lto=="true"', {
++          'xcode_settings': {
++            'OTHER_LDFLAGS': [
++              # man ld -export_dynamic:
++              # Preserves all global symbols in main executables during LTO.
++              # Without this option, Link Time Optimization is allowed to
++              # inline and remove global functions. This option is used when
++              # a main executable may load a plug-in which requires certain
++              # symbols from the main executable.
++              '-Wl,-export_dynamic',
++            ],
++          },
++        }],
+         ['OS=="win"', {
+           'libraries': [
+             'Dbghelp.lib',
 --- node/src/inspector_agent.cc
 +++ node/src/inspector_agent.cc
 @@ -760,8 +760,6 @@ bool Agent::Start(const std::string& path,
@@ -551,10 +571,9 @@ index 0000000000..fb2d47f52b
    // calls elsewhere in the program (e.g., any logging from V8.)
    setvbuf(stdout, nullptr, _IONBF, 0);
    setvbuf(stderr, nullptr, _IONBF, 0);
--  return node::Start(argc, argv);
 +  return reorder(argc, argv);
- }
- #endif
++}
++#endif
 +
 +#include <string.h>
 +
@@ -594,8 +613,8 @@ index 0000000000..fb2d47f52b
 +    argv[i] = &args[pos];
 +    pos += strlen(argv[i]) + 1;
 +  }
-+  return node::Start(argc, argv);
-+}
+   return node::Start(argc, argv);
+ }
 +
 +volatile char* BAKERY = (volatile char*) "\0// BAKERY // BAKERY " \
 +  "// BAKERY // BAKERY // BAKERY // BAKERY // BAKERY // BAKERY " \
@@ -604,7 +623,7 @@ index 0000000000..fb2d47f52b
 +
 +#ifdef __clang__
 +__attribute__((optnone))
-+#endif
+ #endif
 +int reorder(int argc, char** argv) {
 +  int i;
 +  char** nargv = new char*[argc + 64];
@@ -646,25 +665,3 @@ index 0000000000..fb2d47f52b
              'cflags_cc!': [ '-fno-rtti' ],
            }],
            [ 'OS == "mac" or OS == "ios"', {
---- node/node.gyp
-+++ node/node.gyp
-@@ -236,6 +236,19 @@
-             'OTHER_LDFLAGS': [ '-Wl,-rpath,@loader_path', ],
-           },
-         }],
-+        [ 'enable_lto=="true"', {
-+          'xcode_settings': {
-+            'OTHER_LDFLAGS': [
-+              # man ld -export_dynamic:
-+              # Preserves all global symbols in main executables during LTO.
-+              # Without this option, Link Time Optimization is allowed to
-+              # inline and remove global functions. This option is used when
-+              # a main executable may load a plug-in which requires certain
-+              # symbols from the main executable.
-+              '-Wl,-export_dynamic',
-+            ],
-+          },
-+        }],
-         ['OS=="win"', {
-           'libraries': [
-             'Dbghelp.lib',

@@ -253,6 +253,28 @@ index 0000000000..fb2d47f52b
      } catch (e) {
        throw e; /* node-do-not-add-exception-line */
      }
+--- node/node.gyp
++++ node/node.gyp
+@@ -236,6 +236,19 @@
+             'OTHER_LDFLAGS': [ '-Wl,-rpath,@loader_path', ],
+           },
+         }],
++        [ 'enable_lto=="true"', {
++          'xcode_settings': {
++            'OTHER_LDFLAGS': [
++              # man ld -export_dynamic:
++              # Preserves all global symbols in main executables during LTO.
++              # Without this option, Link Time Optimization is allowed to
++              # inline and remove global functions. This option is used when
++              # a main executable may load a plug-in which requires certain
++              # symbols from the main executable.
++              '-Wl,-export_dynamic',
++            ],
++          },
++        }],
+         ['OS=="win"', {
+           'libraries': [
+             'Dbghelp.lib',
 --- node/src/inspector_agent.cc
 +++ node/src/inspector_agent.cc
 @@ -681,8 +681,6 @@ bool Agent::Start(const std::string& path,
@@ -310,7 +332,7 @@ index 0000000000..fb2d47f52b
  using v8::Value;
  using v8::WeakCallbackInfo;
  using v8::WeakCallbackType;
-@@ -707,11 +708,12 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -709,11 +710,12 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
    Local<ArrayBufferView> cached_data_buf;
    bool produce_cached_data = false;
    Local<Context> parsing_context = context;
@@ -324,7 +346,7 @@ index 0000000000..fb2d47f52b
      CHECK(args[2]->IsNumber());
      line_offset = args[2].As<Int32>()->Value();
      CHECK(args[3]->IsNumber());
-@@ -730,6 +732,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -732,6 +734,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
        CHECK_NOT_NULL(sandbox);
        parsing_context = sandbox->context();
      }
@@ -332,7 +354,7 @@ index 0000000000..fb2d47f52b
    }
  
    ContextifyScript* contextify_script =
-@@ -782,6 +785,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -784,6 +787,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
    ShouldNotAbortOnUncaughtScope no_abort_scope(env);
    Context::Scope scope(parsing_context);
  
@@ -343,7 +365,7 @@ index 0000000000..fb2d47f52b
    MaybeLocal<UnboundScript> v8_script = ScriptCompiler::CompileUnboundScript(
        isolate,
        &source,
-@@ -798,6 +805,13 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -800,6 +807,13 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
          contextify_script);
      return;
    }
@@ -357,7 +379,7 @@ index 0000000000..fb2d47f52b
    contextify_script->script_.Reset(isolate, v8_script.ToLocalChecked());
  
    Local<Context> env_context = env->context();
-@@ -824,6 +838,11 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -826,6 +840,11 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
          env->cached_data_produced_string(),
          Boolean::New(isolate, cached_data_produced)).Check();
    }
@@ -487,25 +509,3 @@ index 0000000000..fb2d47f52b
              'cflags_cc!': [ '-fno-rtti' ],
            }],
            [ 'OS == "mac" or OS == "ios"', {
---- node/node.gyp
-+++ node/node.gyp
-@@ -236,6 +236,19 @@
-             'OTHER_LDFLAGS': [ '-Wl,-rpath,@loader_path', ],
-           },
-         }],
-+        [ 'enable_lto=="true"', {
-+          'xcode_settings': {
-+            'OTHER_LDFLAGS': [
-+              # man ld -export_dynamic:
-+              # Preserves all global symbols in main executables during LTO.
-+              # Without this option, Link Time Optimization is allowed to
-+              # inline and remove global functions. This option is used when
-+              # a main executable may load a plug-in which requires certain
-+              # symbols from the main executable.
-+              '-Wl,-export_dynamic',
-+            ],
-+          },
-+        }],
-         ['OS=="win"', {
-           'libraries': [
-             'Dbghelp.lib',
