@@ -11,11 +11,12 @@ jobs:
       fail-fast: false
       matrix:
         target-node: [10, 12, 14, 16]
-        target-arch: [arm64, armv7]
+        target-arch: [arm64]
         include:
           - target-arch: arm64
             docker-platform: linux/arm64
-          - target-arch: armv7
+          - target-node: 16
+            target-arch: armv7
             docker-platform: linux/arm/v7
 
     steps:
