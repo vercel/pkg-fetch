@@ -567,7 +567,7 @@ index 0000000000..fb2d47f52b
  }
  #else
  // UNIX
-@@ -123,6 +125,76 @@ int main(int argc, char* argv[]) {
+@@ -123,6 +125,88 @@ int main(int argc, char* argv[]) {
    // calls elsewhere in the program (e.g., any logging from V8.)
    setvbuf(stdout, nullptr, _IONBF, 0);
    setvbuf(stderr, nullptr, _IONBF, 0);
@@ -623,12 +623,12 @@ index 0000000000..fb2d47f52b
 +
 +#ifdef __clang__
 +__attribute__((optnone))
++#elif defined(__GNUC__)
++__attribute__((optimize(0)))
  #endif
-+int reorder(int argc, char** argv) {
-+  int i;
-+  char** nargv = new char*[argc + 64];
-+  int c = 0;
-+  nargv[c++] = argv[0];
++int load_baked(char** nargv) {
++  int c = 1;
++
 +  char* bakery = (char*) BAKERY;
 +  while (true) {
 +    size_t width = strlen2(bakery);
@@ -636,12 +636,24 @@ index 0000000000..fb2d47f52b
 +    nargv[c++] = bakery;
 +    bakery += width + 1;
 +  }
++
++  return c;
++}
++
++int reorder(int argc, char** argv) {
++  char** nargv = new char*[argc + 64];
++
++  nargv[0] = argv[0];
++  int c = load_baked(nargv);
++
 +  if (should_set_dummy()) {
 +    nargv[c++] = (char*) "PKG_DUMMY_ENTRYPOINT";
 +  }
-+  for (i = 1; i < argc; i++) {
++
++  for (int i = 1; i < argc; i++) {
 +    nargv[c++] = argv[i];
 +  }
++
 +  return adjacent(c, nargv);
 +}
 --- node/src/node_options.cc
