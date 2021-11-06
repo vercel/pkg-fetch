@@ -20,6 +20,7 @@
     "node-fetch": "^2.6.6",
     "progress": "^2.0.3",
     "semver": "^7.3.5",
+    "tar-fs": "^2.1.1",
     "yargs": "^16.2.0"
   },
   "devDependencies": {
@@ -28,6 +29,7 @@
     "@types/node-fetch": "^2.5.12",
     "@types/progress": "^2.0.5",
     "@types/semver": "^7.3.9",
+    "@types/tar-fs": "^2.0.1",
     "@types/yargs": "^16.0.4",
     "@typescript-eslint/eslint-plugin": "^4.33.0",
     "@typescript-eslint/parser": "^4.33.0",

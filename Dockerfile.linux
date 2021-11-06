@@ -10,7 +10,7 @@ RUN yum upgrade -y
 
 RUN yum install -y \
     devtoolset-10 glibc-headers kernel-headers \
-    git make patch python2 \
+    make patch python2 \
     rh-python36-python
 
 RUN curl -fsSL https://rpm.nodesource.com/setup_lts.x | bash -

@@ -5,7 +5,8 @@ import path from 'path';
 const { PKG_CACHE_PATH } = process.env;
 const IGNORE_TAG = Boolean(process.env.PKG_IGNORE_TAG);
 
-const cachePath = PKG_CACHE_PATH || path.join(os.homedir(), '.pkg-cache');
+export const cachePath =
+  PKG_CACHE_PATH || path.join(os.homedir(), '.pkg-cache');
 
 function tagFromVersion(version: string) {
   const mj = major(version);
