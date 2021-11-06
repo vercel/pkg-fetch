@@ -1,11 +1,16 @@
+import { createGunzip } from 'zlib';
 import crypto from 'crypto';
 import fs from 'fs-extra';
 import os from 'os';
 import path from 'path';
+import { pipeline } from 'stream';
+import { promisify } from 'util';
+import tar from 'tar-fs';
 
-import { hash, spawn } from './utils';
+import { cachePath } from './places';
+import { downloadUrl, hash, spawn } from './utils';
 import { hostArch, hostPlatform } from './system';
-import { log } from './log';
+import { log, wasReported } from './log';
 import patchesJson from '../patches/patches.json';
 
 const buildPath = path.resolve(
@@ -14,7 +19,9 @@ const buildPath = path.resolve(
 );
 const nodePath = path.join(buildPath, 'node');
 const patchesPath = path.resolve(__dirname, '../patches');
-const nodeRepo = 'https://github.com/nodejs/node';
+
+const nodeRepo = 'https://nodejs.org/dist';
+const nodeArchivePath = path.join(cachePath, 'node');
 
 function getMajor(nodeVersion: string) {
   const [, version] = nodeVersion.match(/^v?(\d+)/) || ['', 0];
@@ -66,37 +73,66 @@ function getConfigureArgs(major: number, targetPlatform: string): string[] {
   return args;
 }
 
-async function gitClone(nodeVersion: string) {
-  log.info('Cloning Node.js repository from GitHub...');
+async function tarFetch(nodeVersion: string) {
+  log.info('Fetching Node.js source archive from nodejs.org...');
 
-  const args = [
-    'clone',
-    '-b',
-    nodeVersion,
-    '--depth',
-    '1',
-    '--single-branch',
-    '--bare',
-    '--progress',
-    nodeRepo,
-    'node/.git',
-  ];
+  const distUrl = `${nodeRepo}/${nodeVersion}`;
+  const tarName = `node-${nodeVersion}.tar.gz`;
 
-  await spawn('git', args, { cwd: buildPath, stdio: 'inherit' });
+  const archivePath = path.join(nodeArchivePath, tarName);
+  const hashPath = path.join(nodeArchivePath, `${tarName}.sha256sum`);
+
+  if (fs.existsSync(hashPath) && fs.existsSync(archivePath)) {
+    return;
+  }
+
+  await fs.remove(hashPath).catch(() => undefined);
+  await fs.remove(archivePath).catch(() => undefined);
+
+  await downloadUrl(`${distUrl}/SHASUMS256.txt`, hashPath);
+
+  await fs.writeFile(
+    hashPath,
+    (await fs.readFile(hashPath, 'utf8'))
+      .split('\n')
+      .filter((l) => l.includes(tarName))[0]
+  );
+
+  await downloadUrl(`${distUrl}/${tarName}`, archivePath);
 }
 
-async function gitResetHard(nodeVersion: string) {
-  log.info(`Checking out ${nodeVersion}`);
+async function tarExtract(nodeVersion: string) {
+  log.info('Extracting Node.js source archive...');
 
-  const patches = patchesJson[nodeVersion as keyof typeof patchesJson] as
-    | string[]
-    | { commit?: string };
+  const tarName = `node-${nodeVersion}.tar.gz`;
 
-  const commit =
-    'commit' in patches && patches.commit ? patches.commit : nodeVersion;
-  const args = ['--work-tree', '.', 'reset', '--hard', commit];
+  const expectedHash = (
+    await fs.readFile(
+      path.join(nodeArchivePath, `${tarName}.sha256sum`),
+      'utf8'
+    )
+  ).split(' ')[0];
+  const actualHash = await hash(path.join(nodeArchivePath, tarName));
 
-  await spawn('git', args, { cwd: nodePath, stdio: 'inherit' });
+  if (expectedHash !== actualHash) {
+    await fs.remove(path.join(nodeArchivePath, tarName));
+    await fs.remove(path.join(nodeArchivePath, `${tarName}.sha256sum`));
+    throw wasReported(`Hash mismatch for ${tarName}`);
+  }
+
+  const pipe = promisify(pipeline);
+
+  const source = fs.createReadStream(path.join(nodeArchivePath, tarName));
+  const gunzip = createGunzip();
+  const extract = tar.extract(nodePath, {
+    strip: 1,
+    map: (header) => {
+      log.info(header.name);
+      return header;
+    },
+  });
+
+  await pipe(source, gunzip, extract);
 }
 
 async function applyPatches(nodeVersion: string) {
@@ -249,10 +285,11 @@ export default async function build(
   local: string
 ) {
   await fs.remove(buildPath);
-  await fs.mkdirp(buildPath);
+  await fs.mkdirp(nodePath);
+  await fs.mkdirp(nodeArchivePath);
 
-  await gitClone(nodeVersion);
-  await gitResetHard(nodeVersion);
+  await tarFetch(nodeVersion);
+  await tarExtract(nodeVersion);
   await applyPatches(nodeVersion);
 
   const output = await compile(nodeVersion, targetArch, targetPlatform);
