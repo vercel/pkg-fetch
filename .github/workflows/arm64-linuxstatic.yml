@@ -10,12 +10,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target-node: [10, 12, 14, 16]
+        target-node: [10, 12, 14, 16, 17]
         target-arch: [arm64]
         include:
           - target-arch: arm64
             docker-platform: linux/arm64
           - target-node: 16
+            target-arch: armv7
+            docker-platform: linux/arm/v7
+          - target-node: 17
             target-arch: armv7
             docker-platform: linux/arm/v7
 

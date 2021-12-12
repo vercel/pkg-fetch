@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target-node: [10, 12, 14, 16]
+        target-node: [10, 12, 14, 16, 17]
 
     steps:
       - uses: actions/checkout@v2
