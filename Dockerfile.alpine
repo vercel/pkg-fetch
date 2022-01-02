@@ -12,6 +12,7 @@ RUN apk add --no-cache build-base linux-headers npm python2 python3 yarn
 # https://gitlab.alpinelinux.org/alpine/aports/-/issues/8626
 ENV CFLAGS=-U_FORTIFY_SOURCE
 ENV CXXFLAGS=-U_FORTIFY_SOURCE
+ENV LDFLAGS=-Wl,-no-pie
 
 COPY . ./
 
