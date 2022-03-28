@@ -150,7 +150,7 @@
  }
  
  function _forkChild(fd, serializationMode) {
-index 0000000000..fb2d47f52b
+index 00000000000..fb2d47f52b6
 --- /dev/null
 +++ node/lib/internal/bootstrap/pkg.js
 @@ -0,0 +1,44 @@
@@ -492,7 +492,7 @@ index 0000000000..fb2d47f52b
 +}
 --- node/src/node_options.cc
 +++ node/src/node_options.cc
-@@ -256,6 +256,7 @@ void Parse(
+@@ -257,6 +257,7 @@ void Parse(
  // TODO(addaleax): Make that unnecessary.
  
  DebugOptionsParser::DebugOptionsParser() {
