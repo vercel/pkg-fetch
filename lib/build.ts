@@ -230,7 +230,10 @@ async function compileOnUnix(
   args.push(...getConfigureArgs(getMajor(nodeVersion), targetPlatform));
 
   // TODO same for windows?
-  await spawn('./configure', args, { cwd: nodePath, stdio: 'inherit' });
+  await spawn('/bin/sh', ['./configure', ...args], {
+    cwd: nodePath,
+    stdio: 'inherit',
+  });
 
   await spawn(
     hostPlatform === 'freebsd' ? 'gmake' : 'make',
