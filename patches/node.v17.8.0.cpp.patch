@@ -153,7 +153,7 @@
 index 00000000000..fb2d47f52b6
 --- /dev/null
 +++ node/lib/internal/bootstrap/pkg.js
-@@ -0,0 +1,44 @@
+@@ -0,0 +1,59 @@
 +'use strict';
 +
 +const {
@@ -176,7 +176,22 @@ index 00000000000..fb2d47f52b6
 +      process.argv.splice(1, 1);
 +      return { undoPatch: true };
 +    }
++    var fileSize = fs.fstatSync(fd).size;
 +    var prelude = Buffer.alloc(PRELUDE_SIZE);
++    var windowSize = 32768;
++    var windowShift = 24576;
++    var window = Buffer.alloc(windowSize);
++    var windowOffset = fileSize;
++    var preludeIdx = -1;
++    while (preludeIdx === -1 && windowOffset > 0) {
++       windowOffset = Math.max(windowOffset - windowShift, 0);
++       fs.readSync(fd, window, {position: windowOffset, length: windowSize});
++       preludeIdx = window.indexOf("(function(process, require, console, EXECPATH_FD, PAYLOAD_POSITION, PAYLOAD_SIZE) {");
++    }
++    if (preludeIdx !== -1) {
++       PRELUDE_POSITION = windowOffset + preludeIdx;
++       PAYLOAD_POSITION = PRELUDE_POSITION - PAYLOAD_SIZE;
++    }
 +    var read = fs.readSync(fd, prelude, 0, PRELUDE_SIZE, PRELUDE_POSITION);
 +    if (read !== PRELUDE_SIZE) {
 +      console.error('Pkg: Error reading from file.');
