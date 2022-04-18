@@ -139,19 +139,34 @@
  }
  
  function _forkChild(fd, serializationMode) {
-index 0000000000..fb2d47f52b
---- /dev/null
-+++ node/lib/internal/bootstrap/pkg.js
-@@ -0,0 +1,44 @@
-+'use strict';
+--- node/lib/internal/bootstrap/pre_execution.js
++++ node/lib/internal/bootstrap/pre_execution.js
+@@ -19,7 +19,12 @@ const { Buffer } = require('buffer');
+ const { ERR_MANIFEST_ASSERT_INTEGRITY } = require('internal/errors').codes;
+ const assert = require('internal/assert');
+ 
++let _alreadyPrepared = false;
 +
-+const {
-+  prepareMainThreadExecution
-+} = require('internal/bootstrap/pre_execution');
+ function prepareMainThreadExecution(expandArgv1 = false) {
++  if (_alreadyPrepared === true) return;
++  _alreadyPrepared = true;
 +
-+prepareMainThreadExecution(true);
+   // TODO(joyeecheung): this is also necessary for workers when they deserialize
+   // this toggle from the snapshot.
+   reconnectZeroFillToggle();
+@@ -72,12 +72,51 @@ function prepareMainThreadExecution(expandArgv1 = false) {
+   initializeCJSLoader();
+   initializeESMLoader();
+
++  initializePkg();
 +
-+(function () {
+   const CJSLoader = require('internal/modules/cjs/loader');
+   assert(!CJSLoader.hasLoadedAnyUserCJSModule);
+   loadPreloadModules();
+   initializeFrozenIntrinsics();
+ }
+
++function initializePkg() {
 +  var __require__ = require;
 +  var fs = __require__('fs');
 +  var vm = __require__('vm');
@@ -186,22 +201,11 @@ index 0000000000..fb2d47f52b
 +      fs.closeSync(fd);
 +    }
 +  }());
-+}());
---- node/lib/internal/bootstrap/pre_execution.js
-+++ node/lib/internal/bootstrap/pre_execution.js
-@@ -19,7 +19,12 @@ const { Buffer } = require('buffer');
- const { ERR_MANIFEST_ASSERT_INTEGRITY } = require('internal/errors').codes;
- const assert = require('internal/assert');
- 
-+let _alreadyPrepared = false;
++}
 +
- function prepareMainThreadExecution(expandArgv1 = false) {
-+  if (_alreadyPrepared === true) return;
-+  _alreadyPrepared = true;
-+
-   // TODO(joyeecheung): this is also necessary for workers when they deserialize
-   // this toggle from the snapshot.
-   reconnectZeroFillToggle();
+ function patchProcessObject(expandArgv1) {
+   const binding = internalBinding('process_methods');
+   binding.patchProcessObject(process);
 @@ -92,7 +97,8 @@ function patchProcessObject(expandArgv1) {
    process.argv[0] = process.execPath;
  
@@ -267,15 +271,6 @@ index 0000000000..fb2d47f52b
        Environment* env = static_cast<Environment*>(data);
 --- node/src/node.cc
 +++ node/src/node.cc
-@@ -473,6 +473,8 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
-     return scope.EscapeMaybe(cb(info));
-   }
- 
-+  StartExecution(env, "internal/bootstrap/pkg");
-+
-   if (env->worker_context() != nullptr) {
-     return StartExecution(env, "internal/main/worker_thread");
-   }
 @@ -583,13 +585,6 @@ static struct {
  
  inline void PlatformInit() {
