@@ -1,3 +1,4 @@
+import fs from 'fs';
 import { spawnSync } from 'child_process';
 
 function getHostAbi() {
@@ -44,7 +45,11 @@ function detectAlpine() {
   }
 
   // https://github.com/sass/node-sass/issues/1589#issuecomment-265292579
-  const ldd = spawnSync('ldd').stderr.toString();
+  const ldd = spawnSync('ldd').stderr?.toString();
+
+  if (ldd == null) {
+    return fs.readdirSync('/lib').some((file) => file.startsWith('libc.musl'));
+  }
 
   if (/\bmusl\b/.test(ldd)) {
     return true;
