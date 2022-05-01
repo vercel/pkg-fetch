@@ -4,53 +4,13 @@ on:
   workflow_dispatch:
 
 jobs:
-  windows-vs2017:
-    runs-on: windows-2016
-
-    strategy:
-      fail-fast: false
-      matrix:
-        target-node: [10, 12]
-        target-arch: [x64]
-
-    steps:
-      - uses: actions/checkout@v2
-
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '2.x'
-
-      - name: Use Node.js 14
-        uses: actions/setup-node@v1
-        with:
-          node-version: 14
-
-      - run: yarn install
-
-      - run: choco install nasm
-
-      - run: yarn start --node-range node${{ matrix.target-node }} --arch ${{ matrix.target-arch }} --output dist
-        env:
-          PKG_BUILD_PATH: build
-
-      - name: Check if binary is compiled
-        id: check_file
-        run: |
-          if (Test-Path -Path dist\\*.sha256sum -PathType Leaf) { echo "::set-output name=EXISTS::true" } else { echo "::set-output name=EXISTS::false" }
-
-      - uses: actions/upload-artifact@v2
-        if: steps.check_file.outputs.EXISTS == 'true'
-        with:
-          name: node${{ matrix.target-node }}-windows-${{ matrix.target-arch }}
-          path: dist\\*
-
   windows-vs2019:
     runs-on: windows-2019
 
     strategy:
       fail-fast: false
       matrix:
-        target-node: [14, 16, 17]
+        target-node: [14, 16, 18]
         target-arch: [x64, arm64]
 
     steps:
