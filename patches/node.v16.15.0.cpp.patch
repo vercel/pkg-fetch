@@ -1,6 +1,6 @@
 --- node/common.gypi
 +++ node/common.gypi
-@@ -180,7 +180,7 @@
+@@ -183,7 +183,7 @@
                'MSVC_runtimeType': 2   # MultiThreadedDLL (/MD)
              }],
              ['llvm_version=="0.0"', {
@@ -189,7 +189,7 @@ index 0000000000..fb2d47f52b
 +}());
 --- node/lib/internal/bootstrap/pre_execution.js
 +++ node/lib/internal/bootstrap/pre_execution.js
-@@ -19,7 +19,12 @@ const { Buffer } = require('buffer');
+@@ -25,7 +25,12 @@ const { Buffer } = require('buffer');
  const { ERR_MANIFEST_ASSERT_INTEGRITY } = require('internal/errors').codes;
  const assert = require('internal/assert');
  
@@ -202,7 +202,7 @@ index 0000000000..fb2d47f52b
    // TODO(joyeecheung): this is also necessary for workers when they deserialize
    // this toggle from the snapshot.
    reconnectZeroFillToggle();
-@@ -92,7 +97,8 @@ function patchProcessObject(expandArgv1) {
+@@ -100,7 +105,8 @@ function patchProcessObject(expandArgv1) {
    process.argv[0] = process.execPath;
  
    if (expandArgv1 && process.argv[1] &&
@@ -256,7 +256,7 @@ index 0000000000..fb2d47f52b
      }
 --- node/src/inspector_agent.cc
 +++ node/src/inspector_agent.cc
-@@ -680,8 +680,6 @@ bool Agent::Start(const std::string& path,
+@@ -690,8 +690,6 @@ bool Agent::Start(const std::string& path,
                                StartIoThreadAsyncCallback));
      uv_unref(reinterpret_cast<uv_handle_t*>(&start_io_thread_async));
      start_io_thread_async.data = this;
@@ -481,7 +481,7 @@ index 0000000000..fb2d47f52b
 +}
 --- node/src/node_options.cc
 +++ node/src/node_options.cc
-@@ -253,6 +253,7 @@ void Parse(
+@@ -254,6 +254,7 @@ void Parse(
  // TODO(addaleax): Make that unnecessary.
  
  DebugOptionsParser::DebugOptionsParser() {
