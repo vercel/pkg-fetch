@@ -11,7 +11,7 @@
              }],
 --- node/deps/v8/include/v8-initialization.h
 +++ node/deps/v8/include/v8-initialization.h
-@@ -88,6 +88,10 @@ class V8_EXPORT V8 {
+@@ -89,6 +89,10 @@ class V8_EXPORT V8 {
    static void SetFlagsFromCommandLine(int* argc, char** argv,
                                        bool remove_flags);
  
@@ -24,7 +24,7 @@
  
 --- node/deps/v8/src/api/api.cc
 +++ node/deps/v8/src/api/api.cc
-@@ -730,6 +730,29 @@ void V8::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags) {
+@@ -710,6 +710,29 @@ void V8::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags) {
                                         HelpOptions(HelpOptions::kDontExit));
  }
  
@@ -56,7 +56,7 @@
  RegisteredExtension::RegisteredExtension(std::unique_ptr<Extension> extension)
 --- node/deps/v8/src/codegen/compiler.cc
 +++ node/deps/v8/src/codegen/compiler.cc
-@@ -2873,7 +2873,7 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
+@@ -2962,7 +2962,7 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
      // First check per-isolate compilation cache.
      maybe_result =
          compilation_cache->LookupScript(source, script_details, language_mode);
@@ -65,11 +65,61 @@
        compile_timer.set_hit_isolate_cache();
      } else if (can_consume_code_cache) {
        compile_timer.set_consuming_code_cache();
+--- node/deps/v8/src/flags/flag-definitions.h
++++ node/deps/v8/src/flags/flag-definitions.h
+@@ -744,14 +744,14 @@ DEFINE_BOOL(trace_baseline_concurrent_compilation, false,
+ DEFINE_BOOL(shared_string_table, false, "internalize strings into shared table")
+ DEFINE_IMPLICATION(harmony_struct, shared_string_table)
+ 
+-#if !defined(V8_OS_DARWIN) || !defined(V8_HOST_ARCH_ARM64)
+-DEFINE_BOOL(write_code_using_rwx, true,
+-            "flip permissions to rwx to write page instead of rw")
+-DEFINE_NEG_IMPLICATION(jitless, write_code_using_rwx)
+-#else
+-DEFINE_BOOL_READONLY(write_code_using_rwx, false,
+-                     "flip permissions to rwx to write page instead of rw")
+-#endif
++// #if !defined(V8_OS_DARWIN) || !defined(V8_HOST_ARCH_ARM64)
++// DEFINE_BOOL(write_code_using_rwx, true,
++//             "flip permissions to rwx to write page instead of rw")
++// DEFINE_NEG_IMPLICATION(jitless, write_code_using_rwx)
++// #else
++// DEFINE_BOOL_READONLY(write_code_using_rwx, false,
++//                      "flip permissions to rwx to write page instead of rw")
++// #endif
+ 
+ // Flags for concurrent recompilation.
+ DEFINE_BOOL(concurrent_recompilation, true,
+@@ -1778,7 +1778,7 @@ DEFINE_BOOL(rcs_cpu_time, false,
+ DEFINE_IMPLICATION(rcs_cpu_time, rcs)
+ 
+ // snapshot-common.cc
+-DEFINE_BOOL(verify_snapshot_checksum, true,
++DEFINE_BOOL(verify_snapshot_checksum, false,
+             "Verify snapshot checksums when deserializing snapshots. Enable "
+             "checksum creation and verification for code caches.")
+ DEFINE_BOOL(profile_deserialization, false,
+--- node/deps/v8/src/heap/memory-chunk.h
++++ node/deps/v8/src/heap/memory-chunk.h
+@@ -191,8 +191,11 @@ class MemoryChunk : public BasicMemoryChunk {
+   void InitializationMemoryFence();
+ 
+   static PageAllocator::Permission GetCodeModificationPermission() {
+-    return FLAG_write_code_using_rwx ? PageAllocator::kReadWriteExecute
+-                                     : PageAllocator::kReadWrite;
++#if defined(V8_OS_DARWIN) && defined(V8_HOST_ARCH_ARM64)
++    return PageAllocator::kReadWrite;
++#else
++    return PageAllocator::kReadWriteExecute;
++#endif
+   }
+ 
+   V8_EXPORT_PRIVATE void SetReadable();
 --- node/deps/v8/src/objects/js-function.cc
 +++ node/deps/v8/src/objects/js-function.cc
-@@ -949,6 +949,9 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
+@@ -1016,6 +1016,9 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
    Handle<Object> maybe_class_positions = JSReceiver::GetDataProperty(
-       function, isolate->factory()->class_positions_symbol());
+       isolate, function, isolate->factory()->class_positions_symbol());
    if (maybe_class_positions->IsClassPositions()) {
 +    if (String::cast(Script::cast(shared_info->script()).source()).IsUndefined(isolate)) {
 +      return isolate->factory()->NewStringFromAsciiChecked("class {}");
@@ -79,7 +129,7 @@
      int start_position = class_positions.start();
 --- node/deps/v8/src/objects/shared-function-info-inl.h
 +++ node/deps/v8/src/objects/shared-function-info-inl.h
-@@ -639,6 +639,14 @@ bool SharedFunctionInfo::ShouldFlushCode(
+@@ -633,6 +633,14 @@ bool SharedFunctionInfo::ShouldFlushCode(
    }
    if (!data.IsBytecodeArray()) return false;
  
@@ -112,45 +162,18 @@
    Handle<String> source(String::cast(script->source()), isolate);
    isolate->counters()->total_parse_size()->Increment(source->length());
    std::unique_ptr<Utf16CharacterStream> stream(
---- node/deps/v8/src/snapshot/code-serializer.cc
-+++ node/deps/v8/src/snapshot/code-serializer.cc
-@@ -556,11 +556,7 @@ SerializedCodeData::SerializedCodeData(const std::vector<byte>* payload,
- 
- SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
-     uint32_t expected_source_hash) const {
--  SanityCheckResult result = SanityCheckWithoutSource();
--  if (result != CHECK_SUCCESS) return result;
--  uint32_t source_hash = GetHeaderValue(kSourceHashOffset);
--  if (source_hash != expected_source_hash) return SOURCE_MISMATCH;
--  return CHECK_SUCCESS;
-+  return SanityCheckWithoutSource();
- }
- 
- SerializedCodeData::SanityCheckResult
-@@ -569,11 +565,9 @@ SerializedCodeData::SanityCheckWithoutSource() const {
-   uint32_t magic_number = GetMagicNumber();
-   if (magic_number != kMagicNumber) return MAGIC_NUMBER_MISMATCH;
-   uint32_t version_hash = GetHeaderValue(kVersionHashOffset);
--  uint32_t flags_hash = GetHeaderValue(kFlagHashOffset);
-   uint32_t payload_length = GetHeaderValue(kPayloadLengthOffset);
-   uint32_t c = GetHeaderValue(kChecksumOffset);
-   if (version_hash != Version::Hash()) return VERSION_MISMATCH;
--  if (flags_hash != FlagList::Hash()) return FLAGS_MISMATCH;
-   uint32_t max_payload_length = this->size_ - kHeaderSize;
-   if (payload_length > max_payload_length) return LENGTH_MISMATCH;
-   if (Checksum(ChecksummedContent()) != c) return CHECKSUM_MISMATCH;
 --- node/lib/child_process.js
 +++ node/lib/child_process.js
-@@ -163,7 +163,7 @@ function fork(modulePath, args = [], options) {
-   options.execPath = options.execPath || process.execPath;
-   options.shell = false;
+@@ -160,7 +160,7 @@ function fork(modulePath, args = [], options) {
+     throw new ERR_CHILD_PROCESS_IPC_REQUIRED('options.stdio');
+   }
  
 -  return spawn(options.execPath, args, options);
 +  return module.exports.spawn(options.execPath, args, options);
  }
  
  function _forkChild(fd, serializationMode) {
-index 00000000000..fb2d47f52b6
+index 0000000000..fb2d47f52b
 --- /dev/null
 +++ node/lib/internal/bootstrap/pkg.js
 @@ -0,0 +1,44 @@
@@ -200,20 +223,21 @@ index 00000000000..fb2d47f52b6
 +}());
 --- node/lib/internal/bootstrap/pre_execution.js
 +++ node/lib/internal/bootstrap/pre_execution.js
-@@ -23,7 +23,12 @@ const { Buffer } = require('buffer');
- const { ERR_MANIFEST_ASSERT_INTEGRITY } = require('internal/errors').codes;
+@@ -32,8 +32,13 @@ const {
+ } = require('internal/errors').codes;
  const assert = require('internal/assert');
  
 +let _alreadyPrepared = false;
 +
- function prepareMainThreadExecution(expandArgv1 = false) {
+ function prepareMainThreadExecution(expandArgv1 = false,
+                                     initialzeModules = true) {
 +  if (_alreadyPrepared === true) return;
 +  _alreadyPrepared = true;
 +
+   refreshRuntimeOptions();
+ 
    // TODO(joyeecheung): this is also necessary for workers when they deserialize
-   // this toggle from the snapshot.
-   reconnectZeroFillToggle();
-@@ -98,7 +103,8 @@ function patchProcessObject(expandArgv1) {
+@@ -122,7 +127,8 @@ function patchProcessObject(expandArgv1) {
    process.argv[0] = process.execPath;
  
    if (expandArgv1 && process.argv[1] &&
@@ -223,6 +247,14 @@ index 00000000000..fb2d47f52b6
      // Expand process.argv[1] into a full path.
      const path = require('path');
      try {
+@@ -615,6 +621,7 @@ function loadPreloadModules() {
+   // For user code, we preload modules if `-r` is passed
+   const preloadModules = getOptionValue('--require');
+   if (preloadModules && preloadModules.length > 0) {
++    assert(false, '--require is not supported');
+     const {
+       Module: {
+         _preloadModules
 --- node/lib/internal/modules/cjs/loader.js
 +++ node/lib/internal/modules/cjs/loader.js
 @@ -86,7 +86,7 @@ const fs = require('fs');
@@ -278,7 +310,7 @@ index 00000000000..fb2d47f52b6
        Environment* env = static_cast<Environment*>(data);
 --- node/src/node.cc
 +++ node/src/node.cc
-@@ -473,6 +473,8 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
+@@ -483,6 +483,8 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
      return scope.EscapeMaybe(cb(info));
    }
  
@@ -287,7 +319,7 @@ index 00000000000..fb2d47f52b6
    if (env->worker_context() != nullptr) {
      return StartExecution(env, "internal/main/worker_thread");
    }
-@@ -583,13 +585,6 @@ static struct {
+@@ -601,13 +603,6 @@ static struct {
  
  inline void PlatformInit() {
  #ifdef __POSIX__
@@ -301,7 +333,7 @@ index 00000000000..fb2d47f52b6
    // Make sure file descriptors 0-2 are valid before we start logging anything.
    for (auto& s : stdio) {
      const int fd = &s - stdio;
-@@ -605,10 +600,6 @@ inline void PlatformInit() {
+@@ -623,10 +618,6 @@ inline void PlatformInit() {
        ABORT();
    }
  
@@ -492,7 +524,7 @@ index 00000000000..fb2d47f52b6
 +}
 --- node/src/node_options.cc
 +++ node/src/node_options.cc
-@@ -257,6 +257,7 @@ void Parse(
+@@ -275,6 +275,7 @@ void Parse(
  // TODO(addaleax): Make that unnecessary.
  
  DebugOptionsParser::DebugOptionsParser() {
