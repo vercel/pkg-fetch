@@ -65,56 +65,6 @@
        compile_timer.set_hit_isolate_cache();
      } else if (can_consume_code_cache) {
        compile_timer.set_consuming_code_cache();
---- node/deps/v8/src/flags/flag-definitions.h
-+++ node/deps/v8/src/flags/flag-definitions.h
-@@ -744,14 +744,14 @@ DEFINE_BOOL(trace_baseline_concurrent_compilation, false,
- DEFINE_BOOL(shared_string_table, false, "internalize strings into shared table")
- DEFINE_IMPLICATION(harmony_struct, shared_string_table)
- 
--#if !defined(V8_OS_DARWIN) || !defined(V8_HOST_ARCH_ARM64)
--DEFINE_BOOL(write_code_using_rwx, true,
--            "flip permissions to rwx to write page instead of rw")
--DEFINE_NEG_IMPLICATION(jitless, write_code_using_rwx)
--#else
--DEFINE_BOOL_READONLY(write_code_using_rwx, false,
--                     "flip permissions to rwx to write page instead of rw")
--#endif
-+// #if !defined(V8_OS_DARWIN) || !defined(V8_HOST_ARCH_ARM64)
-+// DEFINE_BOOL(write_code_using_rwx, true,
-+//             "flip permissions to rwx to write page instead of rw")
-+// DEFINE_NEG_IMPLICATION(jitless, write_code_using_rwx)
-+// #else
-+// DEFINE_BOOL_READONLY(write_code_using_rwx, false,
-+//                      "flip permissions to rwx to write page instead of rw")
-+// #endif
- 
- // Flags for concurrent recompilation.
- DEFINE_BOOL(concurrent_recompilation, true,
-@@ -1778,7 +1778,7 @@ DEFINE_BOOL(rcs_cpu_time, false,
- DEFINE_IMPLICATION(rcs_cpu_time, rcs)
- 
- // snapshot-common.cc
--DEFINE_BOOL(verify_snapshot_checksum, true,
-+DEFINE_BOOL(verify_snapshot_checksum, false,
-             "Verify snapshot checksums when deserializing snapshots. Enable "
-             "checksum creation and verification for code caches.")
- DEFINE_BOOL(profile_deserialization, false,
---- node/deps/v8/src/heap/memory-chunk.h
-+++ node/deps/v8/src/heap/memory-chunk.h
-@@ -191,8 +191,11 @@ class MemoryChunk : public BasicMemoryChunk {
-   void InitializationMemoryFence();
- 
-   static PageAllocator::Permission GetCodeModificationPermission() {
--    return FLAG_write_code_using_rwx ? PageAllocator::kReadWriteExecute
--                                     : PageAllocator::kReadWrite;
-+#if defined(V8_OS_DARWIN) && defined(V8_HOST_ARCH_ARM64)
-+    return PageAllocator::kReadWrite;
-+#else
-+    return PageAllocator::kReadWriteExecute;
-+#endif
-   }
- 
-   V8_EXPORT_PRIVATE void SetReadable();
 --- node/deps/v8/src/objects/js-function.cc
 +++ node/deps/v8/src/objects/js-function.cc
 @@ -1016,6 +1016,9 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
@@ -162,6 +112,32 @@
    Handle<String> source(String::cast(script->source()), isolate);
    isolate->counters()->total_parse_size()->Increment(source->length());
    std::unique_ptr<Utf16CharacterStream> stream(
+--- node/deps/v8/src/snapshot/code-serializer.cc
++++ node/deps/v8/src/snapshot/code-serializer.cc
+@@ -590,11 +590,7 @@ SerializedCodeSanityCheckResult SerializedCodeData::SanityCheck(
+ }
+ 
+ SerializedCodeSanityCheckResult SerializedCodeData::SanityCheckJustSource(
+-    uint32_t expected_source_hash) const {
+-  uint32_t source_hash = GetHeaderValue(kSourceHashOffset);
+-  if (source_hash != expected_source_hash) {
+-    return SerializedCodeSanityCheckResult::kSourceMismatch;
+-  }
++    uint32_t) const {
+   return SerializedCodeSanityCheckResult::kSuccess;
+ }
+ 
+@@ -611,10 +607,6 @@ SerializedCodeSanityCheckResult SerializedCodeData::SanityCheckWithoutSource()
+   if (version_hash != Version::Hash()) {
+     return SerializedCodeSanityCheckResult::kVersionMismatch;
+   }
+-  uint32_t flags_hash = GetHeaderValue(kFlagHashOffset);
+-  if (flags_hash != FlagList::Hash()) {
+-    return SerializedCodeSanityCheckResult::kFlagsMismatch;
+-  }
+   uint32_t payload_length = GetHeaderValue(kPayloadLengthOffset);
+   uint32_t max_payload_length = this->size_ - kHeaderSize;
+   if (payload_length > max_payload_length) {
 --- node/lib/child_process.js
 +++ node/lib/child_process.js
 @@ -160,7 +160,7 @@ function fork(modulePath, args = [], options) {
