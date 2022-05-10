@@ -19,11 +19,15 @@ import { downloadUrl, hash, plusx } from './utils';
 import patchesJson from '../patches/patches.json';
 import { version } from '../package.json';
 
+const { PKG_FETCH_MIRROR } = process.env;
+
 async function download(
   { tag, name }: Remote,
   local: string
 ): Promise<boolean> {
-  const url = `https://github.com/vercel/pkg-fetch/releases/download/${tag}/${name}`;
+  const url = typeof PKG_FETCH_MIRROR !== "undefined" ?
+      `${PKG_FETCH_MIRROR}/${tag}/${name}` :
+      `https://github.com/vercel/pkg-fetch/releases/download/${tag}/${name}`;
 
   try {
     await downloadUrl(url, local);
