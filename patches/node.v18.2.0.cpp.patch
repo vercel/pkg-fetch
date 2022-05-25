@@ -199,7 +199,7 @@ index 0000000000..fb2d47f52b
 +}());
 --- node/lib/internal/bootstrap/pre_execution.js
 +++ node/lib/internal/bootstrap/pre_execution.js
-@@ -32,8 +32,13 @@ const {
+@@ -29,8 +29,13 @@ const {
  } = require('internal/errors').codes;
  const assert = require('internal/assert');
  
@@ -213,7 +213,7 @@ index 0000000000..fb2d47f52b
    refreshRuntimeOptions();
  
    // TODO(joyeecheung): this is also necessary for workers when they deserialize
-@@ -122,7 +127,8 @@ function patchProcessObject(expandArgv1) {
+@@ -119,7 +124,8 @@ function patchProcessObject(expandArgv1) {
    process.argv[0] = process.execPath;
  
    if (expandArgv1 && process.argv[1] &&
@@ -223,7 +223,7 @@ index 0000000000..fb2d47f52b
      // Expand process.argv[1] into a full path.
      const path = require('path');
      try {
-@@ -615,6 +621,7 @@ function loadPreloadModules() {
+@@ -574,6 +580,7 @@ function loadPreloadModules() {
    // For user code, we preload modules if `-r` is passed
    const preloadModules = getOptionValue('--require');
    if (preloadModules && preloadModules.length > 0) {
@@ -286,7 +286,7 @@ index 0000000000..fb2d47f52b
        Environment* env = static_cast<Environment*>(data);
 --- node/src/node.cc
 +++ node/src/node.cc
-@@ -483,6 +483,8 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
+@@ -482,6 +482,8 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
      return scope.EscapeMaybe(cb(info));
    }
  
@@ -295,7 +295,7 @@ index 0000000000..fb2d47f52b
    if (env->worker_context() != nullptr) {
      return StartExecution(env, "internal/main/worker_thread");
    }
-@@ -601,13 +603,6 @@ static struct {
+@@ -600,13 +602,6 @@ static struct {
  
  inline void PlatformInit() {
  #ifdef __POSIX__
@@ -309,7 +309,7 @@ index 0000000000..fb2d47f52b
    // Make sure file descriptors 0-2 are valid before we start logging anything.
    for (auto& s : stdio) {
      const int fd = &s - stdio;
-@@ -623,10 +618,6 @@ inline void PlatformInit() {
+@@ -622,10 +617,6 @@ inline void PlatformInit() {
        ABORT();
    }
  
@@ -330,7 +330,7 @@ index 0000000000..fb2d47f52b
  using v8::Value;
  using v8::WeakCallbackInfo;
  using v8::WeakCallbackType;
-@@ -709,11 +710,12 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -701,11 +702,12 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
    Local<ArrayBufferView> cached_data_buf;
    bool produce_cached_data = false;
    Local<Context> parsing_context = context;
@@ -344,7 +344,7 @@ index 0000000000..fb2d47f52b
      CHECK(args[2]->IsNumber());
      line_offset = args[2].As<Int32>()->Value();
      CHECK(args[3]->IsNumber());
-@@ -732,6 +734,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -724,6 +726,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
        CHECK_NOT_NULL(sandbox);
        parsing_context = sandbox->context();
      }
@@ -352,7 +352,7 @@ index 0000000000..fb2d47f52b
    }
  
    ContextifyScript* contextify_script =
-@@ -784,6 +787,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -776,6 +779,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
    ShouldNotAbortOnUncaughtScope no_abort_scope(env);
    Context::Scope scope(parsing_context);
  
@@ -363,7 +363,7 @@ index 0000000000..fb2d47f52b
    MaybeLocal<UnboundScript> v8_script = ScriptCompiler::CompileUnboundScript(
        isolate,
        &source,
-@@ -800,6 +807,13 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -792,6 +799,13 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
          contextify_script);
      return;
    }
@@ -377,7 +377,7 @@ index 0000000000..fb2d47f52b
    contextify_script->script_.Reset(isolate, v8_script.ToLocalChecked());
  
    Local<Context> env_context = env->context();
-@@ -826,6 +840,11 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -818,6 +832,11 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
          env->cached_data_produced_string(),
          Boolean::New(isolate, cached_data_produced)).Check();
    }
