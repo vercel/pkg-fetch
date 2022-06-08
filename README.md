@@ -43,3 +43,32 @@ This project deploys multiple defense measures to ensure that the safe binaries 
   - Easy to spot a compromise.
 - `pkg-fetch` package on npm is strictly permission-controlled
   - Only authorized Vercel employees can push new revisions to npm.
+
+## Contributing Updates to Patches
+
+The expectation is that a patch applies cleanly, with no delta or offsets from
+the source repo.
+
+When making a change to a patch file, it is possible to apply that patch without
+building by running
+
+`yarn applyPatches --node-range node18`
+
+where the `--node-range` can be specified to apply patches for the version of
+node for which you are updating patches. If unspecified, the latest node version
+in [patches.json](./patches/patches.json) will be used.
+
+Ultimately, the patch should result in fully functional node binary, but the
+`applyPatches` script can be used to quickly iterate just the application of
+the patches you are updating without needing to wait for the full build to
+complete.
+
+## Building a Binary Locally
+
+You can use the `yarn start` script to build the binary locally, which is helpful
+when updating patches to ensure functionality before pushing patch updates for
+review.
+
+For example:
+
+`yarn start --node-range node18 --arch x64 --output dist`
