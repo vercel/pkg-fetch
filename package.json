@@ -1,6 +1,6 @@
 {
   "name": "pkg-fetch",
-  "version": "3.4.1",
+  "version": "3.4.2",
   "description": "Compiles and stores base binaries for pkg",
   "main": "lib-es5/index.js",
   "license": "MIT",
