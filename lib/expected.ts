@@ -77,93 +77,80 @@ export const EXPECTED_HASHES: Record<string, string> = {
   'node-v12.22.11-linuxstatic-arm64':
     '0c5b03cbe32ce50f16dbb35769a2a897b30e8fdb2137c4799edb55898b475622',
 
-  // 882b49630f108374ad637506e1d38325037859ec
-  // alpine: https://github.com/vercel/pkg-fetch/actions/runs/2272569195
-  // linux: https://github.com/vercel/pkg-fetch/actions/runs/2272569721
-  // linuxstatic: https://github.com/vercel/pkg-fetch/actions/runs/2272570046
-  // macos: https://github.com/vercel/pkg-fetch/actions/runs/2272570838
-  // win: https://github.com/vercel/pkg-fetch/actions/runs/2272570360
-  'node-v16.15.0-alpine-x64':
-    '6669595d6c7d188f426ce9cfb41e091b5e41432e9db5a7c3dbaf39c5054f24fd',
-  'node-v16.15.0-linux-x64':
-    'b11f7c22761fb60c285cc53a23526df7e7e5566332d3a5dd8298bf95cb9d53d0',
-  'node-v16.15.0-linuxstatic-x64':
-    'ef959fa67f611047968db182eb11688614b54c3a5af0ad82d148b2b057880dea',
-  'node-v16.15.0-macos-x64':
-    '3e53acb241d1b9c1d73f3f48a7604c60da4947e4d37651bbec0d06301e2336db',
-  'node-v16.15.0-win-arm64':
-    '2a9b91485485cf801629e8a07ee9a9f6e44b9ea38e2adc81728c14840cd74dd1',
-  'node-v16.15.0-win-x64':
-    'b47e0bec43626816d554d6d50d289131ac86a6578da7dd6916208f34a885aa97',
+  // 6ffa969bc037f33cd5c926b8706324740c8818af
+  // alpine: https://github.com/vercel/pkg-fetch/actions/runs/2638965835
+  // linux: https://github.com/vercel/pkg-fetch/actions/runs/2638965968
+  // linuxstatic: https://github.com/vercel/pkg-fetch/actions/runs/2638966056
+  // macos: https://github.com/vercel/pkg-fetch/actions/runs/2638966552
+  // win: https://github.com/vercel/pkg-fetch/actions/runs/2638966247
+  'node-v14.20.0-alpine-x64':
+    'bd48f87a845825d7321ff436ab0ecf59c71ac53356fed3b6ba2a841e06a75945',
+  'node-v14.20.0-linux-x64':
+    'f3149f4772c6bc41180017d325e27b1465213acd684164e26fbc64e1f2f97dcf',
+  'node-v14.20.0-linuxstatic-x64':
+    'a23a2fe6f1d75bb6d1faed1221e47fb3ff4789a23018709d919c5d24a3b17ce2',
+  'node-v14.20.0-macos-x64':
+    'afda9c14e5f3fc18d40b7cd05c6a8ba42284c28928b29e47b9b99125d41ebce6',
+  'node-v14.20.0-win-arm64':
+    'd9911fcdcedd1f5b227bd7d0ac3ef819a411976f6eb9550e2275a3c4fe93b97b',
+  'node-v14.20.0-win-x64':
+    'f71330035700705ae39bfaac80b9270c8f75631b06b25f21b06d7359d9cd6c24',
+  'node-v16.16.0-alpine-x64':
+    '2c4caf90c620f4839277edf8dfb4fd1d259294a2bfbed2b90bb6063a6e0c9d23',
+  'node-v16.16.0-linux-x64':
+    'f1a561aadf78e438e73b043a3c5d7b9fe075d7abcaaec6f29d9e2a0ba00d3a69',
+  'node-v16.16.0-linuxstatic-x64':
+    '8a888553a4855f3b01ea91a398eb3112b0d5f58f5f0112e9fecf6621615201ce',
+  'node-v16.16.0-macos-x64':
+    '321fcef798383c6e19d7ae242bc73dd1f1c7471499b00ee6b105c764645d9263',
+  'node-v16.16.0-win-x64':
+    'b6c5f9a5bce3b451b6d59153eae6db1a87016edc3775ef9eae39f86485735672',
+  'node-v18.5.0-alpine-x64':
+    '8cdc988b31d52b5c5e8112f82f798aa9c815b7d861e689f40ba2e33b782e0e35',
+  'node-v18.5.0-linux-x64':
+    '25ea58e212ecac6c36df03281676aca934f4fec6a05fe9f0da8d3e01778df12c',
+  'node-v18.5.0-linuxstatic-x64':
+    '18f09486dae0ca6ebc48c7bf3f68fa85baeac8279c2b407bb25e8b5941c46556',
+  'node-v18.5.0-macos-x64':
+    '63c5a7f59ea2d4c04c4d033be8844be894ce018c43b2ea61ed5ccc38b833e435',
+  'node-v18.5.0-win-arm64':
+    '02e317e399fecc4a21facc365ff51268555b1a347c4f2720956a12e843b99783',
+  'node-v18.5.0-win-x64':
+    'e0e9a647d81011612f8cb19c6a41760643eedd27222af548e9ffdff7d8ebb94b',
 
-  // 882b49630f108374ad637506e1d38325037859ec
-  // alpine: https://github.com/jesec/pkg-fetch/actions/runs/2265963455
-  // linux: https://github.com/jesec/pkg-fetch/actions/runs/2265963863
-  // linuxstatic: https://github.com/jesec/pkg-fetch/actions/runs/2265964135
-  // macos: https://github.com/jesec/pkg-fetch/actions/runs/2265964580
-  'node-v16.15.0-alpine-arm64':
-    '5904f35c1a1ebada7ba8160a6a2c556495c429974aaebf6a67b5a93f9dee6da8',
-  'node-v16.15.0-linux-arm64':
-    'a1e97181839b72f033a837bb9b2772de9303414ec40bae721a4e320d3b904945',
-  'node-v16.15.0-linuxstatic-arm64':
-    'e7bec9a8aa5d4a96fe571acdfb08da73a29f428dbb8179d3c43454488b5dd594',
-  'node-v16.15.0-linuxstatic-armv7':
-    'c56d31fae993579ec531e02ef64482fc78dc8053e9f15eaeeb0a1fb2f954060c',
-  'node-v16.15.0-macos-arm64':
-    '54d08f2a33d08cb873c97f1dfc527f76f0d0700f46bfd619e967f611c0c20112',
-
-  // f0e3aec71bdd9597d9e679a89ea16bc7fecf6e9e
-  // alpine: https://github.com/vercel/pkg-fetch/actions/runs/2274321593
-  // linux: https://github.com/vercel/pkg-fetch/actions/runs/2274321798
-  // linuxstatic: https://github.com/vercel/pkg-fetch/actions/runs/2274322148
-  // macos: https://github.com/vercel/pkg-fetch/actions/runs/2274322529
-  // win: https://github.com/vercel/pkg-fetch/actions/runs/2274322330
-  'node-v14.19.2-alpine-x64':
-    'b5de2317ec128125f8ba929fe83e128105ee2de5d5f5e1360e25745b681b67e4',
-  'node-v14.19.2-linux-x64':
-    'f77201b1bf2c5cf342c0ad1f954a7ab5a918c2d7a00f29a0b9593fc60eb89c22',
-  'node-v14.19.2-linuxstatic-x64':
-    '53cf028cd4aaccf6255219cfc9fa58580ed378d5664df2ba63e0b9b844e2f7b8',
-  'node-v14.19.2-macos-x64':
-    'abbb5293109726354cfb832436ebf4bd708ee3e14235bcd8e1bda7f6fc8354d0',
-  'node-v14.19.2-win-arm64':
-    '101ff4befbd9bee4fd937a4436dfccafb60c8c62c14b88580450deba1a036359',
-  'node-v14.19.2-win-x64':
-    'b18e4954fbd986472c2a1e47ba416fd8a2db47166cb482e5b08254abed03a499',
-  'node-v18.1.0-alpine-x64':
-    '24d51e141a8240185705261942389cc358d7a28baa9b99585d2776447201c0a0',
-  'node-v18.1.0-linux-x64':
-    '45a2a9eed355991c67ab5ee90c58b09ddaf4b029ab17ca7b92fca3dedeaa9987',
-  'node-v18.1.0-linuxstatic-x64':
-    'a645ae7501d6a6f7b5a01ef3ca88b54e89aeba2e1424e12cb6f7a28708b935c6',
-  'node-v18.1.0-macos-x64':
-    'd054a37e808996a3f8e02747be37d7f3b849494b336cef22312926db3d874032',
-  'node-v18.1.0-win-arm64':
-    '62fa643bab077f6019097b5523467e95eef5b9de9aee38cf542f9d5baf5a0906',
-  'node-v18.1.0-win-x64':
-    'f60ece45b5e77288d3698d9f15d705f835bce5508fb5a1f7bd8402fd5cacf263',
-
-  // f0e3aec71bdd9597d9e679a89ea16bc7fecf6e9e
-  // alpine: https://github.com/jesec/pkg-fetch/actions/runs/2265963455
-  // linux: https://github.com/jesec/pkg-fetch/actions/runs/2265963863
-  // linuxstatic: https://github.com/jesec/pkg-fetch/actions/runs/2265964135
-  // macos: https://github.com/jesec/pkg-fetch/actions/runs/2265964580
-  'node-v14.19.2-alpine-arm64':
-    '4fb52691247adb2cd272a70d378d71ce61f329c9be6a9d8b4ef9e0511128e23f',
-  'node-v14.19.2-linux-arm64':
-    'abf0167b8d8591b0e672a093483ab61c119ba13187e0cb07669bc2af922c59f7',
-  'node-v14.19.2-linuxstatic-arm64':
-    '06c65d143afb80ebee144943031dcc7a4436de3372e40495b9250afb958c9f0b',
-  'node-v14.19.2-macos-arm64':
-    'b2e44ef19486831fa7170dbfd7fa8c5ce6581dd998d5f0b31852c1d4d358797a',
-  'node-v18.1.0-alpine-arm64':
-    'f212a7388641ed5f6bc6e4a799796593f37bab816fd1c8a67d10a4a0a270c6fa',
-  'node-v18.1.0-linux-arm64':
-    '19220251dc81ee3b2a19985a7bc72a417ebbc6d00190a6ebfa7f81b6cf9763f0',
-  'node-v18.1.0-linuxstatic-arm64':
-    'c5e20ac95b97606cda429c44aee90c46e72fadb6318f11ce2ceb893590abd173',
-  'node-v18.1.0-linuxstatic-armv7':
-    '9bd0db13aaed57c07585b114fc702f099a6ac46437334b9c84d7ce1fa3d0f9b7',
-  'node-v18.1.0-macos-arm64':
-    '3ece077dde3eb5603355f5ae259956496b5b3b055bfda5cca35ce986bca7be1a',
+  // 6ffa969bc037f33cd5c926b8706324740c8818af
+  // alpine: https://github.com/jesec/pkg-fetch/actions/runs/2639071916
+  // linux: https://github.com/jesec/pkg-fetch/actions/runs/2639072106
+  // linuxstatic: https://github.com/jesec/pkg-fetch/actions/runs/2639072371
+  // macos: https://github.com/jesec/pkg-fetch/actions/runs/2639072571
+  'node-v14.20.0-alpine-arm64':
+    'b0be3a7904f2c79bdb8e2b61018d9aa7f55e0778c4c768c4d65017931369a762',
+  'node-v14.20.0-linux-arm64':
+    'fa26fed989a0710e82eaf09bd727f3501ab80d487da4baa076ab50267e47bbde',
+  'node-v14.20.0-linuxstatic-arm64':
+    'b645ee721e1f12d9a45e1a529e28038c0eb757de4bb74ba3b585999e3160a767',
+  'node-v14.20.0-macos-arm64':
+    'c101f9378cf40d62400612f57efea3e4b0e9951b110aea6a50dbf3aff84ea45f',
+  'node-v16.16.0-alpine-arm64':
+    'c38f270d190fd1f5d8e74800b62408d06f4492720fec1fd46414a7f504114847',
+  'node-v16.16.0-linux-arm64':
+    'e3913ecef725f83ccbd2181d7d33043f8b3e72466d09897c338ee328cffc3bfe',
+  'node-v16.16.0-linuxstatic-arm64':
+    'aac0039a2b380057085a4b927637c6e5550eabfd55d1ca2f98e022abccfd7390',
+  'node-v16.16.0-linuxstatic-armv7':
+    'cbe14ff111fd3d1ecb82cf6aaec5a53588537008fdcfab4bc2c880d651f5580a',
+  'node-v16.16.0-macos-arm64':
+    'd9140eebaa88620b9692d6e11cc2d92b2b56f791a6bbeddd771f5e07d042e1bc',
+  'node-v16.16.0-win-arm64':
+    'e078fd200f6f0cd2e84ba668711a5cc9c7f0d20d36fae1bfe4bc361f40f5923f',
+  'node-v18.5.0-alpine-arm64':
+    'e227164d7a0683b42a1a5659a997d7b8a843ffe293b291f0063a8afb08b657ca',
+  'node-v18.5.0-linux-arm64':
+    'e562c0d81643de3b06b9900936ebde263373ca7bdaf42a8eacca8d020b2ce21e',
+  'node-v18.5.0-linuxstatic-arm64':
+    '073f9252693bd35a4184a24bdc503aa6dc1300def7a96564c83221e4d3272c5a',
+  'node-v18.5.0-linuxstatic-armv7':
+    'eb32af2e74028d303933b4fd4d13e1fc3c6854cfa65e962dfe31903cff69ef74',
+  'node-v18.5.0-macos-arm64':
+    '242917bdb26a1b53726f82483bc68ce0609cc8772df401b2eb163dc6b3d6ddfe',
 };
