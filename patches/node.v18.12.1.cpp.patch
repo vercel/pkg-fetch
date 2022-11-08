@@ -1,6 +1,6 @@
 --- node/common.gypi
 +++ node/common.gypi
-@@ -171,7 +171,7 @@
+@@ -174,7 +174,7 @@
                'MSVC_runtimeType': 2   # MultiThreadedDLL (/MD)
              }],
              ['llvm_version=="0.0"', {
@@ -9,10 +9,10 @@
              }, {
                'lto': ' -flto ', # Clang
              }],
---- node/deps/v8/include/v8.h
-+++ node/deps/v8/include/v8.h
-@@ -9633,6 +9633,10 @@ class V8_EXPORT V8 {
-                                       char** argv,
+--- node/deps/v8/include/v8-initialization.h
++++ node/deps/v8/include/v8-initialization.h
+@@ -89,6 +89,10 @@ class V8_EXPORT V8 {
+   static void SetFlagsFromCommandLine(int* argc, char** argv,
                                        bool remove_flags);
  
 +  static void EnableCompilationForSourcelessUse();
@@ -24,14 +24,12 @@
  
 --- node/deps/v8/src/api/api.cc
 +++ node/deps/v8/src/api/api.cc
-@@ -840,6 +840,34 @@ void V8::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags) {
-   i::FlagList::SetFlagsFromCommandLine(argc, argv, remove_flags);
+@@ -709,6 +709,29 @@ void V8::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags) {
+                                        HelpOptions(HelpOptions::kDontExit));
  }
  
-+
 +bool save_lazy;
 +bool save_predictable;
-+
 +
 +void V8::EnableCompilationForSourcelessUse() {
 +  save_lazy = i::FLAG_lazy;
@@ -40,12 +38,10 @@
 +  i::FLAG_predictable = true;
 +}
 +
-+
 +void V8::DisableCompilationForSourcelessUse() {
 +  i::FLAG_lazy = save_lazy;
 +  i::FLAG_predictable = save_predictable;
 +}
-+
 +
 +void V8::FixSourcelessScript(Isolate* v8_isolate, Local<UnboundScript> unbound_script) {
 +  auto isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
@@ -55,26 +51,25 @@
 +  script->set_source(i::ReadOnlyRoots(isolate).undefined_value());
 +}
 +
-+
  RegisteredExtension* RegisteredExtension::first_extension_ = nullptr;
  
  RegisteredExtension::RegisteredExtension(std::unique_ptr<Extension> extension)
 --- node/deps/v8/src/codegen/compiler.cc
 +++ node/deps/v8/src/codegen/compiler.cc
-@@ -2365,7 +2365,7 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
-         source, script_details.name_obj, script_details.line_offset,
-         script_details.column_offset, origin_options, isolate->native_context(),
-         language_mode);
+@@ -3026,7 +3026,7 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
+     // First check per-isolate compilation cache.
+     maybe_result =
+         compilation_cache->LookupScript(source, script_details, language_mode);
 -    if (!maybe_result.is_null()) {
 +    if (!maybe_result.is_null() && source_length) {
        compile_timer.set_hit_isolate_cache();
      } else if (can_consume_code_cache) {
        compile_timer.set_consuming_code_cache();
---- node/deps/v8/src/objects/js-objects.cc
-+++ node/deps/v8/src/objects/js-objects.cc
-@@ -5514,6 +5514,9 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
+--- node/deps/v8/src/objects/js-function.cc
++++ node/deps/v8/src/objects/js-function.cc
+@@ -1207,6 +1207,9 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
    Handle<Object> maybe_class_positions = JSReceiver::GetDataProperty(
-       function, isolate->factory()->class_positions_symbol());
+       isolate, function, isolate->factory()->class_positions_symbol());
    if (maybe_class_positions->IsClassPositions()) {
 +    if (String::cast(Script::cast(shared_info->script()).source()).IsUndefined(isolate)) {
 +      return isolate->factory()->NewStringFromAsciiChecked("class {}");
@@ -84,8 +79,8 @@
      int start_position = class_positions.start();
 --- node/deps/v8/src/objects/shared-function-info-inl.h
 +++ node/deps/v8/src/objects/shared-function-info-inl.h
-@@ -505,6 +505,14 @@ bool SharedFunctionInfo::ShouldFlushBytecode(BytecodeFlushMode mode) {
-   Object data = function_data();
+@@ -636,6 +636,14 @@ bool SharedFunctionInfo::ShouldFlushCode(
+   }
    if (!data.IsBytecodeArray()) return false;
  
 +  Object script_obj = script();
@@ -96,13 +91,13 @@
 +    }
 +  }
 +
-   if (mode == BytecodeFlushMode::kStressFlushBytecode) return true;
+   if (IsStressFlushingEnabled(code_flush_mode)) return true;
  
    BytecodeArray bytecode = BytecodeArray::cast(data);
 --- node/deps/v8/src/parsing/parsing.cc
 +++ node/deps/v8/src/parsing/parsing.cc
 @@ -42,6 +42,7 @@ bool ParseProgram(ParseInfo* info, Handle<Script> script,
-                   Isolate* isolate, ReportErrorsAndStatisticsMode mode) {
+                   Isolate* isolate, ReportStatisticsMode mode) {
    DCHECK(info->flags().is_toplevel());
    DCHECK_NULL(info->literal());
 +  if (String::cast(script->source()).IsUndefined(isolate)) return false;
@@ -119,54 +114,42 @@
    std::unique_ptr<Utf16CharacterStream> stream(
 --- node/deps/v8/src/snapshot/code-serializer.cc
 +++ node/deps/v8/src/snapshot/code-serializer.cc
-@@ -409,19 +409,29 @@ SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
-   uint32_t magic_number = GetMagicNumber();
-   if (magic_number != kMagicNumber) return MAGIC_NUMBER_MISMATCH;
-   uint32_t version_hash = GetHeaderValue(kVersionHashOffset);
--  uint32_t source_hash = GetHeaderValue(kSourceHashOffset);
-   uint32_t flags_hash = GetHeaderValue(kFlagHashOffset);
-   uint32_t payload_length = GetHeaderValue(kPayloadLengthOffset);
-   uint32_t c = GetHeaderValue(kChecksumOffset);
--  if (version_hash != Version::Hash()) return VERSION_MISMATCH;
--  if (source_hash != expected_source_hash) return SOURCE_MISMATCH;
--  if (flags_hash != FlagList::Hash()) return FLAGS_MISMATCH;
-+  if (version_hash != Version::Hash()) {
-+    base::OS::PrintError("Pkg: VERSION_MISMATCH\n");
-+    return VERSION_MISMATCH;
-+  }
-+  if (flags_hash != FlagList::Hash()) {
-+    // base::OS::PrintError("Pkg: FLAGS_MISMATCH\n");
-+    return FLAGS_MISMATCH;
-+  }
-   uint32_t max_payload_length =
-       this->size_ -
-       POINTER_SIZE_ALIGN(kHeaderSize +
-                          GetHeaderValue(kNumReservationsOffset) * kInt32Size);
--  if (payload_length > max_payload_length) return LENGTH_MISMATCH;
--  if (Checksum(ChecksummedContent()) != c) return CHECKSUM_MISMATCH;
-+  if (payload_length > max_payload_length) {
-+    base::OS::PrintError("Pkg: LENGTH_MISMATCH\n");
-+    return LENGTH_MISMATCH;
-+  }
-+  if (Checksum(ChecksummedContent()) != c) {
-+    base::OS::PrintError("Pkg: CHECKSUM_MISMATCH\n");
-+    return CHECKSUM_MISMATCH;
-+  }
-   return CHECK_SUCCESS;
+@@ -615,11 +615,7 @@ SerializedCodeSanityCheckResult SerializedCodeData::SanityCheck(
  }
  
+ SerializedCodeSanityCheckResult SerializedCodeData::SanityCheckJustSource(
+-    uint32_t expected_source_hash) const {
+-  uint32_t source_hash = GetHeaderValue(kSourceHashOffset);
+-  if (source_hash != expected_source_hash) {
+-    return SerializedCodeSanityCheckResult::kSourceMismatch;
+-  }
++    uint32_t) const {
+   return SerializedCodeSanityCheckResult::kSuccess;
+ }
+ 
+@@ -636,10 +632,6 @@ SerializedCodeSanityCheckResult SerializedCodeData::SanityCheckWithoutSource()
+   if (version_hash != Version::Hash()) {
+     return SerializedCodeSanityCheckResult::kVersionMismatch;
+   }
+-  uint32_t flags_hash = GetHeaderValue(kFlagHashOffset);
+-  if (flags_hash != FlagList::Hash()) {
+-    return SerializedCodeSanityCheckResult::kFlagsMismatch;
+-  }
+   uint32_t payload_length = GetHeaderValue(kPayloadLengthOffset);
+   uint32_t max_payload_length = this->size_ - kHeaderSize;
+   if (payload_length > max_payload_length) {
 --- node/lib/child_process.js
 +++ node/lib/child_process.js
-@@ -150,7 +150,7 @@ function fork(modulePath /* , args, options */) {
-   options.execPath = options.execPath || process.execPath;
-   options.shell = false;
+@@ -164,7 +164,7 @@ function fork(modulePath, args = [], options) {
+     throw new ERR_CHILD_PROCESS_IPC_REQUIRED('options.stdio');
+   }
  
 -  return spawn(options.execPath, args, options);
 +  return module.exports.spawn(options.execPath, args, options);
  }
  
  function _forkChild(fd, serializationMode) {
-index 0000000000..fb2d47f52b
+index 00000000000..fb2d47f52b6
 --- /dev/null
 +++ node/lib/internal/bootstrap/pkg.js
 @@ -0,0 +1,44 @@
@@ -174,7 +157,7 @@ index 0000000000..fb2d47f52b
 +
 +const {
 +  prepareMainThreadExecution
-+} = require('internal/bootstrap/pre_execution');
++} = require('internal/process/pre_execution');
 +
 +prepareMainThreadExecution(true);
 +
@@ -214,33 +197,43 @@ index 0000000000..fb2d47f52b
 +    }
 +  }());
 +}());
---- node/lib/internal/bootstrap/pre_execution.js
-+++ node/lib/internal/bootstrap/pre_execution.js
-@@ -18,7 +18,12 @@ const { Buffer } = require('buffer');
- const { ERR_MANIFEST_ASSERT_INTEGRITY } = require('internal/errors').codes;
- const assert = require('internal/assert');
- 
+--- node/lib/internal/process/pre_execution.js
++++ node/lib/internal/process/pre_execution.js
+@@ -33,8 +33,13 @@ const {
+   isBuildingSnapshot,
+ } = require('v8').startupSnapshot;
+
 +let _alreadyPrepared = false;
 +
- function prepareMainThreadExecution(expandArgv1 = false) {
+ function prepareMainThreadExecution(expandArgv1 = false,
+                                     initialzeModules = true) {
 +  if (_alreadyPrepared === true) return;
 +  _alreadyPrepared = true;
 +
-   // Patch the process object with legacy properties and normalizations
-   patchProcessObject(expandArgv1);
-   setupTraceCategoryState();
-@@ -88,7 +93,7 @@ function patchProcessObject(expandArgv1) {
+   refreshRuntimeOptions();
+
+   // TODO(joyeecheung): this is also necessary for workers when they deserialize
+@@ -128,7 +133,8 @@ function patchProcessObject(expandArgv1) {
    process.argv[0] = process.execPath;
  
    if (expandArgv1 && process.argv[1] &&
 -      !StringPrototypeStartsWith(process.argv[1], '-')) {
-+      !StringPrototypeStartsWith(process.argv[1], '-') && process.argv[1] !== 'PKG_DUMMY_ENTRYPOINT') {
++      !StringPrototypeStartsWith(process.argv[1], '-') &&
++      process.argv[1] !== 'PKG_DUMMY_ENTRYPOINT') {
      // Expand process.argv[1] into a full path.
      const path = require('path');
      try {
+@@ -589,6 +595,7 @@ function loadPreloadModules() {
+   // For user code, we preload modules if `-r` is passed
+   const preloadModules = getOptionValue('--require');
+   if (preloadModules && preloadModules.length > 0) {
++    assert(false, '--require is not supported');
+     const {
+       Module: {
+         _preloadModules
 --- node/lib/internal/modules/cjs/loader.js
 +++ node/lib/internal/modules/cjs/loader.js
-@@ -83,7 +83,7 @@ const fs = require('fs');
+@@ -92,7 +92,7 @@ const fs = require('fs');
  const internalFS = require('internal/fs/utils');
  const path = require('path');
  const { sep } = path;
@@ -262,7 +255,7 @@ index 0000000000..fb2d47f52b
  
 --- node/lib/vm.js
 +++ node/lib/vm.js
-@@ -78,6 +78,7 @@ class Script extends ContextifyScript {
+@@ -79,6 +79,7 @@ class Script extends ContextifyScript {
        produceCachedData = false,
        importModuleDynamically,
        [kParsingContext]: parsingContext,
@@ -270,7 +263,7 @@ index 0000000000..fb2d47f52b
      } = options;
  
      validateString(filename, 'options.filename');
-@@ -105,7 +106,8 @@ class Script extends ContextifyScript {
+@@ -103,7 +104,8 @@ class Script extends ContextifyScript {
              columnOffset,
              cachedData,
              produceCachedData,
@@ -280,31 +273,9 @@ index 0000000000..fb2d47f52b
      } catch (e) {
        throw e; /* node-do-not-add-exception-line */
      }
---- node/node.gyp
-+++ node/node.gyp
-@@ -236,6 +236,19 @@
-             'OTHER_LDFLAGS': [ '-Wl,-rpath,@loader_path', ],
-           },
-         }],
-+        [ 'enable_lto=="true"', {
-+          'xcode_settings': {
-+            'OTHER_LDFLAGS': [
-+              # man ld -export_dynamic:
-+              # Preserves all global symbols in main executables during LTO.
-+              # Without this option, Link Time Optimization is allowed to
-+              # inline and remove global functions. This option is used when
-+              # a main executable may load a plug-in which requires certain
-+              # symbols from the main executable.
-+              '-Wl,-export_dynamic',
-+            ],
-+          },
-+        }],
-         ['OS=="win"', {
-           'libraries': [
-             'Dbghelp.lib',
 --- node/src/inspector_agent.cc
 +++ node/src/inspector_agent.cc
-@@ -683,8 +683,6 @@ bool Agent::Start(const std::string& path,
+@@ -693,8 +693,6 @@ bool Agent::Start(const std::string& path,
                                StartIoThreadAsyncCallback));
      uv_unref(reinterpret_cast<uv_handle_t*>(&start_io_thread_async));
      start_io_thread_async.data = this;
@@ -315,50 +286,30 @@ index 0000000000..fb2d47f52b
        Environment* env = static_cast<Environment*>(data);
 --- node/src/node.cc
 +++ node/src/node.cc
-@@ -386,6 +386,9 @@ MaybeLocal<Value> Environment::BootstrapNode() {
-   return scope.EscapeMaybe(result);
- }
- 
-+static
-+MaybeLocal<Value> StartExecution(Environment* env, const char* main_script_id);
-+
- MaybeLocal<Value> Environment::RunBootstrapping() {
-   EscapableHandleScope scope(isolate_);
- 
-@@ -409,6 +412,8 @@ MaybeLocal<Value> Environment::RunBootstrapping() {
- 
-   set_has_run_bootstrapping_code(true);
- 
-+  USE(StartExecution(this, "internal/bootstrap/pkg"));
-+
-   return scope.Escape(result);
- }
- 
-@@ -573,13 +578,6 @@ static struct {
- 
- inline void PlatformInit() {
- #ifdef __POSIX__
--#if HAVE_INSPECTOR
--  sigset_t sigmask;
--  sigemptyset(&sigmask);
--  sigaddset(&sigmask, SIGUSR1);
--  const int err = pthread_sigmask(SIG_SETMASK, &sigmask, nullptr);
--#endif  // HAVE_INSPECTOR
--
-   // Make sure file descriptors 0-2 are valid before we start logging anything.
-   for (auto& s : stdio) {
-     const int fd = &s - stdio;
-@@ -595,10 +593,6 @@ inline void PlatformInit() {
-       ABORT();
+@@ -458,6 +458,8 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
+     return env->RunSnapshotDeserializeMain();
    }
  
++  StartExecution(env, "internal/bootstrap/pkg");
++
+   if (env->worker_context() != nullptr) {
+     return StartExecution(env, "internal/main/worker_thread");
+   }
+@@ -628,14 +630,6 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
+   }
+ 
+   if (!(flags & ProcessInitializationFlags::kNoDefaultSignalHandling)) {
 -#if HAVE_INSPECTOR
--  CHECK_EQ(err, 0);
+-    sigset_t sigmask;
+-    sigemptyset(&sigmask);
+-    sigaddset(&sigmask, SIGUSR1);
+-    const int err = pthread_sigmask(SIG_SETMASK, &sigmask, nullptr);
+-    CHECK_EQ(err, 0);
 -#endif  // HAVE_INSPECTOR
 -
-   // TODO(addaleax): NODE_SHARED_MODE does not really make sense here.
- #ifndef NODE_SHARED_MODE
-   // Restore signal dispositions, the parent process may have changed them.
+     ResetSignalHandlers();
+   }
+ 
 --- node/src/node_contextify.cc
 +++ node/src/node_contextify.cc
 @@ -74,6 +74,7 @@ using v8::ScriptOrModule;
@@ -369,7 +320,7 @@ index 0000000000..fb2d47f52b
  using v8::Value;
  using v8::WeakCallbackInfo;
  using v8::WeakCallbackType;
-@@ -691,11 +692,12 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -741,11 +742,12 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
    Local<ArrayBufferView> cached_data_buf;
    bool produce_cached_data = false;
    Local<Context> parsing_context = context;
@@ -381,17 +332,17 @@ index 0000000000..fb2d47f52b
 -    CHECK_EQ(argc, 7);
 +    CHECK_EQ(argc, 8);
      CHECK(args[2]->IsNumber());
-     line_offset = args[2].As<Integer>();
+     line_offset = args[2].As<Int32>()->Value();
      CHECK(args[3]->IsNumber());
-@@ -714,6 +716,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -764,6 +766,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
        CHECK_NOT_NULL(sandbox);
        parsing_context = sandbox->context();
      }
 +    sourceless = args[7]->IsTrue();
-   } else {
-     line_offset = Integer::New(isolate, 0);
-     column_offset = Integer::New(isolate, 0);
-@@ -768,6 +771,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+   }
+ 
+   ContextifyScript* contextify_script =
+@@ -814,6 +817,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
    ShouldNotAbortOnUncaughtScope no_abort_scope(env);
    Context::Scope scope(parsing_context);
  
@@ -402,8 +353,8 @@ index 0000000000..fb2d47f52b
    MaybeLocal<UnboundScript> v8_script = ScriptCompiler::CompileUnboundScript(
        isolate,
        &source,
-@@ -784,6 +791,13 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
-         contextify_script);
+@@ -828,6 +835,13 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+                      "ContextifyScript::New");
      return;
    }
 +
@@ -416,7 +367,7 @@ index 0000000000..fb2d47f52b
    contextify_script->script_.Reset(isolate, v8_script.ToLocalChecked());
  
    Local<Context> env_context = env->context();
-@@ -810,6 +824,11 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -854,6 +868,11 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
          env->cached_data_produced_string(),
          Boolean::New(isolate, cached_data_produced)).Check();
    }
@@ -425,9 +376,9 @@ index 0000000000..fb2d47f52b
 +    V8::DisableCompilationForSourcelessUse();
 +  }
 +
-   TRACE_EVENT_NESTABLE_ASYNC_END0(
-       TRACING_CATEGORY_NODE2(vm, script),
-       "ContextifyScript::New",
+   TRACE_EVENT_END0(TRACING_CATEGORY_NODE2(vm, script), "ContextifyScript::New");
+ }
+ 
 --- node/src/node_main.cc
 +++ node/src/node_main.cc
 @@ -22,6 +22,8 @@
@@ -439,7 +390,7 @@ index 0000000000..fb2d47f52b
  #ifdef _WIN32
  #include <windows.h>
  #include <VersionHelpers.h>
-@@ -84,7 +86,7 @@ int wmain(int argc, wchar_t* wargv[]) {
+@@ -84,12 +86,95 @@ int wmain(int argc, wchar_t* wargv[]) {
    }
    argv[argc] = nullptr;
    // Now that conversion is done, we can finally start.
@@ -448,10 +399,8 @@ index 0000000000..fb2d47f52b
  }
  #else
  // UNIX
-@@ -138,6 +140,88 @@ int main(int argc, char* argv[]) {
-   // calls elsewhere in the program (e.g., any logging from V8.)
-   setvbuf(stdout, nullptr, _IONBF, 0);
-   setvbuf(stderr, nullptr, _IONBF, 0);
+ 
+ int main(int argc, char* argv[]) {
 +  return reorder(argc, argv);
 +}
 +#endif
@@ -470,10 +419,10 @@ index 0000000000..fb2d47f52b
 +bool should_set_dummy() {
 +#ifdef _WIN32
 +  #define MAX_ENV_LENGTH 32767
-+  char execpath_env[MAX_ENV_LENGTH];
-+  DWORD result = GetEnvironmentVariable("PKG_EXECPATH", execpath_env, MAX_ENV_LENGTH);
++  wchar_t execpath_env[MAX_ENV_LENGTH];
++  DWORD result = GetEnvironmentVariableW(L"PKG_EXECPATH", execpath_env, MAX_ENV_LENGTH);
 +  if (result == 0 && GetLastError() != ERROR_SUCCESS) return true;
-+  return strcmp(execpath_env, "PKG_INVOKE_NODEJS") != 0;
++  return wcscmp(execpath_env, L"PKG_INVOKE_NODEJS") != 0;
 +#else
 +  const char* execpath_env = getenv("PKG_EXECPATH");
 +  if (!execpath_env) return true;
@@ -507,6 +456,7 @@ index 0000000000..fb2d47f52b
 +#elif defined(__GNUC__)
 +__attribute__((optimize(0)))
  #endif
++
 +int load_baked(char** nargv) {
 +  int c = 1;
 +
@@ -539,7 +489,7 @@ index 0000000000..fb2d47f52b
 +}
 --- node/src/node_options.cc
 +++ node/src/node_options.cc
-@@ -236,6 +236,7 @@ void Parse(
+@@ -299,6 +299,7 @@ void Parse(
  // TODO(addaleax): Make that unnecessary.
  
  DebugOptionsParser::DebugOptionsParser() {
