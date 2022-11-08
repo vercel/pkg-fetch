@@ -315,7 +315,7 @@ index 0000000000..fb2d47f52b
        Environment* env = static_cast<Environment*>(data);
 --- node/src/node.cc
 +++ node/src/node.cc
-@@ -386,6 +386,9 @@ MaybeLocal<Value> Environment::BootstrapNode() {
+@@ -390,6 +390,9 @@ MaybeLocal<Value> Environment::BootstrapNode() {
    return scope.EscapeMaybe(result);
  }
  
@@ -325,7 +325,7 @@ index 0000000000..fb2d47f52b
  MaybeLocal<Value> Environment::RunBootstrapping() {
    EscapableHandleScope scope(isolate_);
  
-@@ -409,6 +412,8 @@ MaybeLocal<Value> Environment::RunBootstrapping() {
+@@ -413,6 +416,8 @@ MaybeLocal<Value> Environment::RunBootstrapping() {
  
    set_has_run_bootstrapping_code(true);
  
@@ -334,7 +334,7 @@ index 0000000000..fb2d47f52b
    return scope.Escape(result);
  }
  
-@@ -573,13 +578,6 @@ static struct {
+@@ -577,13 +582,6 @@ static struct {
  
  inline void PlatformInit() {
  #ifdef __POSIX__
@@ -348,7 +348,7 @@ index 0000000000..fb2d47f52b
    // Make sure file descriptors 0-2 are valid before we start logging anything.
    for (auto& s : stdio) {
      const int fd = &s - stdio;
-@@ -595,10 +593,6 @@ inline void PlatformInit() {
+@@ -599,10 +597,6 @@ inline void PlatformInit() {
        ABORT();
    }
  
