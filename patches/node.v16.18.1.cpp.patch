@@ -130,7 +130,7 @@
    if (Checksum(ChecksummedContent()) != c) return CHECKSUM_MISMATCH;
 --- node/lib/child_process.js
 +++ node/lib/child_process.js
-@@ -163,7 +163,7 @@ function fork(modulePath, args = [], options) {
+@@ -166,7 +166,7 @@ function fork(modulePath, args = [], options) {
    options.execPath = options.execPath || process.execPath;
    options.shell = false;
  
@@ -189,20 +189,21 @@ index 0000000000..fb2d47f52b
 +}());
 --- node/lib/internal/bootstrap/pre_execution.js
 +++ node/lib/internal/bootstrap/pre_execution.js
-@@ -25,7 +25,12 @@ const { Buffer } = require('buffer');
+@@ -26,8 +26,13 @@ const { Buffer } = require('buffer');
  const { ERR_MANIFEST_ASSERT_INTEGRITY } = require('internal/errors').codes;
  const assert = require('internal/assert');
  
 +let _alreadyPrepared = false;
 +
- function prepareMainThreadExecution(expandArgv1 = false) {
+ function prepareMainThreadExecution(expandArgv1 = false,
+                                     initialzeModules = true) {
 +  if (_alreadyPrepared === true) return;
 +  _alreadyPrepared = true;
 +
+   refreshRuntimeOptions();
+ 
    // TODO(joyeecheung): this is also necessary for workers when they deserialize
-   // this toggle from the snapshot.
-   reconnectZeroFillToggle();
-@@ -100,7 +105,8 @@ function patchProcessObject(expandArgv1) {
+@@ -119,7 +124,8 @@ function patchProcessObject(expandArgv1) {
    process.argv[0] = process.execPath;
  
    if (expandArgv1 && process.argv[1] &&
@@ -214,7 +215,7 @@ index 0000000000..fb2d47f52b
      try {
 --- node/lib/internal/modules/cjs/loader.js
 +++ node/lib/internal/modules/cjs/loader.js
-@@ -86,7 +86,7 @@ const fs = require('fs');
+@@ -92,7 +92,7 @@ const fs = require('fs');
  const internalFS = require('internal/fs/utils');
  const path = require('path');
  const { sep } = path;
@@ -267,8 +268,8 @@ index 0000000000..fb2d47f52b
        Environment* env = static_cast<Environment*>(data);
 --- node/src/node.cc
 +++ node/src/node.cc
-@@ -473,6 +473,8 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
-     return scope.EscapeMaybe(cb(info));
+@@ -481,6 +481,8 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
+     return env->RunSnapshotDeserializeMain();
    }
  
 +  StartExecution(env, "internal/bootstrap/pkg");
@@ -276,7 +277,7 @@ index 0000000000..fb2d47f52b
    if (env->worker_context() != nullptr) {
      return StartExecution(env, "internal/main/worker_thread");
    }
-@@ -583,13 +585,6 @@ static struct {
+@@ -599,13 +601,6 @@ static struct {
  
  inline void PlatformInit() {
  #ifdef __POSIX__
@@ -290,7 +291,7 @@ index 0000000000..fb2d47f52b
    // Make sure file descriptors 0-2 are valid before we start logging anything.
    for (auto& s : stdio) {
      const int fd = &s - stdio;
-@@ -605,10 +600,6 @@ inline void PlatformInit() {
+@@ -621,10 +616,6 @@ inline void PlatformInit() {
        ABORT();
    }
  
@@ -311,7 +312,7 @@ index 0000000000..fb2d47f52b
  using v8::Value;
  using v8::WeakCallbackInfo;
  using v8::WeakCallbackType;
-@@ -709,11 +710,12 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -711,11 +712,12 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
    Local<ArrayBufferView> cached_data_buf;
    bool produce_cached_data = false;
    Local<Context> parsing_context = context;
@@ -325,7 +326,7 @@ index 0000000000..fb2d47f52b
      CHECK(args[2]->IsNumber());
      line_offset = args[2].As<Int32>()->Value();
      CHECK(args[3]->IsNumber());
-@@ -732,6 +734,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -734,6 +736,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
        CHECK_NOT_NULL(sandbox);
        parsing_context = sandbox->context();
      }
@@ -333,7 +334,7 @@ index 0000000000..fb2d47f52b
    }
  
    ContextifyScript* contextify_script =
-@@ -784,6 +787,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -785,6 +788,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
    ShouldNotAbortOnUncaughtScope no_abort_scope(env);
    Context::Scope scope(parsing_context);
  
@@ -344,8 +345,8 @@ index 0000000000..fb2d47f52b
    MaybeLocal<UnboundScript> v8_script = ScriptCompiler::CompileUnboundScript(
        isolate,
        &source,
-@@ -800,6 +807,13 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
-         contextify_script);
+@@ -799,6 +806,13 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+                      "ContextifyScript::New");
      return;
    }
 +
@@ -358,7 +359,7 @@ index 0000000000..fb2d47f52b
    contextify_script->script_.Reset(isolate, v8_script.ToLocalChecked());
  
    Local<Context> env_context = env->context();
-@@ -826,6 +840,11 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -825,6 +839,11 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
          env->cached_data_produced_string(),
          Boolean::New(isolate, cached_data_produced)).Check();
    }
@@ -367,9 +368,9 @@ index 0000000000..fb2d47f52b
 +    V8::DisableCompilationForSourcelessUse();
 +  }
 +
-   TRACE_EVENT_NESTABLE_ASYNC_END0(
-       TRACING_CATEGORY_NODE2(vm, script),
-       "ContextifyScript::New",
+   TRACE_EVENT_END0(TRACING_CATEGORY_NODE2(vm, script), "ContextifyScript::New");
+ }
+ 
 --- node/src/node_main.cc
 +++ node/src/node_main.cc
 @@ -22,6 +22,8 @@
@@ -481,7 +482,7 @@ index 0000000000..fb2d47f52b
 +}
 --- node/src/node_options.cc
 +++ node/src/node_options.cc
-@@ -254,6 +254,7 @@ void Parse(
+@@ -275,6 +275,7 @@ void Parse(
  // TODO(addaleax): Make that unnecessary.
  
  DebugOptionsParser::DebugOptionsParser() {
