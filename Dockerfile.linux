@@ -13,7 +13,7 @@ RUN yum install -y \
     make patch python2 \
     rh-python36-python
 
-RUN curl -fsSL https://rpm.nodesource.com/setup_lts.x | bash -
+RUN curl -fsSL https://rpm.nodesource.com/setup_16.x | bash -
 RUN yum install -y nodejs
 RUN npm install -g yarn
 
