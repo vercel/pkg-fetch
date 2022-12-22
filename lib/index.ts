@@ -52,11 +52,12 @@ interface NeedOptions {
   nodeRange: string;
   platform: string;
   arch: string;
+  withArmFpu: string;
 }
 
 export async function need(opts: NeedOptions) {
   // eslint-disable-line complexity
-  const { forceFetch, forceBuild, dryRun, output } = opts || {};
+  const { forceFetch, forceBuild, dryRun, output, withArmFpu } = opts || {};
   let { nodeRange, platform, arch } = opts || {};
 
   if (!nodeRange) throw wasReported('nodeRange not specified');
@@ -99,6 +100,7 @@ export async function need(opts: NeedOptions) {
     platform,
     version,
     output,
+    withArmFpu
   });
   const built = localPlace({
     from: 'built',
@@ -107,8 +109,9 @@ export async function need(opts: NeedOptions) {
     platform,
     version,
     output,
+    withArmFpu
   });
-  const remote = remotePlace({ arch, nodeVersion, platform, version });
+  const remote = remotePlace({ arch, nodeVersion, platform, version, withArmFpu });
 
   let fetchFailed;
 
@@ -180,7 +183,7 @@ export async function need(opts: NeedOptions) {
     return 'built';
   }
 
-  await build(nodeVersion, arch, platform, built);
+  await build(nodeVersion, arch, platform, built, withArmFpu);
   return built;
 }
 

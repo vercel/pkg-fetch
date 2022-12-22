@@ -20,6 +20,7 @@ interface PlaceOptions {
   nodeVersion: string;
   platform: string;
   arch: string;
+  withArmFpu: string;
 }
 
 interface LocalPlaceOptions extends PlaceOptions {
@@ -34,6 +35,7 @@ export function localPlace({
   nodeVersion,
   platform,
   arch,
+                             withArmFpu
 }: LocalPlaceOptions) {
   let binDir: string;
 
@@ -47,7 +49,7 @@ export function localPlace({
 
   return path.resolve(
     binDir,
-    `${output ? 'node' : from}-${nodeVersion}-${platform}-${arch}`
+    withArmFpu?`${output ? 'node' : from}-${nodeVersion}-${platform}-${arch}-${withArmFpu}`:`${output ? 'node' : from}-${nodeVersion}-${platform}-${arch}`
   );
 }
 
@@ -61,9 +63,10 @@ export function remotePlace({
   nodeVersion,
   platform,
   arch,
+                              withArmFpu
 }: PlaceOptions): Remote {
   return {
     tag: tagFromVersion(version),
-    name: `node-${nodeVersion}-${platform}-${arch}`,
+    name: withArmFpu?`node-${nodeVersion}-${platform}-${arch}-${withArmFpu}`:`node-${nodeVersion}-${platform}-${arch}`,
   };
 }

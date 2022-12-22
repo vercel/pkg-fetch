@@ -14,6 +14,7 @@ async function main() {
     .option('node-range', { alias: 'n', default: 'latest', type: 'string' })
     .option('platform', { alias: 'p', default: hostPlatform, type: 'string' })
     .option('arch', { alias: 'a', default: hostArch, type: 'string' })
+    .option('with-arm-fpu', { default: "", type: 'string' })
     .option('test', { alias: 't', type: 'boolean' })
     .option('force-fetch', {
       alias: 'f',
@@ -37,6 +38,7 @@ async function main() {
     test,
     'force-fetch': forceFetch,
     'force-build': forceBuild,
+    'with-arm-fpu': withArmFpu,
     output,
   } = argv;
 
@@ -46,6 +48,7 @@ async function main() {
     arch,
     forceFetch,
     forceBuild,
+    withArmFpu,
     output,
   });
 

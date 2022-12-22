@@ -207,7 +207,8 @@ const { MAKE_JOB_COUNT = os.cpus().length } = process.env;
 async function compileOnUnix(
   nodeVersion: string,
   targetArch: string,
-  targetPlatform: string
+  targetPlatform: string,
+  withArmFpu: string
 ) {
   const args = [];
   const cpu = {
@@ -222,6 +223,10 @@ async function compileOnUnix(
 
   if (cpu) {
     args.push('--dest-cpu', cpu);
+  }
+
+  if (cpu === 'arm' && withArmFpu) {
+    args.push('--with-arm-fpu', withArmFpu);
   }
 
   if (hostArch !== targetArch) {
@@ -272,7 +277,8 @@ async function compileOnUnix(
 async function compile(
   nodeVersion: string,
   targetArch: string,
-  targetPlatform: string
+  targetPlatform: string,
+  withArmFpu: string
 ) {
   log.info('Compiling Node.js from sources...');
   const win = hostPlatform === 'win';
@@ -281,14 +287,15 @@ async function compile(
     return compileOnWindows(nodeVersion, targetArch, targetPlatform);
   }
 
-  return compileOnUnix(nodeVersion, targetArch, targetPlatform);
+  return compileOnUnix(nodeVersion, targetArch, targetPlatform, withArmFpu);
 }
 
 export default async function build(
   nodeVersion: string,
   targetArch: string,
   targetPlatform: string,
-  local: string
+  local: string,
+  withArmFpu: string
 ) {
   await fs.remove(buildPath);
   await fs.mkdirp(nodePath);
@@ -298,7 +305,7 @@ export default async function build(
   await tarExtract(nodeVersion);
   await applyPatches(nodeVersion);
 
-  const output = await compile(nodeVersion, targetArch, targetPlatform);
+  const output = await compile(nodeVersion, targetArch, targetPlatform, withArmFpu);
   const outputHash = await hash(output);
 
   await fs.mkdirp(path.dirname(local));
