@@ -106,3 +106,10 @@ export const knownPlatforms = getKnownPlatforms();
 export const hostArch = getHostArch();
 export const targetArchs = getTargetArchs();
 export const knownArchs = getKnownArchs();
+
+interface ConfigureOptions {
+  withArmFpu: string;
+  useNinja: boolean;
+}
+
+export const configureOptions: ConfigureOptions = {withArmFpu: "", useNinja: false};

@@ -9,7 +9,7 @@ import tar from 'tar-fs';
 
 import { cachePath } from './places';
 import { downloadUrl, hash, spawn } from './utils';
-import { hostArch, hostPlatform } from './system';
+import { hostArch, hostPlatform, configureOptions } from './system';
 import { log, wasReported } from './log';
 import patchesJson from '../patches/patches.json';
 
@@ -207,8 +207,7 @@ const { MAKE_JOB_COUNT = os.cpus().length } = process.env;
 async function compileOnUnix(
   nodeVersion: string,
   targetArch: string,
-  targetPlatform: string,
-  withArmFpu: string
+  targetPlatform: string
 ) {
   const args = [];
   const cpu = {
@@ -225,12 +224,12 @@ async function compileOnUnix(
     args.push('--dest-cpu', cpu);
   }
 
-  if (cpu === 'arm' && withArmFpu) {
-    args.push('--with-arm-fpu', withArmFpu);
+  if (cpu === 'arm' && configureOptions.withArmFpu) {
+    args.push('--with-arm-fpu', configureOptions.withArmFpu);
     args.push('--with-arm-float-abi', 'hard')
   }
 
-  if (fs.existsSync("/usr/bin/ninja")) {
+  if (configureOptions.useNinja) {
     args.push('--ninja')
   }
 
@@ -284,8 +283,7 @@ async function compileOnUnix(
 async function compile(
   nodeVersion: string,
   targetArch: string,
-  targetPlatform: string,
-  withArmFpu: string
+  targetPlatform: string
 ) {
   log.info('Compiling Node.js from sources...');
   const win = hostPlatform === 'win';
@@ -294,15 +292,14 @@ async function compile(
     return compileOnWindows(nodeVersion, targetArch, targetPlatform);
   }
 
-  return compileOnUnix(nodeVersion, targetArch, targetPlatform, withArmFpu);
+  return compileOnUnix(nodeVersion, targetArch, targetPlatform);
 }
 
 export default async function build(
   nodeVersion: string,
   targetArch: string,
   targetPlatform: string,
-  local: string,
-  withArmFpu: string
+  local: string
 ) {
   await fs.remove(buildPath);
   await fs.mkdirp(nodePath);
@@ -312,7 +309,7 @@ export default async function build(
   await tarExtract(nodeVersion);
   await applyPatches(nodeVersion);
 
-  const output = await compile(nodeVersion, targetArch, targetPlatform, withArmFpu);
+  const output = await compile(nodeVersion, targetArch, targetPlatform);
   const outputHash = await hash(output);
 
   await fs.mkdirp(path.dirname(local));

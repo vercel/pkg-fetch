@@ -2,7 +2,7 @@
 
 import yargs from 'yargs';
 
-import { hostPlatform, hostArch } from './system';
+import { hostPlatform, hostArch, configureOptions } from './system';
 import { log } from './log';
 import { need } from './index';
 import { verify } from './verify';
@@ -15,6 +15,7 @@ async function main() {
     .option('platform', { alias: 'p', default: hostPlatform, type: 'string' })
     .option('arch', { alias: 'a', default: hostArch, type: 'string' })
     .option('with-arm-fpu', { default: "", type: 'string' })
+    .option('use-ninja', {default: false, type: 'boolean'})
     .option('test', { alias: 't', type: 'boolean' })
     .option('force-fetch', {
       alias: 'f',
@@ -38,9 +39,11 @@ async function main() {
     test,
     'force-fetch': forceFetch,
     'force-build': forceBuild,
-    'with-arm-fpu': withArmFpu,
     output,
   } = argv;
+
+  configureOptions.withArmFpu = argv['with-arm-fpu'];
+  configureOptions.useNinja = argv["use-ninja"];
 
   const local = await need({
     nodeRange,
@@ -48,7 +51,6 @@ async function main() {
     arch,
     forceFetch,
     forceBuild,
-    withArmFpu,
     output,
   });
 

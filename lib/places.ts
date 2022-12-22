@@ -1,6 +1,7 @@
 import { major, minor } from 'semver';
 import os from 'os';
 import path from 'path';
+import {configureOptions} from "./system";
 
 const { PKG_CACHE_PATH } = process.env;
 const IGNORE_TAG = Boolean(process.env.PKG_IGNORE_TAG);
@@ -20,7 +21,6 @@ interface PlaceOptions {
   nodeVersion: string;
   platform: string;
   arch: string;
-  withArmFpu: string;
 }
 
 interface LocalPlaceOptions extends PlaceOptions {
@@ -34,8 +34,7 @@ export function localPlace({
   version,
   nodeVersion,
   platform,
-  arch,
-                             withArmFpu
+  arch
 }: LocalPlaceOptions) {
   let binDir: string;
 
@@ -49,7 +48,7 @@ export function localPlace({
 
   return path.resolve(
     binDir,
-    withArmFpu?`${output ? 'node' : from}-${nodeVersion}-${platform}-${arch}-${withArmFpu}`:`${output ? 'node' : from}-${nodeVersion}-${platform}-${arch}`
+    configureOptions.withArmFpu?`${output ? 'node' : from}-${nodeVersion}-${platform}-${arch}-${configureOptions.withArmFpu}`:`${output ? 'node' : from}-${nodeVersion}-${platform}-${arch}`
   );
 }
 
@@ -62,11 +61,10 @@ export function remotePlace({
   version,
   nodeVersion,
   platform,
-  arch,
-                              withArmFpu
+  arch
 }: PlaceOptions): Remote {
   return {
     tag: tagFromVersion(version),
-    name: withArmFpu?`node-${nodeVersion}-${platform}-${arch}-${withArmFpu}`:`node-${nodeVersion}-${platform}-${arch}`,
+    name: configureOptions.withArmFpu?`node-${nodeVersion}-${platform}-${arch}-${configureOptions.withArmFpu}`:`node-${nodeVersion}-${platform}-${arch}`,
   };
 }
