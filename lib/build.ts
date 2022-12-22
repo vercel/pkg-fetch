@@ -227,6 +227,7 @@ async function compileOnUnix(
 
   if (cpu === 'arm' && withArmFpu) {
     args.push('--with-arm-fpu', withArmFpu);
+    args.push('--with-arm-float-abi', 'hard')
   }
 
   if (hostArch !== targetArch) {
