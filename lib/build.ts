@@ -230,6 +230,10 @@ async function compileOnUnix(
     args.push('--with-arm-float-abi', 'hard')
   }
 
+  if (fs.existsSync("/usr/bin/ninja")) {
+    args.push('--ninja')
+  }
+
   if (hostArch !== targetArch) {
     log.warn('Cross compiling!');
     log.warn('You are responsible for appropriate env like CC, CC_host, etc.');
