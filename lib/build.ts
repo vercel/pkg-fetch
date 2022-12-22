@@ -237,6 +237,8 @@ async function compileOnUnix(
 
   args.push(...getConfigureArgs(getMajor(nodeVersion), targetPlatform));
 
+  log.info(`Running configure ${  args.join(" ")}`);
+
   // TODO same for windows?
   await spawn('/bin/sh', ['./configure', ...args], {
     cwd: nodePath,
