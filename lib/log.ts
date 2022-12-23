@@ -52,7 +52,7 @@ class Log {
   enableProgress(text: string) {
     assert(!this.bar);
 
-    text += ' '.repeat(28 - text.length);
+    text += ' '.repeat(35 - text.length);
     this.bar = new Progress(`  ${text} [:bar] :percent`, {
       stream: process.stdout,
       width: 20,

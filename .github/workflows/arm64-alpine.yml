@@ -1,11 +1,11 @@
-name: Build Node binaries for Linux
+name: Build Node binaries for Alpine (arm64)
 
 on:
   workflow_dispatch:
 
 jobs:
-  linux:
-    runs-on: ubuntu-20.04
+  alpine:
+    runs-on: linux-arm64
 
     strategy:
       fail-fast: false
@@ -23,8 +23,9 @@ jobs:
         with:
           build-args: |
             PKG_FETCH_OPTION_n=node${{ matrix.target-node }}
+            PKG_FETCH_OPTION_p=alpine
           context: .
-          file: ./Dockerfile.linux
+          file: ./Dockerfile.alpine
           outputs: type=tar,dest=../out.tar
 
       - name: Extract binaries from Docker image
@@ -39,5 +40,5 @@ jobs:
       - uses: actions/upload-artifact@v2
         if: steps.check_file.outputs.EXISTS == 'true'
         with:
-          name: node${{ matrix.target-node }}-linux-x64
+          name: node${{ matrix.target-node }}-alpine-arm64
           path: root/pkg-fetch/dist/*

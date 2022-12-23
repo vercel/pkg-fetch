@@ -1,11 +1,11 @@
-name: Build Node binaries for Linux
+name: Build Node binaries for Linux (arm64)
 
 on:
   workflow_dispatch:
 
 jobs:
   linux:
-    runs-on: ubuntu-20.04
+    runs-on: linux-arm64
 
     strategy:
       fail-fast: false
@@ -39,5 +39,5 @@ jobs:
       - uses: actions/upload-artifact@v2
         if: steps.check_file.outputs.EXISTS == 'true'
         with:
-          name: node${{ matrix.target-node }}-linux-x64
+          name: node${{ matrix.target-node }}-linux-arm64
           path: root/pkg-fetch/dist/*

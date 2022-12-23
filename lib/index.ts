@@ -1,6 +1,8 @@
-import { stat } from 'fs-extra';
+import fs from 'fs-extra';
 import path from 'path';
 import semver from 'semver';
+
+import { EXPECTED_HASHES } from './expected';
 import {
   abiToNodeRange,
   hostPlatform, // eslint-disable-line no-duplicate-imports
@@ -13,9 +15,8 @@ import * as system from './system';
 import { localPlace, remotePlace, Remote } from './places';
 import { log, wasReported } from './log';
 import build from './build';
-import { downloadUrl } from './requests';
+import { downloadUrl, hash, plusx } from './utils';
 import patchesJson from '../patches/patches.json';
-import { plusx } from './chmod';
 import { version } from '../package.json';
 
 async function download(
@@ -36,7 +37,7 @@ async function download(
 
 async function exists(file: string) {
   try {
-    await stat(file);
+    await fs.stat(file);
     return true;
   } catch (error) {
     return false;
@@ -113,7 +114,16 @@ export async function need(opts: NeedOptions) {
 
   if (!forceBuild) {
     if (await exists(fetched)) {
-      return dryRun ? 'exists' : fetched;
+      if (dryRun) {
+        return 'exists';
+      }
+
+      if ((await hash(fetched)) === EXPECTED_HASHES[remote.name]) {
+        return fetched;
+      }
+
+      log.info('Binary hash does NOT match. Re-fetching...');
+      fs.unlinkSync(fetched);
     }
   }
 
@@ -128,7 +138,15 @@ export async function need(opts: NeedOptions) {
 
   if (!forceBuild) {
     if (dryRun) return 'fetched';
-    if (await download(remote, fetched)) return fetched;
+
+    if (await download(remote, fetched)) {
+      if ((await hash(fetched)) === EXPECTED_HASHES[remote.name]) {
+        return fetched;
+      }
+
+      fs.unlinkSync(fetched);
+      throw wasReported('Binary hash does NOT match.');
+    }
 
     fetchFailed = true;
   }
@@ -145,9 +163,11 @@ export async function need(opts: NeedOptions) {
   }
 
   if (hostPlatform !== platform) {
-    throw wasReported(
-      `Not able to build for '${opts.platform}' here, only for '${hostPlatform}'`
-    );
+    if (hostPlatform !== 'alpine' || platform !== 'linuxstatic') {
+      throw wasReported(
+        `Not able to build for '${opts.platform}' here, only for '${hostPlatform}'`
+      );
+    }
   }
 
   if (knownArchs.indexOf(arch) < 0) {
@@ -160,7 +180,7 @@ export async function need(opts: NeedOptions) {
     return 'built';
   }
 
-  await build(nodeVersion, arch, built);
+  await build(nodeVersion, arch, platform, built);
   return built;
 }
 

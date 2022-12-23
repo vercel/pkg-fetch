@@ -1,22 +1,29 @@
-FROM registry.redhat.io/rhscl/devtoolset-10-toolchain-rhel7
-
-ARG PKG_FETCH_OPTION_n
+FROM oraclelinux:7
 
 USER root:root
-
 WORKDIR /root/pkg-fetch/
+
+RUN yum install -y oracle-softwarecollection-release-el7
+
+RUN yum-config-manager --enable ol7_latest ol7_optional_latest software_collections
+RUN yum upgrade -y
+
+RUN yum install -y \
+    devtoolset-10 glibc-headers kernel-headers \
+    make patch python2 \
+    rh-python36-python
+
+RUN curl -fsSL https://rpm.nodesource.com/setup_lts.x | bash -
+RUN yum install -y nodejs
+RUN npm install -g yarn
 
 COPY . ./
 
-RUN yum install -y glibc-headers kernel-headers git make patch python2 python3 rh-nodejs14-npm && scl enable rh-nodejs14 bash
-
-ENV LD_LIBRARY_PATH /opt/rh/rh-nodejs14/root/usr/lib64:$LD_LIBRARY_PATH
-ENV MANPATH /opt/rh/rh-nodejs14/root/usr/share/man:$MANPATH
-ENV PATH /opt/rh/rh-nodejs14/root/usr/bin:$PATH
-ENV PYTHONPATH /opt/rh/rh-nodejs14/root/usr/lib/python2.7/site-packages
-
-RUN npm install -g yarn
+ARG PKG_FETCH_OPTION_n
 
 RUN yarn install
 
-RUN yarn start --node-range $PKG_FETCH_OPTION_n --output dist
+RUN scl enable devtoolset-10 rh-python36 \
+    " \
+    yarn start --node-range $PKG_FETCH_OPTION_n --output dist \
+    "

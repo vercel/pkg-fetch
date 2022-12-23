@@ -1,11 +1,16 @@
+import { createGunzip } from 'zlib';
 import crypto from 'crypto';
 import fs from 'fs-extra';
 import os from 'os';
 import path from 'path';
-import { spawnSync } from 'child_process';
+import { pipeline } from 'stream';
+import { promisify } from 'util';
+import tar from 'tar-fs';
 
+import { cachePath } from './places';
+import { downloadUrl, hash, spawn } from './utils';
 import { hostArch, hostPlatform } from './system';
-import { log } from './log';
+import { log, wasReported } from './log';
 import patchesJson from '../patches/patches.json';
 
 const buildPath = path.resolve(
@@ -14,14 +19,16 @@ const buildPath = path.resolve(
 );
 const nodePath = path.join(buildPath, 'node');
 const patchesPath = path.resolve(__dirname, '../patches');
-const nodeRepo = 'https://github.com/nodejs/node';
+
+const nodeRepo = 'https://nodejs.org/dist';
+const nodeArchivePath = path.join(cachePath, 'node');
 
 function getMajor(nodeVersion: string) {
   const [, version] = nodeVersion.match(/^v?(\d+)/) || ['', 0];
   return Number(version) | 0;
 }
 
-function getConfigureArgs(major: number): string[] {
+function getConfigureArgs(major: number, targetPlatform: string): string[] {
   const args: string[] = [];
 
   // first of all v8_inspector introduces the use
@@ -31,63 +38,109 @@ function getConfigureArgs(major: number): string[] {
   // against packaged apps, hence v8_inspector is useless
   args.push('--without-inspector');
 
-  // https://github.com/mhart/alpine-node/blob/base-7.4.0/Dockerfile#L33
   if (hostPlatform === 'alpine') {
-    args.push('--without-snapshot');
+    // Statically Link against libgcc and libstdc++ libraries. See vercel/pkg#555.
+    // libgcc and libstdc++ grant GCC Runtime Library Exception of GPL
+    args.push('--partly-static');
+  }
+
+  if (targetPlatform === 'linuxstatic') {
+    args.push('--fully-static');
   }
 
   // Link Time Optimization
   if (major >= 12) {
-    if (hostPlatform === 'linux' || hostPlatform === 'alpine') {
+    if (hostPlatform !== 'win') {
       args.push('--enable-lto');
     }
   }
+
+  // production binaries do NOT take NODE_OPTIONS from end-users
+  args.push('--without-node-options');
 
   // DTrace
   args.push('--without-dtrace');
 
   // bundled npm package manager
   args.push('--without-npm');
-
-  // custom ones
+  
+  // custom args
   if (process.env.PKG_BUILD_CONFIGURE_ARGS) {
     args.push(...process.env.PKG_BUILD_CONFIGURE_ARGS.split(' '));
+  }
+
+  // Small ICU
+  args.push('--with-intl=small-icu');
+
+  // Workaround for nodejs/node#39313
+  // All supported macOS versions have zlib as a system library
+  if (targetPlatform === 'macos') {
+    args.push('--shared-zlib');
   }
 
   return args;
 }
 
-async function gitClone(nodeVersion: string) {
-  log.info('Cloning Node.js repository from GitHub...');
+async function tarFetch(nodeVersion: string) {
+  log.info('Fetching Node.js source archive from nodejs.org...');
 
-  const args = [
-    'clone',
-    '-b',
-    nodeVersion,
-    '--depth',
-    '1',
-    '--single-branch',
-    '--bare',
-    '--progress',
-    nodeRepo,
-    'node/.git',
-  ];
+  const distUrl = `${nodeRepo}/${nodeVersion}`;
+  const tarName = `node-${nodeVersion}.tar.gz`;
 
-  spawnSync('git', args, { cwd: buildPath, stdio: 'inherit' });
+  const archivePath = path.join(nodeArchivePath, tarName);
+  const hashPath = path.join(nodeArchivePath, `${tarName}.sha256sum`);
+
+  if (fs.existsSync(hashPath) && fs.existsSync(archivePath)) {
+    return;
+  }
+
+  await fs.remove(hashPath).catch(() => undefined);
+  await fs.remove(archivePath).catch(() => undefined);
+
+  await downloadUrl(`${distUrl}/SHASUMS256.txt`, hashPath);
+
+  await fs.writeFile(
+    hashPath,
+    (await fs.readFile(hashPath, 'utf8'))
+      .split('\n')
+      .filter((l) => l.includes(tarName))[0]
+  );
+
+  await downloadUrl(`${distUrl}/${tarName}`, archivePath);
 }
 
-async function gitResetHard(nodeVersion: string) {
-  log.info(`Checking out ${nodeVersion}`);
+async function tarExtract(nodeVersion: string) {
+  log.info('Extracting Node.js source archive...');
 
-  const patches = patchesJson[nodeVersion as keyof typeof patchesJson] as
-    | string[]
-    | { commit?: string };
+  const tarName = `node-${nodeVersion}.tar.gz`;
 
-  const commit =
-    'commit' in patches && patches.commit ? patches.commit : nodeVersion;
-  const args = ['--work-tree', '.', 'reset', '--hard', commit];
+  const expectedHash = (
+    await fs.readFile(
+      path.join(nodeArchivePath, `${tarName}.sha256sum`),
+      'utf8'
+    )
+  ).split(' ')[0];
+  const actualHash = await hash(path.join(nodeArchivePath, tarName));
 
-  spawnSync('git', args, { cwd: nodePath, stdio: 'inherit' });
+  if (expectedHash !== actualHash) {
+    await fs.remove(path.join(nodeArchivePath, tarName));
+    await fs.remove(path.join(nodeArchivePath, `${tarName}.sha256sum`));
+    throw wasReported(`Hash mismatch for ${tarName}`);
+  }
+
+  const pipe = promisify(pipeline);
+
+  const source = fs.createReadStream(path.join(nodeArchivePath, tarName));
+  const gunzip = createGunzip();
+  const extract = tar.extract(nodePath, {
+    strip: 1,
+    map: (header) => {
+      log.info(header.name);
+      return header;
+    },
+  });
+
+  await pipe(source, gunzip, extract);
 }
 
 async function applyPatches(nodeVersion: string) {
@@ -107,14 +160,18 @@ async function applyPatches(nodeVersion: string) {
   for (const patch of patches) {
     const patchPath = path.join(patchesPath, patch);
     const args = ['-p1', '-i', patchPath];
-    spawnSync('patch', args, { cwd: nodePath, stdio: 'inherit' });
+    await spawn('patch', args, { cwd: nodePath, stdio: 'inherit' });
   }
 }
 
-async function compileOnWindows(nodeVersion: string, targetArch: string) {
-  const args = [];
-  args.push('/c', 'vcbuild.bat', targetArch);
+async function compileOnWindows(
+  nodeVersion: string,
+  targetArch: string,
+  targetPlatform: string
+) {
+  const args = ['/c', 'vcbuild.bat', targetArch];
   const major = getMajor(nodeVersion);
+  const config_flags = getConfigureArgs(major, targetPlatform);
 
   // Event Tracing for Windows
   args.push('noetw');
@@ -129,9 +186,17 @@ async function compileOnWindows(nodeVersion: string, targetArch: string) {
     args.push('ltcg');
   }
 
-  spawnSync('cmd', args, {
+  // Can't cross compile for arm64 with small-icu
+  if (
+    hostArch !== targetArch &&
+    !config_flags.includes('--with-intl=full-icu')
+  ) {
+    config_flags.push('--without-intl');
+  }
+
+  await spawn('cmd', args, {
     cwd: nodePath,
-    env: { ...process.env, config_flags: getConfigureArgs(major).join(' ') },
+    env: { ...process.env, config_flags: config_flags.join(' ') },
     stdio: 'inherit',
   });
 
@@ -144,7 +209,11 @@ async function compileOnWindows(nodeVersion: string, targetArch: string) {
 
 const { MAKE_JOB_COUNT = os.cpus().length } = process.env;
 
-async function compileOnUnix(nodeVersion: string, targetArch: string) {
+async function compileOnUnix(
+  nodeVersion: string,
+  targetArch: string,
+  targetPlatform: string
+) {
   const args = [];
   const cpu = {
     x86: 'ia32',
@@ -166,12 +235,15 @@ async function compileOnUnix(nodeVersion: string, targetArch: string) {
     args.push('--cross-compiling');
   }
 
-  args.concat(getConfigureArgs(getMajor(nodeVersion)));
+  args.push(...getConfigureArgs(getMajor(nodeVersion), targetPlatform));
 
   // TODO same for windows?
-  spawnSync('./configure', args, { cwd: nodePath, stdio: 'inherit' });
+  await spawn('/bin/sh', ['./configure', ...args], {
+    cwd: nodePath,
+    stdio: 'inherit',
+  });
 
-  spawnSync(
+  await spawn(
     hostPlatform === 'freebsd' ? 'gmake' : 'make',
     ['-j', String(MAKE_JOB_COUNT)],
     {
@@ -182,57 +254,56 @@ async function compileOnUnix(nodeVersion: string, targetArch: string) {
 
   const output = path.join(nodePath, 'out/Release/node');
 
-  spawnSync(process.env.STRIP || 'strip', [output], {
-    stdio: 'inherit',
-  });
+  await spawn(
+    process.env.STRIP || 'strip',
+    // global symbols are required for native bindings on macOS
+    [...(targetPlatform === 'macos' ? ['-x'] : []), output],
+    {
+      stdio: 'inherit',
+    }
+  );
+
+  if (targetPlatform === 'macos') {
+    // Newer versions of Apple Clang automatically ad-hoc sign the compiled executable.
+    // However, for final executable to be signable, base binary MUST NOT have an existing signature.
+    await spawn('codesign', ['--remove-signature', output], {
+      stdio: 'inherit',
+    });
+  }
 
   return output;
 }
 
-async function compile(nodeVersion: string, targetArch: string) {
+async function compile(
+  nodeVersion: string,
+  targetArch: string,
+  targetPlatform: string
+) {
   log.info('Compiling Node.js from sources...');
   const win = hostPlatform === 'win';
 
   if (win) {
-    return compileOnWindows(nodeVersion, targetArch);
+    return compileOnWindows(nodeVersion, targetArch, targetPlatform);
   }
 
-  return compileOnUnix(nodeVersion, targetArch);
-}
-
-async function hash(filePath: string): Promise<string> {
-  return new Promise<string>((resolve, reject) => {
-    const resultHash = crypto.createHash('sha256');
-    const input = fs.createReadStream(filePath);
-
-    input.on('error', (e) => {
-      reject(e);
-    });
-
-    input.on('readable', () => {
-      const data = input.read();
-      if (data) {
-        resultHash.update(data);
-      } else {
-        resolve(resultHash.digest('hex'));
-      }
-    });
-  });
+  return compileOnUnix(nodeVersion, targetArch, targetPlatform);
 }
 
 export default async function build(
   nodeVersion: string,
   targetArch: string,
+  targetPlatform: string,
   local: string
 ) {
   await fs.remove(buildPath);
-  await fs.mkdirp(buildPath);
+  await fs.mkdirp(nodePath);
+  await fs.mkdirp(nodeArchivePath);
 
-  await gitClone(nodeVersion);
-  await gitResetHard(nodeVersion);
+  await tarFetch(nodeVersion);
+  await tarExtract(nodeVersion);
   await applyPatches(nodeVersion);
 
-  const output = await compile(nodeVersion, targetArch);
+  const output = await compile(nodeVersion, targetArch, targetPlatform);
   const outputHash = await hash(output);
 
   await fs.mkdirp(path.dirname(local));

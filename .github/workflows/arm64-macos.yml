@@ -1,11 +1,15 @@
-name: Build Node binaries for macOS
+name: Build Node binaries for macOS (arm64)
 
 on:
   workflow_dispatch:
 
 jobs:
-  macos-x64:
-    runs-on: macos-11.0
+  macos-arm64:
+    runs-on: macos-arm64
+
+    defaults:
+      run:
+        shell: arch -arch arm64e bash -l -eo pipefail {0}
 
     strategy:
       fail-fast: false
@@ -14,15 +18,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-
-      - uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: latest
-
-      - name: Use Node.js 14
-        uses: actions/setup-node@v1
-        with:
-          node-version: 14
 
       - run: yarn install
 
@@ -36,5 +31,5 @@ jobs:
       - uses: actions/upload-artifact@v2
         if: steps.check_file.outputs.EXISTS == 'true'
         with:
-          name: node${{ matrix.target-node }}-macos-x64
+          name: node${{ matrix.target-node }}-macos-arm64
           path: dist/*

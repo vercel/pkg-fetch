@@ -1,16 +1,26 @@
-name: Build Node binaries for Linux
+name: Build Node binaries for Linux static (arm64)
 
 on:
   workflow_dispatch:
 
 jobs:
-  linux:
-    runs-on: ubuntu-20.04
+  linuxstatic:
+    runs-on: linux-arm64
 
     strategy:
       fail-fast: false
       matrix:
         target-node: [14, 16, 18]
+        target-arch: [arm64]
+        include:
+          - target-arch: arm64
+            docker-platform: linux/arm64
+          - target-node: 16
+            target-arch: armv7
+            docker-platform: linux/arm/v7
+          - target-node: 18
+            target-arch: armv7
+            docker-platform: linux/arm/v7
 
     steps:
       - uses: actions/checkout@v2
@@ -23,8 +33,10 @@ jobs:
         with:
           build-args: |
             PKG_FETCH_OPTION_n=node${{ matrix.target-node }}
+            PKG_FETCH_OPTION_p=linuxstatic
           context: .
-          file: ./Dockerfile.linux
+          file: ./Dockerfile.alpine
+          platforms: ${{ matrix.docker-platform }}
           outputs: type=tar,dest=../out.tar
 
       - name: Extract binaries from Docker image
@@ -39,5 +51,5 @@ jobs:
       - uses: actions/upload-artifact@v2
         if: steps.check_file.outputs.EXISTS == 'true'
         with:
-          name: node${{ matrix.target-node }}-linux-x64
+          name: node${{ matrix.target-node }}-linuxstatic-${{ matrix.target-arch }}
           path: root/pkg-fetch/dist/*

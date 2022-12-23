@@ -1,6 +1,6 @@
 import { spawnSync } from 'child_process';
 
-import { plusx } from './chmod';
+import { plusx } from './utils';
 
 const script = `
   var vm = require('vm');

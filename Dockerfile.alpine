@@ -1,0 +1,21 @@
+FROM alpine
+
+ARG PKG_FETCH_OPTION_n
+ARG PKG_FETCH_OPTION_p
+
+USER root:root
+
+WORKDIR /root/pkg-fetch/
+
+RUN apk add --no-cache build-base linux-headers npm pythonispython3 python3 yarn
+
+# https://gitlab.alpinelinux.org/alpine/aports/-/issues/8626
+ENV CFLAGS=-U_FORTIFY_SOURCE
+ENV CXXFLAGS=-U_FORTIFY_SOURCE
+ENV LDFLAGS=-Wl,-no-pie
+
+COPY . ./
+
+RUN yarn install
+
+RUN yarn start --node-range $PKG_FETCH_OPTION_n --platform $PKG_FETCH_OPTION_p --output dist

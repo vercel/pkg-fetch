@@ -1,0 +1,5 @@
+.*
+dist
+Dockerfile.*
+lib-es5
+node_modules

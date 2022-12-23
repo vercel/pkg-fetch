@@ -45,7 +45,11 @@ function detectAlpine() {
   }
 
   // https://github.com/sass/node-sass/issues/1589#issuecomment-265292579
-  const ldd = spawnSync('ldd').stderr.toString();
+  const ldd = spawnSync('ldd').stderr?.toString();
+
+  if (ldd == null) {
+    return fs.readdirSync('/lib').some((file) => file.startsWith('libc.musl'));
+  }
 
   if (/\bmusl\b/.test(ldd)) {
     return true;
@@ -68,56 +72,18 @@ function getHostPlatform() {
 }
 
 function getKnownPlatforms() {
-  return ['alpine', 'freebsd', 'linux', 'macos', 'win'];
+  return ['alpine', 'freebsd', 'linux', 'linuxstatic', 'macos', 'win'];
 }
 
 export function toFancyArch(arch: string) {
+  if (arch === 'arm') return 'armv7';
   if (arch === 'ia32') return 'x86';
   if (arch === 'x86_64') return 'x64';
   return arch;
 }
 
-function getArmUnameArch() {
-  const uname = spawnSync('uname', ['-a']);
-
-  if (uname.error) {
-    return '';
-  }
-
-  let unameOut = uname.stdout && uname.stdout.toString();
-  unameOut = (unameOut || '').toLowerCase();
-
-  if (unameOut.includes('aarch64')) return 'arm64';
-  if (unameOut.includes('arm64')) return 'arm64';
-  if (unameOut.includes('armv7')) return 'armv7';
-
-  return '';
-}
-
-function getArmHostArch() {
-  const cpu = fs.readFileSync('/proc/cpuinfo', 'utf8');
-
-  if (cpu.indexOf('vfpv3') >= 0) {
-    return 'armv7';
-  }
-
-  let name = cpu.split('model name')[1];
-
-  if (name) [, name] = name.split(':');
-  if (name) [name] = name.split('\n');
-  if (name && name.indexOf('ARMv7') >= 0) return 'armv7';
-
-  return 'armv6';
-}
-
 function getHostArch() {
-  const { arch } = process;
-
-  if (arch === 'arm') {
-    return getArmUnameArch() || getArmHostArch();
-  }
-
-  return toFancyArch(arch);
+  return toFancyArch(process.arch);
 }
 
 function getTargetArchs() {
@@ -131,7 +97,7 @@ function getTargetArchs() {
 }
 
 function getKnownArchs() {
-  return ['x64', 'x86', 'armv6', 'armv7', 'arm64', 'ppc64', 's390x'];
+  return ['x64', 'x86', 'armv7', 'arm64', 'ppc64', 's390x'];
 }
 
 export const hostAbi = getHostAbi();
