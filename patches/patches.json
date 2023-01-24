@@ -1,7 +1,7 @@
 {
   "v18.12.1": ["node.v18.12.1.cpp.patch"],
   "v16.18.1": ["node.v16.18.1.cpp.patch"],
-  "v14.21.1": ["node.v14.21.1.cpp.patch"],
+  "v14.21.2": ["node.v14.21.2.cpp.patch"],
   "v12.22.11": ["node.v12.22.11.cpp.patch"],
   "v10.24.1": ["node.v10.24.1.cpp.patch"],
   "v8.17.0": ["node.v8.17.0.cpp.patch"]
