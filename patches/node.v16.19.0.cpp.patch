@@ -1,6 +1,6 @@
 --- node/common.gypi
 +++ node/common.gypi
-@@ -183,7 +183,7 @@
+@@ -179,7 +179,7 @@
                'MSVC_runtimeType': 2   # MultiThreadedDLL (/MD)
              }],
              ['llvm_version=="0.0"', {
@@ -257,7 +257,7 @@ index 0000000000..fb2d47f52b
      }
 --- node/src/inspector_agent.cc
 +++ node/src/inspector_agent.cc
-@@ -690,8 +690,6 @@ bool Agent::Start(const std::string& path,
+@@ -693,8 +693,6 @@ bool Agent::Start(const std::string& path,
                                StartIoThreadAsyncCallback));
      uv_unref(reinterpret_cast<uv_handle_t*>(&start_io_thread_async));
      start_io_thread_async.data = this;
@@ -277,7 +277,7 @@ index 0000000000..fb2d47f52b
    if (env->worker_context() != nullptr) {
      return StartExecution(env, "internal/main/worker_thread");
    }
-@@ -599,13 +601,6 @@ static struct {
+@@ -603,13 +605,6 @@ static struct {
  
  inline void PlatformInit() {
  #ifdef __POSIX__
@@ -291,7 +291,7 @@ index 0000000000..fb2d47f52b
    // Make sure file descriptors 0-2 are valid before we start logging anything.
    for (auto& s : stdio) {
      const int fd = &s - stdio;
-@@ -621,10 +616,6 @@ inline void PlatformInit() {
+@@ -625,10 +620,6 @@ inline void PlatformInit() {
        ABORT();
    }
  
@@ -312,7 +312,7 @@ index 0000000000..fb2d47f52b
  using v8::Value;
  using v8::WeakCallbackInfo;
  using v8::WeakCallbackType;
-@@ -711,11 +712,12 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -715,11 +716,12 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
    Local<ArrayBufferView> cached_data_buf;
    bool produce_cached_data = false;
    Local<Context> parsing_context = context;
@@ -326,7 +326,7 @@ index 0000000000..fb2d47f52b
      CHECK(args[2]->IsNumber());
      line_offset = args[2].As<Int32>()->Value();
      CHECK(args[3]->IsNumber());
-@@ -734,6 +736,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -738,6 +740,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
        CHECK_NOT_NULL(sandbox);
        parsing_context = sandbox->context();
      }
@@ -334,7 +334,7 @@ index 0000000000..fb2d47f52b
    }
  
    ContextifyScript* contextify_script =
-@@ -785,6 +788,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -789,6 +792,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
    ShouldNotAbortOnUncaughtScope no_abort_scope(env);
    Context::Scope scope(parsing_context);
  
@@ -345,7 +345,7 @@ index 0000000000..fb2d47f52b
    MaybeLocal<UnboundScript> v8_script = ScriptCompiler::CompileUnboundScript(
        isolate,
        &source,
-@@ -799,6 +806,13 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -803,6 +810,13 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
                       "ContextifyScript::New");
      return;
    }
@@ -359,7 +359,7 @@ index 0000000000..fb2d47f52b
    contextify_script->script_.Reset(isolate, v8_script.ToLocalChecked());
  
    Local<Context> env_context = env->context();
-@@ -825,6 +839,11 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -829,6 +843,11 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
          env->cached_data_produced_string(),
          Boolean::New(isolate, cached_data_produced)).Check();
    }
@@ -482,7 +482,7 @@ index 0000000000..fb2d47f52b
 +}
 --- node/src/node_options.cc
 +++ node/src/node_options.cc
-@@ -275,6 +275,7 @@ void Parse(
+@@ -299,6 +299,7 @@ void Parse(
  // TODO(addaleax): Make that unnecessary.
  
  DebugOptionsParser::DebugOptionsParser() {
