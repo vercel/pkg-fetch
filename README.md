@@ -28,8 +28,6 @@ We do not expect this project to have vulnerabilities of its own. Nonetheless, a
 
 Like most of you, this project does not have access to advance/private disclosures of Node.js security vulnerabilities. We can only closely monitor the **public** security advisories from the Node.js team. It takes time to build and release a new set of binaries, once a new Node.js version has been released.
 
-We aim to complete the full cycle within a day, when there is a security update. Please [open an issue](https://github.com/vercel/pkg-fetch/issues/new) if there is no action for a while.
-
 **It is possible for this project to fall victim to a supply chain attack.**
 
 This project deploys multiple defense measures to ensure that the safe binaries are delivered to users:
@@ -45,5 +43,3 @@ This project deploys multiple defense measures to ensure that the safe binaries 
   - Easy to spot a compromise.
 - `pkg-fetch` package on npm is strictly permission-controlled
   - Only authorized Vercel employees can push new revisions to npm.
-
-Report to [security@vercel.com](mailto:security@vercel.com), if you noticed a disparity between (hashes of) binaries.
