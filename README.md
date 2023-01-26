@@ -46,6 +46,49 @@ This project deploys multiple defense measures to ensure that the safe binaries 
 
 ## Contributing Updates to Patches
 
+### Example workflow for applying patches to a new version of Node.js (18.13.0)
+
+1. Clone Node.js as a sibling to your current `pkg-fetch` clone
+
+- `git clone https://github.com/nodejs/node.git`
+- `cd node`
+
+2. Checkout the tag you wish to generate a patch for
+
+- `git checkout v18.13.0`
+
+3. Attempt to apply the closest patch (e.g. applying the existing patch for
+   18.12.1 when trying to generate a new patch for 18.13.0)
+
+- `git apply ..\pkg-fetch\patches\node.v18.12.1.cpp.patch --reject`
+
+4. If no rejects, great! you are ready to make your new patch file.
+
+- `git add -A`
+- `git diff --staged --src-prefix=node/ --dst-prefix=node/ > ..\pkg-fetch\patches\node.v18.13.0.cpp.patch`
+
+5. If rejects exist, resolve them yourself, and ensure all changes are saved,
+   and repeat step 4 to export the patch file
+
+#### Resolving Rejects
+
+Usually when a patch is rejected, it's because the context around the changes
+was refactored slightly since the last patched version. This is not usually
+complicated to resolve, but requires a human to interpret the changes since the
+last version `pkg` was patched against, compared with the version you wish to
+create a patch for.
+
+One method is to pull up the diff for the file where the rejects apply for the
+changes between the last tag (e.g. v18.12.1 to use the previous example) and the
+tag you want a patch for (e.g. v18.13.0 to use the previous example). Alongside
+this, have the `.rej` file and go through each rejected hunk by hunk and use
+your best judgement to determine how it should apply against the new tag.
+
+Save you results, and export the overall git diff with the commands from the
+example above.
+
+### Checking that patches apply cleanly
+
 The expectation is that a patch applies cleanly, with no delta or offsets from
 the source repo.
 
