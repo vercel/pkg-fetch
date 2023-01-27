@@ -306,7 +306,7 @@
      if (importModuleDynamically !== undefined) {
 --- node/src/inspector_agent.cc
 +++ node/src/inspector_agent.cc
-@@ -705,12 +705,10 @@
+@@ -712,12 +712,10 @@
      CHECK_EQ(0, uv_async_init(parent_env_->event_loop(),
                                &start_io_thread_async,
                                StartIoThreadAsyncCallback));
