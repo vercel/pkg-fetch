@@ -54,15 +54,23 @@ interface NeedOptions {
   arch: string;
 }
 
-export async function need(opts: NeedOptions) {
-  // eslint-disable-line complexity
-  const { forceFetch, forceBuild, dryRun, output } = opts || {};
-  let { nodeRange, platform, arch } = opts || {};
+export function satisfyingNodeVersion(nodeRange: string) {
+  const versions = Object.keys(patchesJson)
+    .filter((nv) => semver.satisfies(nv, nodeRange) || nodeRange === 'latest')
+    .sort((nv1, nv2) => (semver.gt(nv1, nv2) ? 1 : -1));
 
-  if (!nodeRange) throw wasReported('nodeRange not specified');
-  if (!platform) throw wasReported('platform not specified');
-  if (!arch) throw wasReported('arch not specified');
+  const nodeVersion = versions.pop();
 
+  if (!nodeVersion) {
+    throw wasReported(
+      `No available node version satisfies '${nodeRange}'`
+    );
+  }
+
+  return nodeVersion;
+}
+
+export function getNodeVersion(nodeRange: string) {
   nodeRange = abiToNodeRange(nodeRange); // 'm48' -> 'node6'
 
   if (!isValidNodeRange(nodeRange)) {
@@ -73,24 +81,24 @@ export async function need(opts: NeedOptions) {
     nodeRange = `v${nodeRange.slice(4)}`; // 'node6' -> 'v6' for semver
   }
 
+  const nodeVersion = satisfyingNodeVersion(nodeRange);
+  return nodeVersion;
+}
+
+
+export async function need(opts: NeedOptions) {
+  // eslint-disable-line complexity
+  const { forceFetch, forceBuild, dryRun, output, nodeRange } = opts || {};
+  let { platform, arch } = opts || {};
+
+  if (!nodeRange) throw wasReported('nodeRange not specified');
+  if (!platform) throw wasReported('platform not specified');
+  if (!arch) throw wasReported('arch not specified');
+
   platform = toFancyPlatform(platform); // win32 -> win
   arch = toFancyArch(arch); // ia32 -> x86
 
-  function satisfyingNodeVersion() {
-    const versions = Object.keys(patchesJson)
-      .filter((nv) => semver.satisfies(nv, nodeRange) || nodeRange === 'latest')
-      .sort((nv1, nv2) => (semver.gt(nv1, nv2) ? 1 : -1));
-
-    return versions.pop();
-  }
-
-  const nodeVersion = satisfyingNodeVersion();
-
-  if (!nodeVersion) {
-    throw wasReported(
-      `No available node version satisfies '${opts.nodeRange}'`
-    );
-  }
+  const nodeVersion = getNodeVersion(nodeRange);
 
   const fetched = localPlace({
     from: 'fetched',

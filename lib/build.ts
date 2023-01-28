@@ -104,7 +104,7 @@ async function tarFetch(nodeVersion: string) {
   await downloadUrl(`${distUrl}/${tarName}`, archivePath);
 }
 
-async function tarExtract(nodeVersion: string) {
+async function tarExtract(nodeVersion: string, suppressTarOutput: boolean) {
   log.info('Extracting Node.js source archive...');
 
   const tarName = `node-${nodeVersion}.tar.gz`;
@@ -130,7 +130,9 @@ async function tarExtract(nodeVersion: string) {
   const extract = tar.extract(nodePath, {
     strip: 1,
     map: (header) => {
-      log.info(header.name);
+      if (!suppressTarOutput) {
+        log.info(header.name);
+      }
       return header;
     },
   });
@@ -157,6 +159,12 @@ async function applyPatches(nodeVersion: string) {
     const args = ['-p1', '-i', patchPath];
     await spawn('patch', args, { cwd: nodePath, stdio: 'inherit' });
   }
+}
+
+export async function fetchExtractApply(nodeVersion: string, quietExtraction: boolean) {
+  await tarFetch(nodeVersion);
+  await tarExtract(nodeVersion, quietExtraction);
+  await applyPatches(nodeVersion);
 }
 
 async function compileOnWindows(
@@ -284,19 +292,20 @@ async function compile(
   return compileOnUnix(nodeVersion, targetArch, targetPlatform);
 }
 
+export async function prepBuildPath() {
+  await fs.remove(buildPath);
+  await fs.mkdirp(nodePath);
+  await fs.mkdirp(nodeArchivePath);
+}
+
 export default async function build(
   nodeVersion: string,
   targetArch: string,
   targetPlatform: string,
   local: string
 ) {
-  await fs.remove(buildPath);
-  await fs.mkdirp(nodePath);
-  await fs.mkdirp(nodeArchivePath);
-
-  await tarFetch(nodeVersion);
-  await tarExtract(nodeVersion);
-  await applyPatches(nodeVersion);
+  await prepBuildPath();
+  await fetchExtractApply(nodeVersion, false);
 
   const output = await compile(nodeVersion, targetArch, targetPlatform);
   const outputHash = await hash(output);
