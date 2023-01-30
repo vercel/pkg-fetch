@@ -2,6 +2,7 @@ name: Build Node binaries for Alpine
 
 on:
   workflow_dispatch:
+  workflow_call:
 
 jobs:
   alpine:
