@@ -358,7 +358,7 @@
 +
 +  if (sourceless && compile_options == ScriptCompiler::kConsumeCodeCache) {
 +    if (!source.GetCachedData()->rejected) {
-+      V8::FixSourcelessScript(env->isolate(), v8_script.ToLocalChecked());
++      V8::FixSourcelessScript(env->isolate(), v8_script);
 +    }
 +  }
 +
