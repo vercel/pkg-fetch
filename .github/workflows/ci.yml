@@ -11,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false # prevent test to stop if one fails
       matrix:
-        node-version: [10, 12, 14, 16, 18]
+        node-version: [10, 12, 14, 16, 18, 19]
         os: [ubuntu-latest] # Skip macos-latest, windows-latest for now
 
     runs-on: ${{ matrix.os }}
