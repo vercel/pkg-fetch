@@ -58,8 +58,11 @@ function getConfigureArgs(major: number, targetPlatform: string): string[] {
   // production binaries do NOT take NODE_OPTIONS from end-users
   args.push('--without-node-options');
 
-  // DTrace
-  args.push('--without-dtrace');
+  // The dtrace and etw support was removed in https://github.com/nodejs/node/commit/aa3a572e6bee116cde69508dc29478b40f40551a
+  if (major <= 18) {
+    // DTrace
+    args.push('--without-dtrace');
+  }
 
   // bundled npm package manager
   args.push('--without-npm');
