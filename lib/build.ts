@@ -176,8 +176,11 @@ async function compileOnWindows(
   const major = getMajor(nodeVersion);
   const config_flags = getConfigureArgs(major, targetPlatform);
 
-  // Event Tracing for Windows
-  args.push('noetw');
+  // The dtrace and etw support was removed in https://github.com/nodejs/node/commit/aa3a572e6bee116cde69508dc29478b40f40551a
+  if (major <= 18) {
+    // Event Tracing for Windows
+    args.push('noetw');
+  }
 
   // Performance counters on Windows
   if (major <= 10) {
