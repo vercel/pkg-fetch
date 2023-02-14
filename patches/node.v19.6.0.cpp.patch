@@ -1,0 +1,548 @@
+diff --git node/common.gypi node/common.gypi
+index b3718cff39..6a4a664ba0 100644
+--- node/common.gypi
++++ node/common.gypi
+@@ -174,7 +174,7 @@
+               'MSVC_runtimeType': 2   # MultiThreadedDLL (/MD)
+             }],
+             ['llvm_version=="0.0"', {
+-              'lto': ' -flto=4 -fuse-linker-plugin -ffat-lto-objects ', # GCC
++              'lto': ' -flto=4 -ffat-lto-objects ', # GCC
+             }, {
+               'lto': ' -flto ', # Clang
+             }],
+diff --git node/deps/v8/include/v8-initialization.h node/deps/v8/include/v8-initialization.h
+index d3e35d6ec5..6e9bbe3849 100644
+--- node/deps/v8/include/v8-initialization.h
++++ node/deps/v8/include/v8-initialization.h
+@@ -89,6 +89,10 @@ class V8_EXPORT V8 {
+   static void SetFlagsFromCommandLine(int* argc, char** argv,
+                                       bool remove_flags);
+ 
++  static void EnableCompilationForSourcelessUse();
++  static void DisableCompilationForSourcelessUse();
++  static void FixSourcelessScript(Isolate* v8_isolate, Local<UnboundScript> script);
++
+   /** Get the version string. */
+   static const char* GetVersion();
+ 
+diff --git node/deps/v8/src/api/api.cc node/deps/v8/src/api/api.cc
+index a4a4381614..2998f3c49b 100644
+--- node/deps/v8/src/api/api.cc
++++ node/deps/v8/src/api/api.cc
+@@ -683,6 +683,29 @@ void V8::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags) {
+                                        HelpOptions(HelpOptions::kDontExit));
+ }
+ 
++bool save_lazy;
++bool save_predictable;
++
++void V8::EnableCompilationForSourcelessUse() {
++  save_lazy = i::FLAG_lazy;
++  i::FLAG_lazy = false;
++  save_predictable = i::FLAG_predictable;
++  i::FLAG_predictable = true;
++}
++
++void V8::DisableCompilationForSourcelessUse() {
++  i::FLAG_lazy = save_lazy;
++  i::FLAG_predictable = save_predictable;
++}
++
++void V8::FixSourcelessScript(Isolate* v8_isolate, Local<UnboundScript> unbound_script) {
++  auto isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
++  auto function_info =
++      i::Handle<i::SharedFunctionInfo>::cast(Utils::OpenHandle(*unbound_script));
++  i::Handle<i::Script> script(i::Script::cast(function_info->script()), isolate);
++  script->set_source(i::ReadOnlyRoots(isolate).undefined_value());
++}
++
+ RegisteredExtension* RegisteredExtension::first_extension_ = nullptr;
+ 
+ RegisteredExtension::RegisteredExtension(std::unique_ptr<Extension> extension)
+diff --git node/deps/v8/src/codegen/compiler.cc node/deps/v8/src/codegen/compiler.cc
+index 5431deb83e..d11f04ccac 100644
+--- node/deps/v8/src/codegen/compiler.cc
++++ node/deps/v8/src/codegen/compiler.cc
+@@ -3497,7 +3497,7 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
+     maybe_script = lookup_result.script();
+     maybe_result = lookup_result.toplevel_sfi();
+     is_compiled_scope = lookup_result.is_compiled_scope();
+-    if (!maybe_result.is_null()) {
++    if (!maybe_result.is_null() && source->length()) {
+       compile_timer.set_hit_isolate_cache();
+     } else if (can_consume_code_cache) {
+       compile_timer.set_consuming_code_cache();
+diff --git node/deps/v8/src/objects/js-function.cc node/deps/v8/src/objects/js-function.cc
+index 62fe309a47..f1875ce023 100644
+--- node/deps/v8/src/objects/js-function.cc
++++ node/deps/v8/src/objects/js-function.cc
+@@ -1245,6 +1245,9 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
+   Handle<Object> maybe_class_positions = JSReceiver::GetDataProperty(
+       isolate, function, isolate->factory()->class_positions_symbol());
+   if (maybe_class_positions->IsClassPositions()) {
++    if (String::cast(Script::cast(shared_info->script()).source()).IsUndefined(isolate)) {
++      return isolate->factory()->NewStringFromAsciiChecked("class {}");
++    }
+     ClassPositions class_positions =
+         ClassPositions::cast(*maybe_class_positions);
+     int start_position = class_positions.start();
+diff --git node/deps/v8/src/objects/shared-function-info-inl.h node/deps/v8/src/objects/shared-function-info-inl.h
+index 43ef0d3d17..79b774463f 100644
+--- node/deps/v8/src/objects/shared-function-info-inl.h
++++ node/deps/v8/src/objects/shared-function-info-inl.h
+@@ -637,6 +637,14 @@ bool SharedFunctionInfo::ShouldFlushCode(
+   }
+   if (!data.IsBytecodeArray()) return false;
+ 
++  Object script_obj = script();
++  if (!script_obj.IsUndefined()) {
++    Script script = Script::cast(script_obj);
++    if (script.source().IsUndefined()) {
++      return false;
++    }
++  }
++
+   if (IsStressFlushingEnabled(code_flush_mode)) return true;
+ 
+   BytecodeArray bytecode = BytecodeArray::cast(data);
+diff --git node/deps/v8/src/parsing/parsing.cc node/deps/v8/src/parsing/parsing.cc
+index 8c55a6fb6e..70bf82a57d 100644
+--- node/deps/v8/src/parsing/parsing.cc
++++ node/deps/v8/src/parsing/parsing.cc
+@@ -42,6 +42,7 @@ bool ParseProgram(ParseInfo* info, Handle<Script> script,
+                   Isolate* isolate, ReportStatisticsMode mode) {
+   DCHECK(info->flags().is_toplevel());
+   DCHECK_NULL(info->literal());
++  if (String::cast(script->source()).IsUndefined(isolate)) return false;
+ 
+   VMState<PARSER> state(isolate);
+ 
+@@ -75,6 +76,7 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
+ 
+   // Create a character stream for the parser.
+   Handle<Script> script(Script::cast(shared_info->script()), isolate);
++  if (String::cast(script->source()).IsUndefined(isolate)) return false;
+   Handle<String> source(String::cast(script->source()), isolate);
+   std::unique_ptr<Utf16CharacterStream> stream(
+       ScannerStream::For(isolate, source, shared_info->StartPosition(),
+diff --git node/deps/v8/src/snapshot/code-serializer.cc node/deps/v8/src/snapshot/code-serializer.cc
+index 95352299f8..2dd794b855 100644
+--- node/deps/v8/src/snapshot/code-serializer.cc
++++ node/deps/v8/src/snapshot/code-serializer.cc
+@@ -661,11 +661,7 @@ SerializedCodeSanityCheckResult SerializedCodeData::SanityCheck(
+ }
+ 
+ SerializedCodeSanityCheckResult SerializedCodeData::SanityCheckJustSource(
+-    uint32_t expected_source_hash) const {
+-  uint32_t source_hash = GetHeaderValue(kSourceHashOffset);
+-  if (source_hash != expected_source_hash) {
+-    return SerializedCodeSanityCheckResult::kSourceMismatch;
+-  }
++    uint32_t) const {
+   return SerializedCodeSanityCheckResult::kSuccess;
+ }
+ 
+@@ -682,10 +678,6 @@ SerializedCodeSanityCheckResult SerializedCodeData::SanityCheckWithoutSource()
+   if (version_hash != Version::Hash()) {
+     return SerializedCodeSanityCheckResult::kVersionMismatch;
+   }
+-  uint32_t flags_hash = GetHeaderValue(kFlagHashOffset);
+-  if (flags_hash != FlagList::Hash()) {
+-    return SerializedCodeSanityCheckResult::kFlagsMismatch;
+-  }
+   uint32_t payload_length = GetHeaderValue(kPayloadLengthOffset);
+   uint32_t max_payload_length = this->size_ - kHeaderSize;
+   if (payload_length > max_payload_length) {
+diff --git node/lib/child_process.js node/lib/child_process.js
+index 55e6b781cd..2a499d6d5f 100644
+--- node/lib/child_process.js
++++ node/lib/child_process.js
+@@ -167,7 +167,7 @@ function fork(modulePath, args = [], options) {
+     throw new ERR_CHILD_PROCESS_IPC_REQUIRED('options.stdio');
+   }
+ 
+-  return spawn(options.execPath, args, options);
++  return module.exports.spawn(options.execPath, args, options);
+ }
+ 
+ function _forkChild(fd, serializationMode) {
+diff --git node/lib/internal/bootstrap/pkg.js node/lib/internal/bootstrap/pkg.js
+new file mode 100644
+index 0000000000..e97e9e524c
+--- /dev/null
++++ node/lib/internal/bootstrap/pkg.js
+@@ -0,0 +1,44 @@
++'use strict';
++
++const {
++  prepareMainThreadExecution
++} = require('internal/process/pre_execution');
++
++prepareMainThreadExecution(true);
++
++(function () {
++  var __require__ = require;
++  var fs = __require__('fs');
++  var vm = __require__('vm');
++  function readPrelude (fd) {
++    var PAYLOAD_POSITION = '// PAYLOAD_POSITION //' | 0;
++    var PAYLOAD_SIZE = '// PAYLOAD_SIZE //' | 0;
++    var PRELUDE_POSITION = '// PRELUDE_POSITION //' | 0;
++    var PRELUDE_SIZE = '// PRELUDE_SIZE //' | 0;
++    if (!PRELUDE_POSITION) {
++      // no prelude - remove entrypoint from argv[1]
++      process.argv.splice(1, 1);
++      return { undoPatch: true };
++    }
++    var prelude = Buffer.alloc(PRELUDE_SIZE);
++    var read = fs.readSync(fd, prelude, 0, PRELUDE_SIZE, PRELUDE_POSITION);
++    if (read !== PRELUDE_SIZE) {
++      console.error('Pkg: Error reading from file.');
++      process.exit(1);
++    }
++    var s = new vm.Script(prelude, { filename: 'pkg/prelude/bootstrap.js' });
++    var fn = s.runInThisContext();
++    return fn(process, __require__,
++      console, fd, PAYLOAD_POSITION, PAYLOAD_SIZE);
++  }
++  (function () {
++    var fd = fs.openSync(process.execPath, 'r');
++    var result = readPrelude(fd);
++    if (result && result.undoPatch) {
++      var bindingFs = process.binding('fs');
++      fs.internalModuleStat = bindingFs.internalModuleStat;
++      fs.internalModuleReadJSON = bindingFs.internalModuleReadJSON;
++      fs.closeSync(fd);
++    }
++  }());
++}());
+diff --git node/lib/internal/modules/cjs/loader.js node/lib/internal/modules/cjs/loader.js
+index 80b931ef70..62399aef83 100644
+--- node/lib/internal/modules/cjs/loader.js
++++ node/lib/internal/modules/cjs/loader.js
+@@ -94,7 +94,7 @@ const fs = require('fs');
+ const internalFS = require('internal/fs/utils');
+ const path = require('path');
+ const { sep } = path;
+-const { internalModuleStat } = internalBinding('fs');
++const internalModuleStat = function (f) { return require('fs').internalModuleStat(f); };
+ const { safeGetenv } = internalBinding('credentials');
+ const {
+   getCjsConditions,
+diff --git node/lib/internal/modules/package_json_reader.js node/lib/internal/modules/package_json_reader.js
+index 09eb12bd15..2d2f196737 100644
+--- node/lib/internal/modules/package_json_reader.js
++++ node/lib/internal/modules/package_json_reader.js
+@@ -1,7 +1,7 @@
+ 'use strict';
+ 
+ const { SafeMap } = primordials;
+-const { internalModuleReadJSON } = internalBinding('fs');
++const internalModuleReadJSON = function (f) { return require('fs').internalModuleReadJSON(f); };
+ const { pathToFileURL } = require('url');
+ const { toNamespacedPath } = require('path');
+ 
+diff --git node/lib/internal/process/pre_execution.js node/lib/internal/process/pre_execution.js
+index 4c44927fb0..361f7d5752 100644
+--- node/lib/internal/process/pre_execution.js
++++ node/lib/internal/process/pre_execution.js
+@@ -35,7 +35,12 @@ const {
+   },
+ } = require('internal/v8/startup_snapshot');
+ 
++let _alreadyPrepared = false;
++
+ function prepareMainThreadExecution(expandArgv1 = false, initializeModules = true) {
++  if (_alreadyPrepared === true) return;
++  _alreadyPrepared = true;
++
+   prepareExecution({
+     expandArgv1,
+     initializeModules,
+@@ -154,7 +159,8 @@ function patchProcessObject(expandArgv1) {
+   process.argv[0] = process.execPath;
+ 
+   if (expandArgv1 && process.argv[1] &&
+-      !StringPrototypeStartsWith(process.argv[1], '-')) {
++      !StringPrototypeStartsWith(process.argv[1], '-') &&
++      process.argv[1] !== 'PKG_DUMMY_ENTRYPOINT') {
+     // Expand process.argv[1] into a full path.
+     const path = require('path');
+     try {
+@@ -612,6 +618,7 @@ function loadPreloadModules() {
+   // For user code, we preload modules if `-r` is passed
+   const preloadModules = getOptionValue('--require');
+   if (preloadModules && preloadModules.length > 0) {
++    assert(false, '--require is not supported');
+     const {
+       Module: {
+         _preloadModules
+diff --git node/lib/vm.js node/lib/vm.js
+index dea0121566..d8618f3edb 100644
+--- node/lib/vm.js
++++ node/lib/vm.js
+@@ -79,6 +79,7 @@ class Script extends ContextifyScript {
+       produceCachedData = false,
+       importModuleDynamically,
+       [kParsingContext]: parsingContext,
++      sourceless = false,
+     } = options;
+ 
+     validateString(filename, 'options.filename');
+@@ -103,7 +104,8 @@ class Script extends ContextifyScript {
+             columnOffset,
+             cachedData,
+             produceCachedData,
+-            parsingContext);
++            parsingContext,
++            sourceless);
+     } catch (e) {
+       throw e; /* node-do-not-add-exception-line */
+     }
+diff --git node/src/inspector_agent.cc node/src/inspector_agent.cc
+index decd9f748a..4e5afbee4f 100644
+--- node/src/inspector_agent.cc
++++ node/src/inspector_agent.cc
+@@ -695,8 +695,6 @@ bool Agent::Start(const std::string& path,
+                               StartIoThreadAsyncCallback));
+     uv_unref(reinterpret_cast<uv_handle_t*>(&start_io_thread_async));
+     start_io_thread_async.data = this;
+-    // Ignore failure, SIGUSR1 won't work, but that should not block node start.
+-    StartDebugSignalHandler();
+ 
+     parent_env_->AddCleanupHook([](void* data) {
+       Environment* env = static_cast<Environment*>(data);
+diff --git node/src/node.cc node/src/node.cc
+index c5b6c2b844..017e641dce 100644
+--- node/src/node.cc
++++ node/src/node.cc
+@@ -294,6 +294,8 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
+     return env->RunSnapshotDeserializeMain();
+   }
+ 
++  StartExecution(env, "internal/bootstrap/pkg");
++
+   if (env->worker_context() != nullptr) {
+     return StartExecution(env, "internal/main/worker_thread");
+   }
+@@ -485,14 +487,6 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
+   }
+ 
+   if (!(flags & ProcessInitializationFlags::kNoDefaultSignalHandling)) {
+-#if HAVE_INSPECTOR
+-    sigset_t sigmask;
+-    sigemptyset(&sigmask);
+-    sigaddset(&sigmask, SIGUSR1);
+-    const int err = pthread_sigmask(SIG_SETMASK, &sigmask, nullptr);
+-    CHECK_EQ(err, 0);
+-#endif  // HAVE_INSPECTOR
+-
+     ResetSignalHandlers();
+   }
+ 
+diff --git node/src/node_contextify.cc node/src/node_contextify.cc
+index ed552ddd55..f757ac3b49 100644
+--- node/src/node_contextify.cc
++++ node/src/node_contextify.cc
+@@ -75,6 +75,7 @@ using v8::ScriptOrigin;
+ using v8::String;
+ using v8::Uint32;
+ using v8::UnboundScript;
++using v8::V8;
+ using v8::Value;
+ using v8::WeakCallbackInfo;
+ using v8::WeakCallbackType;
+@@ -771,11 +772,12 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+   Local<ArrayBufferView> cached_data_buf;
+   bool produce_cached_data = false;
+   Local<Context> parsing_context = context;
++  bool sourceless = false;
+ 
+   if (argc > 2) {
+     // new ContextifyScript(code, filename, lineOffset, columnOffset,
+     //                      cachedData, produceCachedData, parsingContext)
+-    CHECK_EQ(argc, 7);
++    CHECK_EQ(argc, 8);
+     CHECK(args[2]->IsNumber());
+     line_offset = args[2].As<Int32>()->Value();
+     CHECK(args[3]->IsNumber());
+@@ -794,6 +796,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+       CHECK_NOT_NULL(sandbox);
+       parsing_context = sandbox->context();
+     }
++    sourceless = args[7]->IsTrue();
+   }
+ 
+   ContextifyScript* contextify_script =
+@@ -844,6 +847,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+   ShouldNotAbortOnUncaughtScope no_abort_scope(env);
+   Context::Scope scope(parsing_context);
+ 
++  if (sourceless && produce_cached_data) {
++    V8::EnableCompilationForSourcelessUse();
++  }
++
+   MaybeLocal<UnboundScript> maybe_v8_script =
+       ScriptCompiler::CompileUnboundScript(isolate, &source, compile_options);
+ 
+@@ -857,6 +864,13 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+                      "ContextifyScript::New");
+     return;
+   }
++
++  if (sourceless && compile_options == ScriptCompiler::kConsumeCodeCache) {
++    if (!source.GetCachedData()->rejected) {
++      V8::FixSourcelessScript(env->isolate(), v8_script);
++    }
++  }
++
+   contextify_script->script_.Reset(isolate, v8_script);
+ 
+   std::unique_ptr<ScriptCompiler::CachedData> new_cached_data;
+@@ -881,6 +895,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+           .IsNothing())
+     return;
+ 
++  if (sourceless && produce_cached_data) {
++    V8::DisableCompilationForSourcelessUse();
++  }
++
+   TRACE_EVENT_END0(TRACING_CATEGORY_NODE2(vm, script), "ContextifyScript::New");
+ }
+ 
+diff --git node/src/node_main.cc node/src/node_main.cc
+index 56deaf47fa..e7ffa1baaa 100644
+--- node/src/node_main.cc
++++ node/src/node_main.cc
+@@ -22,6 +22,8 @@
+ #include "node.h"
+ #include <cstdio>
+ 
++int reorder(int argc, char** argv);
++
+ #ifdef _WIN32
+ #include <windows.h>
+ #include <VersionHelpers.h>
+@@ -88,12 +90,95 @@ int wmain(int argc, wchar_t* wargv[]) {
+   }
+   argv[argc] = nullptr;
+   // Now that conversion is done, we can finally start.
+-  return node::Start(argc, argv);
++  return reorder(argc, argv);
+ }
+ #else
+ // UNIX
+ 
+ int main(int argc, char* argv[]) {
++  return reorder(argc, argv);
++}
++#endif
++
++#include <string.h>
++
++int strlen2 (char* s) {
++  int len = 0;
++  while (*s) {
++    len += 1;
++    s += 1;
++  }
++  return len;
++}
++
++bool should_set_dummy() {
++#ifdef _WIN32
++  #define MAX_ENV_LENGTH 32767
++  wchar_t execpath_env[MAX_ENV_LENGTH];
++  DWORD result = GetEnvironmentVariableW(L"PKG_EXECPATH", execpath_env, MAX_ENV_LENGTH);
++  if (result == 0 && GetLastError() != ERROR_SUCCESS) return true;
++  return wcscmp(execpath_env, L"PKG_INVOKE_NODEJS") != 0;
++#else
++  const char* execpath_env = getenv("PKG_EXECPATH");
++  if (!execpath_env) return true;
++  return strcmp(execpath_env, "PKG_INVOKE_NODEJS") != 0;
++#endif
++}
++
++// for uv_setup_args
++int adjacent(int argc, char** argv) {
++  size_t size = 0;
++  for (int i = 0; i < argc; i++) {
++    size += strlen(argv[i]) + 1;
++  }
++  char* args = new char[size];
++  size_t pos = 0;
++  for (int i = 0; i < argc; i++) {
++    memcpy(&args[pos], argv[i], strlen(argv[i]) + 1);
++    argv[i] = &args[pos];
++    pos += strlen(argv[i]) + 1;
++  }
+   return node::Start(argc, argv);
+ }
++
++volatile char* BAKERY = (volatile char*) "\0// BAKERY // BAKERY " \
++  "// BAKERY // BAKERY // BAKERY // BAKERY // BAKERY // BAKERY " \
++  "// BAKERY // BAKERY // BAKERY // BAKERY // BAKERY // BAKERY " \
++  "// BAKERY // BAKERY // BAKERY // BAKERY // BAKERY // BAKERY ";
++
++#ifdef __clang__
++__attribute__((optnone))
++#elif defined(__GNUC__)
++__attribute__((optimize(0)))
+ #endif
++
++int load_baked(char** nargv) {
++  int c = 1;
++
++  char* bakery = (char*) BAKERY;
++  while (true) {
++    size_t width = strlen2(bakery);
++    if (width == 0) break;
++    nargv[c++] = bakery;
++    bakery += width + 1;
++  }
++
++  return c;
++}
++
++int reorder(int argc, char** argv) {
++  char** nargv = new char*[argc + 64];
++
++  nargv[0] = argv[0];
++  int c = load_baked(nargv);
++
++  if (should_set_dummy()) {
++    nargv[c++] = (char*) "PKG_DUMMY_ENTRYPOINT";
++  }
++
++  for (int i = 1; i < argc; i++) {
++    nargv[c++] = argv[i];
++  }
++
++  return adjacent(c, nargv);
++}
+diff --git node/src/node_options.cc node/src/node_options.cc
+index b9314eaa53..29f82d9738 100644
+--- node/src/node_options.cc
++++ node/src/node_options.cc
+@@ -293,6 +293,7 @@ void Parse(
+ // TODO(addaleax): Make that unnecessary.
+ 
+ DebugOptionsParser::DebugOptionsParser() {
++  return;
+   AddOption("--inspect-port",
+             "set host:port for inspector",
+             &DebugOptions::host_port,
+diff --git node/tools/icu/icu-generic.gyp node/tools/icu/icu-generic.gyp
+index db45e6fbdf..3e39f1fbdf 100644
+--- node/tools/icu/icu-generic.gyp
++++ node/tools/icu/icu-generic.gyp
+@@ -52,7 +52,7 @@
+         'conditions': [
+           [ 'os_posix == 1 and OS != "mac" and OS != "ios"', {
+             'cflags': [ '-Wno-deprecated-declarations', '-Wno-strict-aliasing' ],
+-            'cflags_cc': [ '-frtti' ],
++            'cflags_cc': [ '-frtti', '-fno-lto' ],
+             'cflags_cc!': [ '-fno-rtti' ],
+           }],
+           [ 'OS == "mac" or OS == "ios"', {
