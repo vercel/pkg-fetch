@@ -24,7 +24,7 @@ jobs:
         with:
           node-version: 14
 
-      - run: pip install ninja
+      - run: pip3 install ninja
 
       - run: yarn install
 

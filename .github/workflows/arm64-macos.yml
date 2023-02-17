@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - run: pip install ninja
+      - run: pip3 install ninja
 
       - run: yarn install
 
