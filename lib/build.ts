@@ -32,7 +32,7 @@ function getConfigureArgs(major: number, targetPlatform: string): string[] {
   const args: string[] = [];
 
   // Use Ninja instead of GNU make
-  if (process.platform !== 'win32') {
+  if (hostPlatform !== 'win') {
     args.push('--ninja');
   }
 
