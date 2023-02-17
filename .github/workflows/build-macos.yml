@@ -24,6 +24,8 @@ jobs:
         with:
           node-version: 14
 
+      - run: pip install ninja
+
       - run: yarn install
 
       - run: yarn start --node-range node${{ matrix.target-node }} --output dist

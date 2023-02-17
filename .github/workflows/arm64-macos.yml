@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - run: brew install ninja
+      - run: pip install ninja
 
       - run: yarn install
 

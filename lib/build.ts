@@ -32,7 +32,9 @@ function getConfigureArgs(major: number, targetPlatform: string): string[] {
   const args: string[] = [];
 
   // Use Ninja instead of GNU make
-  args.push('--ninja');
+  if (process.platform !== 'win32') {
+    args.push('--ninja');
+  }
 
   // first of all v8_inspector introduces the use
   // of `prime_rehash_policy` symbol that requires
