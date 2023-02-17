@@ -12,6 +12,7 @@ RUN yum install -y \
     devtoolset-10 glibc-headers kernel-headers \
     make patch python2 \
     rh-python36-python
+RUN pip install ninja
 
 RUN curl -fsSL https://rpm.nodesource.com/setup_16.x | bash -
 RUN yum install -y nodejs
