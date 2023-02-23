@@ -2,24 +2,56 @@ import fetch from 'node-fetch';
 import crypto from 'crypto';
 import fs from 'fs-extra';
 import httpsProxyAgent from 'https-proxy-agent';
+import type { HttpsProxyAgentOptions } from 'https-proxy-agent';
 import path from 'path';
 import { spawnSync, SpawnSyncOptions } from 'child_process';
 import stream from 'stream';
+import url from 'url';
 
 import { log, wasReported } from './log';
 
-export async function downloadUrl(url: string, file: string): Promise<void> {
+function getProxyHost() {
+  return process.env.HTTPS_PROXY ??
+  process.env.https_proxy ??
+  process.env.HTTP_PROXY ??
+  process.env.http_proxy;
+}
+
+function getProxyCert() {
+  return process.env.HTTPS_PROXY_CERT ?? process.env.https_proxy_cert;
+}
+
+function getProxyKey() {
+  return process.env.HTTPS_PROXY_KEY ?? process.env.https_proxy_key;
+}
+
+function getProxyDetails() {
+  const proxyHost = getProxyHost();
+
+  let proxy: HttpsProxyAgentOptions | undefined;
+
+  if (proxyHost) {
+    proxy = url.parse(proxyHost);
+    const certPath = getProxyCert();
+    if (certPath) {
+      proxy.cert = fs.readFileSync(certPath);
+    }
+    const keyPath = getProxyKey();
+    if (keyPath) {
+      proxy.key = fs.readFileSync(keyPath);
+    }
+  }
+  return proxy;
+}
+
+export async function downloadUrl(urlToDownload: string, file: string): Promise<void> {
   log.enableProgress(path.basename(file));
   log.showProgress(0);
 
-  const proxy =
-    process.env.HTTPS_PROXY ??
-    process.env.https_proxy ??
-    process.env.HTTP_PROXY ??
-    process.env.http_proxy;
+  const proxy = getProxyDetails();
 
   const res = await fetch(
-    url,
+    urlToDownload,
     proxy ? { agent: httpsProxyAgent(proxy) } : undefined
   );
 

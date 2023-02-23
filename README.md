@@ -115,3 +115,17 @@ review.
 For example:
 
 `yarn start --node-range node18 --arch x64 --output dist`
+
+## Proxy
+
+Do you need to run the requests for the builds behind a proxy?
+
+You can provide the following env variables to specify what proxy to use, and optionally configure it to use a particular TLS certificate and key. ie.,
+
+```
+HTTPS_PROXY=https://myproxy \
+HTTPS_PROXY_KEY=/var/my.cert \
+HTTPS_PROXY_CERT=/var/my.key \
+./node_modules/.bin/pkg \
+--targets=node18-linux-x64 .
+```
