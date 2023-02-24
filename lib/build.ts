@@ -238,6 +238,15 @@ async function compileOnUnix(
     args.push('--dest-cpu', cpu);
   }
 
+  if (targetArch === 'armv7') {
+    const { CFLAGS = '', CXXFLAGS = '' } = process.env;
+    process.env.CFLAGS = `${CFLAGS} -marm -mcpu=cortex-a7`;
+    process.env.CXXFLAGS = `${CXXFLAGS} -marm -mcpu=cortex-a7`;
+
+    args.push('--with-arm-float-abi=hard');
+    args.push('--with-arm-fpu=vfpv3');
+  }
+
   if (hostArch !== targetArch) {
     log.warn('Cross compiling!');
     log.warn('You are responsible for appropriate env like CC, CC_host, etc.');
