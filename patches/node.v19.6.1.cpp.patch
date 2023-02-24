@@ -11,6 +11,20 @@ index b3718cff39..6a4a664ba0 100644
              }, {
                'lto': ' -flto ', # Clang
              }],
+diff --git node/configure.py node/configure.py
+index 215aee5d80..ccb59bd304 100755
+--- node/configure.py
++++ node/configure.py
+@@ -1259,9 +1259,7 @@ def configure_node(o):
+ 
+   o['variables']['want_separate_host_toolset'] = int(cross_compiling)
+ 
+-  # Enable branch protection for arm64
+   if target_arch == 'arm64':
+-    o['cflags']+=['-msign-return-address=all']
+     o['variables']['arm_fpu'] = options.arm_fpu or 'neon'
+ 
+   if options.node_snapshot_main is not None:
 diff --git node/deps/v8/include/v8-initialization.h node/deps/v8/include/v8-initialization.h
 index d3e35d6ec5..6e9bbe3849 100644
 --- node/deps/v8/include/v8-initialization.h
@@ -300,6 +314,20 @@ index dea0121566..d8618f3edb 100644
      } catch (e) {
        throw e; /* node-do-not-add-exception-line */
      }
+diff --git node/node.gyp node/node.gyp
+index b0f132efd8..3a43b724dc 100644
+--- node/node.gyp
++++ node/node.gyp
+@@ -110,6 +110,9 @@
+     },
+ 
+     'conditions': [
++      ['target_arch=="arm64"', {
++        'cflags': ['-msign-return-address=all'],  # Pointer authentication.
++      }],
+       ['OS=="aix"', {
+         'ldflags': [
+           '-Wl,-bnoerrmsg',
 diff --git node/src/inspector_agent.cc node/src/inspector_agent.cc
 index decd9f748a..4e5afbee4f 100644
 --- node/src/inspector_agent.cc
