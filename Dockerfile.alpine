@@ -1,5 +1,9 @@
-FROM alpine
+ARG HOST_ARCH=x86_64
+ARG TARGET_TRIPLE=aarch64-linux-musl
 
+FROM muslcc/$HOST_ARCH:$TARGET_TRIPLE
+
+ARG PKG_FETCH_OPTION_a
 ARG PKG_FETCH_OPTION_n
 ARG PKG_FETCH_OPTION_p
 
@@ -7,15 +11,29 @@ USER root:root
 
 WORKDIR /root/pkg-fetch/
 
-RUN apk add --no-cache build-base linux-headers npm pythonispython3 python3 yarn
+RUN apk add --no-cache build-base git linux-headers npm pythonispython3 python3 yarn
 
 # https://gitlab.alpinelinux.org/alpine/aports/-/issues/8626
 ENV CFLAGS=-U_FORTIFY_SOURCE
+ENV CFLAGS_host=-U_FORTIFY_SOURCE
 ENV CXXFLAGS=-U_FORTIFY_SOURCE
-ENV LDFLAGS=-Wl,-no-pie
+ENV CXXFLAGS_host=-U_FORTIFY_SOURCE
+
+ENV CC=/bin/gcc
+ENV CXX=/bin/g++
+ENV AR=/bin/ar
+ENV NM=/bin/nm
+ENV READELF=/bin/readelf
+ENV STRIP=/bin/strip
+
+ENV CC_host=/usr/bin/gcc
+ENV CXX_host=/usr/bin/g++
+ENV AR_host=/usr/bin/ar
+ENV NM_host=/usr/bin/nm
+ENV READELF_host=/usr/bin/readelf
 
 COPY . ./
 
 RUN yarn install
 
-RUN yarn start --node-range $PKG_FETCH_OPTION_n --platform $PKG_FETCH_OPTION_p --output dist
+RUN yarn start --arch $PKG_FETCH_OPTION_a --node-range $PKG_FETCH_OPTION_n --platform $PKG_FETCH_OPTION_p --output dist

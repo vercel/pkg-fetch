@@ -1,0 +1,42 @@
+FROM ubuntu:bionic
+
+USER root:root
+WORKDIR /root/pkg-fetch/
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update
+RUN apt-get install -y curl software-properties-common
+RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash -
+RUN apt-get install -y nodejs
+
+RUN apt-get install -y binutils g++-8 git make patch python3 python3-distutils
+
+ARG TARGET_TOOLCHAIN_ARCH
+
+RUN [ `uname -m` = ${TARGET_TOOLCHAIN_ARCH} ] || \
+    apt-get install -y binutils-${TARGET_TOOLCHAIN_ARCH}-linux-gnu g++-8-${TARGET_TOOLCHAIN_ARCH}-linux-gnu
+
+ENV CC=${TARGET_TOOLCHAIN_ARCH}-linux-gnu-gcc-8
+ENV CXX=${TARGET_TOOLCHAIN_ARCH}-linux-gnu-g++-8
+ENV AR=${TARGET_TOOLCHAIN_ARCH}-linux-gnu-ar
+ENV NM=${TARGET_TOOLCHAIN_ARCH}-linux-gnu-nm
+ENV RANLIB=${TARGET_TOOLCHAIN_ARCH}-linux-gnu-ranlib
+ENV READELF=${TARGET_TOOLCHAIN_ARCH}-linux-gnu-readelf
+ENV STRIP=${TARGET_TOOLCHAIN_ARCH}-linux-gnu-strip
+ENV CC_host=gcc-8
+ENV CXX_host=g++-8
+ENV AR_host=ar
+ENV NM_host=nm
+ENV RANLIB_host=ranlib
+ENV READELF_host=readelf
+
+RUN npm install -g yarn
+
+COPY . ./
+
+RUN yarn install
+
+ARG PKG_FETCH_OPTION_a
+ARG PKG_FETCH_OPTION_n
+
+RUN yarn start --arch $PKG_FETCH_OPTION_a --node-range $PKG_FETCH_OPTION_n --output dist
