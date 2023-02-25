@@ -24,6 +24,7 @@ async function main() {
       type: 'boolean',
     })
     .conflicts('force-fetch', 'force-build')
+    .option('ninja', { type: 'boolean' })
     .option('output', { alias: 'o', type: 'string' })
     .version(version)
     .alias('v', 'version')
@@ -38,6 +39,7 @@ async function main() {
     'force-fetch': forceFetch,
     'force-build': forceBuild,
     output,
+    ninja,
   } = argv;
 
   const local = await need({
@@ -47,6 +49,7 @@ async function main() {
     forceFetch,
     forceBuild,
     output,
+    ninja,
   });
 
   log.info(local);

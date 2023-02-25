@@ -28,11 +28,11 @@ function getMajor(nodeVersion: string) {
   return Number(version) | 0;
 }
 
-function getConfigureArgs(major: number, targetPlatform: string): string[] {
+function getConfigureArgs(major: number, targetPlatform: string, ninja: boolean): string[] {
   const args: string[] = [];
 
   // Use Ninja instead of GNU make
-  if (hostPlatform !== 'win') {
+  if (ninja) {
     args.push('--ninja');
   }
 
@@ -182,7 +182,7 @@ async function compileOnWindows(
 ) {
   const args = ['/c', 'vcbuild.bat', targetArch];
   const major = getMajor(nodeVersion);
-  const config_flags = getConfigureArgs(major, targetPlatform);
+  const config_flags = getConfigureArgs(major, targetPlatform, false);
 
   // The dtrace and etw support was removed in https://github.com/nodejs/node/commit/aa3a572e6bee116cde69508dc29478b40f40551a
   if (major <= 18) {
@@ -226,7 +226,8 @@ const { MAKE_JOB_COUNT = os.cpus().length } = process.env;
 async function compileOnUnix(
   nodeVersion: string,
   targetArch: string,
-  targetPlatform: string
+  targetPlatform: string,
+  ninja: boolean,
 ) {
   const args = [];
   const cpu = {
@@ -249,7 +250,7 @@ async function compileOnUnix(
     args.push('--cross-compiling');
   }
 
-  args.push(...getConfigureArgs(getMajor(nodeVersion), targetPlatform));
+  args.push(...getConfigureArgs(getMajor(nodeVersion), targetPlatform, ninja));
 
   // TODO same for windows?
   await spawn('/bin/sh', ['./configure', ...args], {
@@ -291,7 +292,8 @@ async function compileOnUnix(
 async function compile(
   nodeVersion: string,
   targetArch: string,
-  targetPlatform: string
+  targetPlatform: string,
+  ninja: boolean,
 ) {
   log.info('Compiling Node.js from sources...');
   const win = hostPlatform === 'win';
@@ -300,7 +302,7 @@ async function compile(
     return compileOnWindows(nodeVersion, targetArch, targetPlatform);
   }
 
-  return compileOnUnix(nodeVersion, targetArch, targetPlatform);
+  return compileOnUnix(nodeVersion, targetArch, targetPlatform, ninja);
 }
 
 export async function prepBuildPath() {
@@ -309,16 +311,23 @@ export async function prepBuildPath() {
   await fs.mkdirp(nodeArchivePath);
 }
 
+export interface BuildOptions {
+  ninja?: boolean;
+}
+
 export default async function build(
   nodeVersion: string,
   targetArch: string,
   targetPlatform: string,
-  local: string
+  local: string,
+  opts?: BuildOptions
 ) {
+  const { ninja = false } = opts || {};
+
   await prepBuildPath();
   await fetchExtractApply(nodeVersion, false);
 
-  const output = await compile(nodeVersion, targetArch, targetPlatform);
+  const output = await compile(nodeVersion, targetArch, targetPlatform, ninja);
   const outputHash = await hash(output);
 
   await fs.mkdirp(path.dirname(local));
