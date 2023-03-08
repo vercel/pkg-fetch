@@ -1,3 +1,5 @@
+diff --git node/common.gypi node/common.gypi
+index cbf9c3810d..991792324e 100644
 --- node/common.gypi
 +++ node/common.gypi
 @@ -179,7 +179,7 @@
@@ -9,6 +11,23 @@
              }, {
                'lto': ' -flto ', # Clang
              }],
+diff --git node/configure.py node/configure.py
+index 1d0a1741ce..342ade8435 100755
+--- node/configure.py
++++ node/configure.py
+@@ -1241,10 +1241,6 @@ def configure_node(o):
+ 
+   o['variables']['want_separate_host_toolset'] = int(cross_compiling)
+ 
+-  # Enable branch protection for arm64
+-  if target_arch == 'arm64':
+-    o['cflags']+=['-msign-return-address=all']
+-
+   if options.node_snapshot_main is not None:
+     if options.shared:
+       # This should be possible to fix, but we will need to refactor the
+diff --git node/deps/v8/include/v8.h node/deps/v8/include/v8.h
+index eacdaae7f5..601fd94947 100644
 --- node/deps/v8/include/v8.h
 +++ node/deps/v8/include/v8.h
 @@ -10092,6 +10092,10 @@ class V8_EXPORT V8 {
@@ -22,6 +41,8 @@
    /** Get the version string. */
    static const char* GetVersion();
  
+diff --git node/deps/v8/src/api/api.cc node/deps/v8/src/api/api.cc
+index 1632be8f62..e222ed00d7 100644
 --- node/deps/v8/src/api/api.cc
 +++ node/deps/v8/src/api/api.cc
 @@ -647,6 +647,29 @@ void V8::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags) {
@@ -54,6 +75,8 @@
  RegisteredExtension* RegisteredExtension::first_extension_ = nullptr;
  
  RegisteredExtension::RegisteredExtension(std::unique_ptr<Extension> extension)
+diff --git node/deps/v8/src/codegen/compiler.cc node/deps/v8/src/codegen/compiler.cc
+index 5c368c474e..4707995c12 100644
 --- node/deps/v8/src/codegen/compiler.cc
 +++ node/deps/v8/src/codegen/compiler.cc
 @@ -2840,7 +2840,7 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
@@ -65,6 +88,8 @@
        compile_timer.set_hit_isolate_cache();
      } else if (can_consume_code_cache) {
        compile_timer.set_consuming_code_cache();
+diff --git node/deps/v8/src/objects/js-function.cc node/deps/v8/src/objects/js-function.cc
+index b2d086814f..52ba0bc9bc 100644
 --- node/deps/v8/src/objects/js-function.cc
 +++ node/deps/v8/src/objects/js-function.cc
 @@ -953,6 +953,9 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
@@ -77,6 +102,8 @@
      ClassPositions class_positions =
          ClassPositions::cast(*maybe_class_positions);
      int start_position = class_positions.start();
+diff --git node/deps/v8/src/objects/shared-function-info-inl.h node/deps/v8/src/objects/shared-function-info-inl.h
+index 583ca8dccf..83fc199993 100644
 --- node/deps/v8/src/objects/shared-function-info-inl.h
 +++ node/deps/v8/src/objects/shared-function-info-inl.h
 @@ -631,6 +631,14 @@ bool SharedFunctionInfo::ShouldFlushCode(
@@ -94,6 +121,8 @@
    if (IsStressFlushingEnabled(code_flush_mode)) return true;
  
    BytecodeArray bytecode = BytecodeArray::cast(data);
+diff --git node/deps/v8/src/parsing/parsing.cc node/deps/v8/src/parsing/parsing.cc
+index 53f6cf045b..bc4ba3499f 100644
 --- node/deps/v8/src/parsing/parsing.cc
 +++ node/deps/v8/src/parsing/parsing.cc
 @@ -42,6 +42,7 @@ bool ParseProgram(ParseInfo* info, Handle<Script> script,
@@ -112,6 +141,8 @@
    Handle<String> source(String::cast(script->source()), isolate);
    isolate->counters()->total_parse_size()->Increment(source->length());
    std::unique_ptr<Utf16CharacterStream> stream(
+diff --git node/deps/v8/src/snapshot/code-serializer.cc node/deps/v8/src/snapshot/code-serializer.cc
+index a8a39e0c64..f095af6c11 100644
 --- node/deps/v8/src/snapshot/code-serializer.cc
 +++ node/deps/v8/src/snapshot/code-serializer.cc
 @@ -471,13 +471,9 @@ SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
@@ -128,6 +159,8 @@
    uint32_t max_payload_length = this->size_ - kHeaderSize;
    if (payload_length > max_payload_length) return LENGTH_MISMATCH;
    if (Checksum(ChecksummedContent()) != c) return CHECKSUM_MISMATCH;
+diff --git node/lib/child_process.js node/lib/child_process.js
+index a4def6acce..113249f009 100644
 --- node/lib/child_process.js
 +++ node/lib/child_process.js
 @@ -166,7 +166,7 @@ function fork(modulePath, args = [], options) {
@@ -139,6 +172,8 @@
  }
  
  function _forkChild(fd, serializationMode) {
+diff --git node/lib/internal/bootstrap/pkg.js node/lib/internal/bootstrap/pkg.js
+new file mode 100644
 index 0000000000..fb2d47f52b
 --- /dev/null
 +++ node/lib/internal/bootstrap/pkg.js
@@ -187,6 +222,8 @@ index 0000000000..fb2d47f52b
 +    }
 +  }());
 +}());
+diff --git node/lib/internal/bootstrap/pre_execution.js node/lib/internal/bootstrap/pre_execution.js
+index a9f463c4d0..81dd9ce272 100644
 --- node/lib/internal/bootstrap/pre_execution.js
 +++ node/lib/internal/bootstrap/pre_execution.js
 @@ -26,8 +26,13 @@ const { Buffer } = require('buffer');
@@ -213,6 +250,8 @@ index 0000000000..fb2d47f52b
      // Expand process.argv[1] into a full path.
      const path = require('path');
      try {
+diff --git node/lib/internal/modules/cjs/loader.js node/lib/internal/modules/cjs/loader.js
+index 614ee758d2..a830dfa33d 100644
 --- node/lib/internal/modules/cjs/loader.js
 +++ node/lib/internal/modules/cjs/loader.js
 @@ -92,7 +92,7 @@ const fs = require('fs');
@@ -224,6 +263,8 @@ index 0000000000..fb2d47f52b
  const packageJsonReader = require('internal/modules/package_json_reader');
  const { safeGetenv } = internalBinding('credentials');
  const {
+diff --git node/lib/internal/modules/package_json_reader.js node/lib/internal/modules/package_json_reader.js
+index 09eb12bd15..2d2f196737 100644
 --- node/lib/internal/modules/package_json_reader.js
 +++ node/lib/internal/modules/package_json_reader.js
 @@ -1,7 +1,7 @@
@@ -235,6 +276,8 @@ index 0000000000..fb2d47f52b
  const { pathToFileURL } = require('url');
  const { toNamespacedPath } = require('path');
  
+diff --git node/lib/vm.js node/lib/vm.js
+index 1bb199363a..18ad0f86f2 100644
 --- node/lib/vm.js
 +++ node/lib/vm.js
 @@ -79,6 +79,7 @@ class Script extends ContextifyScript {
@@ -255,6 +298,22 @@ index 0000000000..fb2d47f52b
      } catch (e) {
        throw e; /* node-do-not-add-exception-line */
      }
+diff --git node/node.gyp node/node.gyp
+index 5a91d76f45..a3299211ab 100644
+--- node/node.gyp
++++ node/node.gyp
+@@ -113,6 +113,9 @@
+     },
+ 
+     'conditions': [
++      ['target_arch=="arm64"', {
++        'cflags': ['-msign-return-address=all'],  # Pointer authentication.
++      }],
+       ['OS=="aix"', {
+         'ldflags': [
+           '-Wl,-bnoerrmsg',
+diff --git node/src/inspector_agent.cc node/src/inspector_agent.cc
+index 9ee779fb59..560f363ad1 100644
 --- node/src/inspector_agent.cc
 +++ node/src/inspector_agent.cc
 @@ -693,8 +693,6 @@ bool Agent::Start(const std::string& path,
@@ -266,6 +325,8 @@ index 0000000000..fb2d47f52b
  
      parent_env_->AddCleanupHook([](void* data) {
        Environment* env = static_cast<Environment*>(data);
+diff --git node/src/node.cc node/src/node.cc
+index 8555a771b7..ce2ac7df03 100644
 --- node/src/node.cc
 +++ node/src/node.cc
 @@ -481,6 +481,8 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
@@ -302,6 +363,8 @@ index 0000000000..fb2d47f52b
    // TODO(addaleax): NODE_SHARED_MODE does not really make sense here.
  #ifndef NODE_SHARED_MODE
    // Restore signal dispositions, the parent process may have changed them.
+diff --git node/src/node_contextify.cc node/src/node_contextify.cc
+index a02c211db8..23b150d1a3 100644
 --- node/src/node_contextify.cc
 +++ node/src/node_contextify.cc
 @@ -74,6 +74,7 @@ using v8::ScriptOrModule;
@@ -371,6 +434,8 @@ index 0000000000..fb2d47f52b
    TRACE_EVENT_END0(TRACING_CATEGORY_NODE2(vm, script), "ContextifyScript::New");
  }
  
+diff --git node/src/node_main.cc node/src/node_main.cc
+index 6bac107593..a897e2b9be 100644
 --- node/src/node_main.cc
 +++ node/src/node_main.cc
 @@ -22,6 +22,8 @@
@@ -480,6 +545,8 @@ index 0000000000..fb2d47f52b
 +
 +  return adjacent(c, nargv);
 +}
+diff --git node/src/node_options.cc node/src/node_options.cc
+index f83356b0a6..90db52130a 100644
 --- node/src/node_options.cc
 +++ node/src/node_options.cc
 @@ -299,6 +299,7 @@ void Parse(
@@ -490,6 +557,8 @@ index 0000000000..fb2d47f52b
    AddOption("--inspect-port",
              "set host:port for inspector",
              &DebugOptions::host_port,
+diff --git node/tools/icu/icu-generic.gyp node/tools/icu/icu-generic.gyp
+index 3e830aa097..18ee19a2af 100644
 --- node/tools/icu/icu-generic.gyp
 +++ node/tools/icu/icu-generic.gyp
 @@ -52,7 +52,7 @@
