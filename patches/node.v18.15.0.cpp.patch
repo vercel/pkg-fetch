@@ -1,5 +1,5 @@
 diff --git node/common.gypi node/common.gypi
-index b3718cff39..6a4a664ba0 100644
+index 782c871cff..c379e36569 100644
 --- node/common.gypi
 +++ node/common.gypi
 @@ -174,7 +174,7 @@
@@ -12,10 +12,10 @@ index b3718cff39..6a4a664ba0 100644
                'lto': ' -flto ', # Clang
              }],
 diff --git node/configure.py node/configure.py
-index 215aee5d80..ccb59bd304 100755
+index 62c01aaf6a..2913940692 100755
 --- node/configure.py
 +++ node/configure.py
-@@ -1259,9 +1259,7 @@ def configure_node(o):
+@@ -1288,9 +1288,7 @@ def configure_node(o):
  
    o['variables']['want_separate_host_toolset'] = int(cross_compiling)
  
@@ -26,7 +26,7 @@ index 215aee5d80..ccb59bd304 100755
  
    if options.node_snapshot_main is not None:
 diff --git node/deps/v8/include/v8-initialization.h node/deps/v8/include/v8-initialization.h
-index d3e35d6ec5..6e9bbe3849 100644
+index 3d59c73f7c..00b2de4524 100644
 --- node/deps/v8/include/v8-initialization.h
 +++ node/deps/v8/include/v8-initialization.h
 @@ -89,6 +89,10 @@ class V8_EXPORT V8 {
@@ -41,10 +41,10 @@ index d3e35d6ec5..6e9bbe3849 100644
    static const char* GetVersion();
  
 diff --git node/deps/v8/src/api/api.cc node/deps/v8/src/api/api.cc
-index a4a4381614..2998f3c49b 100644
+index 8d224bea2e..8402afc0fb 100644
 --- node/deps/v8/src/api/api.cc
 +++ node/deps/v8/src/api/api.cc
-@@ -683,6 +683,29 @@ void V8::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags) {
+@@ -709,6 +709,29 @@ void V8::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags) {
                                         HelpOptions(HelpOptions::kDontExit));
  }
  
@@ -75,23 +75,23 @@ index a4a4381614..2998f3c49b 100644
  
  RegisteredExtension::RegisteredExtension(std::unique_ptr<Extension> extension)
 diff --git node/deps/v8/src/codegen/compiler.cc node/deps/v8/src/codegen/compiler.cc
-index 5431deb83e..d11f04ccac 100644
+index a0d2e45ffc..3f29eb7cce 100644
 --- node/deps/v8/src/codegen/compiler.cc
 +++ node/deps/v8/src/codegen/compiler.cc
-@@ -3497,7 +3497,7 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
-     maybe_script = lookup_result.script();
-     maybe_result = lookup_result.toplevel_sfi();
-     is_compiled_scope = lookup_result.is_compiled_scope();
+@@ -3026,7 +3026,7 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
+     // First check per-isolate compilation cache.
+     maybe_result =
+         compilation_cache->LookupScript(source, script_details, language_mode);
 -    if (!maybe_result.is_null()) {
-+    if (!maybe_result.is_null() && source->length()) {
++    if (!maybe_result.is_null() && source_length) {
        compile_timer.set_hit_isolate_cache();
      } else if (can_consume_code_cache) {
        compile_timer.set_consuming_code_cache();
 diff --git node/deps/v8/src/objects/js-function.cc node/deps/v8/src/objects/js-function.cc
-index 62fe309a47..f1875ce023 100644
+index e8898a10eb..1ca40655cb 100644
 --- node/deps/v8/src/objects/js-function.cc
 +++ node/deps/v8/src/objects/js-function.cc
-@@ -1245,6 +1245,9 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
+@@ -1207,6 +1207,9 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
    Handle<Object> maybe_class_positions = JSReceiver::GetDataProperty(
        isolate, function, isolate->factory()->class_positions_symbol());
    if (maybe_class_positions->IsClassPositions()) {
@@ -102,10 +102,10 @@ index 62fe309a47..f1875ce023 100644
          ClassPositions::cast(*maybe_class_positions);
      int start_position = class_positions.start();
 diff --git node/deps/v8/src/objects/shared-function-info-inl.h node/deps/v8/src/objects/shared-function-info-inl.h
-index 43ef0d3d17..79b774463f 100644
+index 6fffdf6b19..34cc72217b 100644
 --- node/deps/v8/src/objects/shared-function-info-inl.h
 +++ node/deps/v8/src/objects/shared-function-info-inl.h
-@@ -637,6 +637,14 @@ bool SharedFunctionInfo::ShouldFlushCode(
+@@ -636,6 +636,14 @@ bool SharedFunctionInfo::ShouldFlushCode(
    }
    if (!data.IsBytecodeArray()) return false;
  
@@ -121,7 +121,7 @@ index 43ef0d3d17..79b774463f 100644
  
    BytecodeArray bytecode = BytecodeArray::cast(data);
 diff --git node/deps/v8/src/parsing/parsing.cc node/deps/v8/src/parsing/parsing.cc
-index 8c55a6fb6e..70bf82a57d 100644
+index add1f203f0..333a715ff0 100644
 --- node/deps/v8/src/parsing/parsing.cc
 +++ node/deps/v8/src/parsing/parsing.cc
 @@ -42,6 +42,7 @@ bool ParseProgram(ParseInfo* info, Handle<Script> script,
@@ -132,19 +132,19 @@ index 8c55a6fb6e..70bf82a57d 100644
  
    VMState<PARSER> state(isolate);
  
-@@ -75,6 +76,7 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
+@@ -76,6 +77,7 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
  
    // Create a character stream for the parser.
    Handle<Script> script(Script::cast(shared_info->script()), isolate);
 +  if (String::cast(script->source()).IsUndefined(isolate)) return false;
    Handle<String> source(String::cast(script->source()), isolate);
+   isolate->counters()->total_parse_size()->Increment(source->length());
    std::unique_ptr<Utf16CharacterStream> stream(
-       ScannerStream::For(isolate, source, shared_info->StartPosition(),
 diff --git node/deps/v8/src/snapshot/code-serializer.cc node/deps/v8/src/snapshot/code-serializer.cc
-index 95352299f8..2dd794b855 100644
+index 618cf9e975..64a57e8afe 100644
 --- node/deps/v8/src/snapshot/code-serializer.cc
 +++ node/deps/v8/src/snapshot/code-serializer.cc
-@@ -661,11 +661,7 @@ SerializedCodeSanityCheckResult SerializedCodeData::SanityCheck(
+@@ -615,11 +615,7 @@ SerializedCodeSanityCheckResult SerializedCodeData::SanityCheck(
  }
  
  SerializedCodeSanityCheckResult SerializedCodeData::SanityCheckJustSource(
@@ -157,7 +157,7 @@ index 95352299f8..2dd794b855 100644
    return SerializedCodeSanityCheckResult::kSuccess;
  }
  
-@@ -682,10 +678,6 @@ SerializedCodeSanityCheckResult SerializedCodeData::SanityCheckWithoutSource()
+@@ -636,10 +632,6 @@ SerializedCodeSanityCheckResult SerializedCodeData::SanityCheckWithoutSource()
    if (version_hash != Version::Hash()) {
      return SerializedCodeSanityCheckResult::kVersionMismatch;
    }
@@ -232,7 +232,7 @@ index 0000000000..e97e9e524c
 +  }());
 +}());
 diff --git node/lib/internal/modules/cjs/loader.js node/lib/internal/modules/cjs/loader.js
-index a859911522..d492088f37 100644
+index 42e5cc5010..7c4ec56082 100644
 --- node/lib/internal/modules/cjs/loader.js
 +++ node/lib/internal/modules/cjs/loader.js
 @@ -94,7 +94,7 @@ const fs = require('fs');
@@ -241,9 +241,9 @@ index a859911522..d492088f37 100644
  const { sep } = path;
 -const { internalModuleStat } = internalBinding('fs');
 +const internalModuleStat = function (f) { return require('fs').internalModuleStat(f); };
+ const packageJsonReader = require('internal/modules/package_json_reader');
  const { safeGetenv } = internalBinding('credentials');
  const {
-   privateSymbols: {
 diff --git node/lib/internal/modules/package_json_reader.js node/lib/internal/modules/package_json_reader.js
 index 09eb12bd15..2d2f196737 100644
 --- node/lib/internal/modules/package_json_reader.js
@@ -258,12 +258,12 @@ index 09eb12bd15..2d2f196737 100644
  const { toNamespacedPath } = require('path');
  
 diff --git node/lib/internal/process/pre_execution.js node/lib/internal/process/pre_execution.js
-index 4c44927fb0..361f7d5752 100644
+index 44a9183d77..3d2268c612 100644
 --- node/lib/internal/process/pre_execution.js
 +++ node/lib/internal/process/pre_execution.js
-@@ -35,7 +35,12 @@ const {
-   },
- } = require('internal/v8/startup_snapshot');
+@@ -33,7 +33,12 @@ const {
+   isBuildingSnapshot,
+ } = require('v8').startupSnapshot;
  
 +let _alreadyPrepared = false;
 +
@@ -274,7 +274,7 @@ index 4c44927fb0..361f7d5752 100644
    prepareExecution({
      expandArgv1,
      initializeModules,
-@@ -154,7 +159,8 @@ function patchProcessObject(expandArgv1) {
+@@ -143,7 +148,8 @@ function patchProcessObject(expandArgv1) {
    process.argv[0] = process.execPath;
  
    if (expandArgv1 && process.argv[1] &&
@@ -284,7 +284,7 @@ index 4c44927fb0..361f7d5752 100644
      // Expand process.argv[1] into a full path.
      const path = require('path');
      try {
-@@ -612,6 +618,7 @@ function loadPreloadModules() {
+@@ -598,6 +604,7 @@ function loadPreloadModules() {
    // For user code, we preload modules if `-r` is passed
    const preloadModules = getOptionValue('--require');
    if (preloadModules && preloadModules.length > 0) {
@@ -293,7 +293,7 @@ index 4c44927fb0..361f7d5752 100644
        Module: {
          _preloadModules
 diff --git node/lib/vm.js node/lib/vm.js
-index dea0121566..d8618f3edb 100644
+index ec91c8a265..5bb649a377 100644
 --- node/lib/vm.js
 +++ node/lib/vm.js
 @@ -79,6 +79,7 @@ class Script extends ContextifyScript {
@@ -315,10 +315,10 @@ index dea0121566..d8618f3edb 100644
        throw e; /* node-do-not-add-exception-line */
      }
 diff --git node/node.gyp node/node.gyp
-index b0f132efd8..3a43b724dc 100644
+index 0b5c3ff5ba..09776d4b1f 100644
 --- node/node.gyp
 +++ node/node.gyp
-@@ -110,6 +110,9 @@
+@@ -112,6 +112,9 @@
      },
  
      'conditions': [
@@ -329,10 +329,10 @@ index b0f132efd8..3a43b724dc 100644
          'ldflags': [
            '-Wl,-bnoerrmsg',
 diff --git node/src/inspector_agent.cc node/src/inspector_agent.cc
-index decd9f748a..4e5afbee4f 100644
+index 91e7beeaa0..43a8a5d7c6 100644
 --- node/src/inspector_agent.cc
 +++ node/src/inspector_agent.cc
-@@ -695,8 +695,6 @@ bool Agent::Start(const std::string& path,
+@@ -692,8 +692,6 @@ bool Agent::Start(const std::string& path,
                                StartIoThreadAsyncCallback));
      uv_unref(reinterpret_cast<uv_handle_t*>(&start_io_thread_async));
      start_io_thread_async.data = this;
@@ -342,10 +342,10 @@ index decd9f748a..4e5afbee4f 100644
      parent_env_->AddCleanupHook([](void* data) {
        Environment* env = static_cast<Environment*>(data);
 diff --git node/src/node.cc node/src/node.cc
-index c5b6c2b844..017e641dce 100644
+index 1067dee74c..8b32a10d08 100644
 --- node/src/node.cc
 +++ node/src/node.cc
-@@ -294,6 +294,8 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
+@@ -312,6 +312,8 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
      return env->RunSnapshotDeserializeMain();
    }
  
@@ -354,7 +354,7 @@ index c5b6c2b844..017e641dce 100644
    if (env->worker_context() != nullptr) {
      return StartExecution(env, "internal/main/worker_thread");
    }
-@@ -485,14 +487,6 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
+@@ -503,14 +505,6 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
    }
  
    if (!(flags & ProcessInitializationFlags::kNoDefaultSignalHandling)) {
@@ -440,7 +440,7 @@ index ed552ddd55..f757ac3b49 100644
  }
  
 diff --git node/src/node_main.cc node/src/node_main.cc
-index 56deaf47fa..e7ffa1baaa 100644
+index d486bbc31c..eb806b1ce4 100644
 --- node/src/node_main.cc
 +++ node/src/node_main.cc
 @@ -22,6 +22,8 @@
@@ -452,7 +452,7 @@ index 56deaf47fa..e7ffa1baaa 100644
  #ifdef _WIN32
  #include <windows.h>
  #include <VersionHelpers.h>
-@@ -88,12 +90,95 @@ int wmain(int argc, wchar_t* wargv[]) {
+@@ -84,12 +86,95 @@ int wmain(int argc, wchar_t* wargv[]) {
    }
    argv[argc] = nullptr;
    // Now that conversion is done, we can finally start.
@@ -550,10 +550,10 @@ index 56deaf47fa..e7ffa1baaa 100644
 +  return adjacent(c, nargv);
 +}
 diff --git node/src/node_options.cc node/src/node_options.cc
-index b9314eaa53..29f82d9738 100644
+index 6eabf78f1b..e9be1ed5ba 100644
 --- node/src/node_options.cc
 +++ node/src/node_options.cc
-@@ -293,6 +293,7 @@ void Parse(
+@@ -308,6 +308,7 @@ void Parse(
  // TODO(addaleax): Make that unnecessary.
  
  DebugOptionsParser::DebugOptionsParser() {
