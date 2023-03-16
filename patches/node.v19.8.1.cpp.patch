@@ -1,5 +1,5 @@
 diff --git node/common.gypi node/common.gypi
-index b3718cff39..6a4a664ba0 100644
+index b1d87780db..659da7c790 100644
 --- node/common.gypi
 +++ node/common.gypi
 @@ -174,7 +174,7 @@
@@ -12,7 +12,7 @@ index b3718cff39..6a4a664ba0 100644
                'lto': ' -flto ', # Clang
              }],
 diff --git node/configure.py node/configure.py
-index b1fc5513e7..cade999317 100755
+index d7765ef6bd..3c15a61215 100755
 --- node/configure.py
 +++ node/configure.py
 @@ -1265,9 +1265,7 @@ def configure_node(o):
@@ -169,7 +169,7 @@ index 95352299f8..2dd794b855 100644
    uint32_t max_payload_length = this->size_ - kHeaderSize;
    if (payload_length > max_payload_length) {
 diff --git node/lib/child_process.js node/lib/child_process.js
-index 1ee9d56f86..ffbf3f093f 100644
+index 5d3e2d63a7..077b96a415 100644
 --- node/lib/child_process.js
 +++ node/lib/child_process.js
 @@ -167,7 +167,7 @@ function fork(modulePath, args = [], options) {
@@ -232,7 +232,7 @@ index 0000000000..e97e9e524c
 +  }());
 +}());
 diff --git node/lib/internal/modules/cjs/loader.js node/lib/internal/modules/cjs/loader.js
-index ec1d215074..c28fb8f3c2 100644
+index de83c69a70..f998e5a168 100644
 --- node/lib/internal/modules/cjs/loader.js
 +++ node/lib/internal/modules/cjs/loader.js
 @@ -94,7 +94,7 @@ const fs = require('fs');
@@ -293,7 +293,7 @@ index ebc699ef1d..f109969a94 100644
        Module: {
          _preloadModules,
 diff --git node/lib/vm.js node/lib/vm.js
-index f47a88a35d..1f17b8b90c 100644
+index 19117bca5d..94a21205f1 100644
 --- node/lib/vm.js
 +++ node/lib/vm.js
 @@ -79,6 +79,7 @@ class Script extends ContextifyScript {
@@ -315,7 +315,7 @@ index f47a88a35d..1f17b8b90c 100644
        throw e; /* node-do-not-add-exception-line */
      }
 diff --git node/node.gyp node/node.gyp
-index 6d1b2bf369..3a2e36b390 100644
+index 2e41a7bb22..6131b75467 100644
 --- node/node.gyp
 +++ node/node.gyp
 @@ -110,6 +110,9 @@
@@ -325,11 +325,11 @@ index 6d1b2bf369..3a2e36b390 100644
 +      ['target_arch=="arm64"', {
 +        'cflags': ['-msign-return-address=all'],  # Pointer authentication.
 +      }],
-       ['OS=="aix"', {
+       ['OS in "aix os400"', {
          'ldflags': [
            '-Wl,-bnoerrmsg',
 diff --git node/src/inspector_agent.cc node/src/inspector_agent.cc
-index ad193d477a..e0444b9e05 100644
+index 02842c7e5e..ff15f069c3 100644
 --- node/src/inspector_agent.cc
 +++ node/src/inspector_agent.cc
 @@ -696,8 +696,6 @@ bool Agent::Start(const std::string& path,
@@ -370,7 +370,7 @@ index 6bdcbb3de9..f94d3d396d 100644
    }
  
 diff --git node/src/node_contextify.cc node/src/node_contextify.cc
-index d618dafcb5..a7e2826a59 100644
+index 5aadefd84d..f9c307b178 100644
 --- node/src/node_contextify.cc
 +++ node/src/node_contextify.cc
 @@ -75,6 +75,7 @@ using v8::ScriptOrigin;
