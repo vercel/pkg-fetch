@@ -190,10 +190,15 @@ index 0000000000..e97e9e524c
 +'use strict';
 +
 +const {
++  prepareWorkerThreadExecution,
 +  prepareMainThreadExecution
 +} = require('internal/process/pre_execution');
 +
-+prepareMainThreadExecution(true);
++if (internalBinding('worker').isMainThread) {
++  prepareMainThreadExecution(true);
++} else {
++  prepareWorkerThreadExecution();
++}
 +
 +(function () {
 +  var __require__ = require;
