@@ -186,7 +186,7 @@ new file mode 100644
 index 0000000000..e97e9e524c
 --- /dev/null
 +++ node/lib/internal/bootstrap/pkg.js
-@@ -0,0 +1,44 @@
+@@ -0,0 +1,49 @@
 +'use strict';
 +
 +const {
