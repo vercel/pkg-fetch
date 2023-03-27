@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { log } from './log';
 import { version } from '../package.json';
+import { nodeBinarySortFunction } from './utils';
 
 async function main() {
   const { argv } = yargs
@@ -15,6 +16,8 @@ async function main() {
   const shaFileContent = readFileSync(argv.input).toString();
   const shaMap: { [id: string]: string } = {};
   for (const line of shaFileContent.split('\n')) {
+    // Expect line to be of the form
+    // <sha> node-v<version>-host-arch
     const lineParts = line.split(/\s+/);
     if (lineParts.length === 2) {
       // eslint-disable-next-line prefer-destructuring
@@ -24,14 +27,12 @@ async function main() {
 
   // Sort map
   const sortedShaMap: { [id: string]: string } = {};
-  for (const nodeVersion of Object.keys(shaMap).sort()) {
+  for (const nodeVersion of Object.keys(shaMap).sort(nodeBinarySortFunction)) {
     sortedShaMap[nodeVersion] = shaMap[nodeVersion];
   }
 
   writeFileSync(join(__dirname, '../lib/expected-shas.json'),
                 `${JSON.stringify(sortedShaMap, null, 2)}\n`);
-  // console.log(JSON.stringify(sortedShaMap, null, 2));
-
 }
 
 main().catch((error) => {
