@@ -2,8 +2,9 @@
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "rootDir": ".",
-    "outDir": "../lib-es5"
+    "outDir": "../lib-es5",
+    "resolveJsonModule": true
   },
-  "include": ["**/*", "../typings/**/*"],
+  "include": ["**/*", "../typings/**/*", "**/*.json"],
   "references": [{ "path": "../" }]
 }
