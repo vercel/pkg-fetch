@@ -124,10 +124,3 @@ jobs:
 
       - name: Add release url to summary
         run: echo "Release created/updated at ${{ steps.create_release.outputs.url }}" >> $GITHUB_STEP_SUMMARY
-
-      - name: Print diff for future PR submission
-        run: |
-          yarn install
-          yarn build
-          yarn run updateExpected --input ${{ steps.generate_sha_file.outputs.sha_output_file }}
-          git diff
