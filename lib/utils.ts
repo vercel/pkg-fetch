@@ -6,6 +6,7 @@ import path from 'path';
 import { spawnSync, SpawnSyncOptions } from 'child_process';
 import stream from 'stream';
 
+import { coerce } from 'semver';
 import { log, wasReported } from './log';
 
 export async function downloadUrl(url: string, file: string): Promise<void> {
@@ -96,4 +97,13 @@ export async function spawn(
   if (error) {
     throw error;
   }
+}
+
+export function nodeBinarySortFunction(a: string, b: string): number {
+  const coercedVersionA = coerce(a);
+  const coercedVersionB = coerce(b);
+  if (coercedVersionA && coercedVersionB) {
+    return coercedVersionA.compare(coercedVersionB);
+  }
+  return 0;
 }
