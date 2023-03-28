@@ -11,6 +11,7 @@
   "files": [
     "lib-es5/*.js",
     "lib-es5/*.ts",
+    "lib-es5/*.json",
     "patches/*"
   ],
   "dependencies": {
