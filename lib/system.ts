@@ -76,14 +76,52 @@ function getKnownPlatforms() {
 }
 
 export function toFancyArch(arch: string) {
-  if (arch === 'arm') return 'armv7';
   if (arch === 'ia32') return 'x86';
   if (arch === 'x86_64') return 'x64';
   return arch;
 }
 
+function getArmUnameArch() {
+  const uname = spawnSync('uname', ['-a']);
+
+  if (uname.error) {
+    return '';
+  }
+
+  let unameOut = uname.stdout && uname.stdout.toString();
+  unameOut = (unameOut || '').toLowerCase();
+
+  if (unameOut.includes('aarch64')) return 'arm64';
+  if (unameOut.includes('arm64')) return 'arm64';
+  if (unameOut.includes('armv7')) return 'armv7';
+
+  return '';
+}
+
+function getArmHostArch() {
+  const cpu = fs.readFileSync('/proc/cpuinfo', 'utf8');
+
+  if (cpu.indexOf('vfpv3') >= 0) {
+    return 'armv7';
+  }
+
+  let name = cpu.split('model name')[1];
+
+  if (name) [, name] = name.split(':');
+  if (name) [name] = name.split('\n');
+  if (name && name.indexOf('ARMv7') >= 0) return 'armv7';
+
+  return 'armv6';
+}
+
 function getHostArch() {
-  return toFancyArch(process.arch);
+  const { arch } = process;
+
+  if (arch === 'arm') {
+    return getArmUnameArch() || getArmHostArch();
+  }
+
+  return toFancyArch(arch);
 }
 
 function getTargetArchs() {

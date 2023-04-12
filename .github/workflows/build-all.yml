@@ -1,0 +1,126 @@
+name: Build All Latest Assets
+
+on:
+  workflow_dispatch:
+    inputs:
+      newRelease:
+        description: 'Upload assets to new draft release?'
+        default: true
+        type: boolean
+
+jobs:
+  build-alpine:
+    uses: ./.github/workflows/build-alpine.yml
+  build-linux:
+    uses: ./.github/workflows/build-linux.yml
+  build-linuxstatic:
+   uses: ./.github/workflows/build-linuxstatic.yml
+  build-macos:
+   uses: ./.github/workflows/build-macos.yml
+  build-windows:
+   uses: ./.github/workflows/build-windows.yml
+
+  collect-artifacts:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    needs: [build-alpine, build-linux, build-linuxstatic, build-macos, build-windows]
+    steps:
+      - run: echo Is making new release? '${{ inputs.newRelease }}'
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - uses: actions/download-artifact@v3
+        with:
+          path: downloaded-artifacts
+
+      - name: Get previous release tag
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        id: get_previous_release
+        run: |
+          PREV_RELEASE=$(gh release list --limit 1 --exclude-drafts --exclude-pre-releases | cut -f3)
+          echo "Using release ${PREV_RELEASE}"
+          echo "prev_release=${PREV_RELEASE}" >> $GITHUB_OUTPUT
+
+      - name: Get previously released artifacts
+        if: ${{ inputs.newRelease }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          gh release download ${{ steps.get_previous_release.outputs.prev_release }} --dir release-artifacts
+
+      - name: Create artifact folders
+        run: mkdir artifact-binaries && mkdir artifact-shas
+
+      - name: Copy previous release artifacts to artifact folders
+        if: ${{ inputs.newRelease }}
+        run: |
+          pushd release-artifacts
+          pwd
+          ls -la
+          mv *.sha256sum ../artifact-shas/.
+          mv * ../artifact-binaries/.
+          popd
+
+      - name: Copy current workflow artifacts to artifact folders
+        run: |
+          pushd downloaded-artifacts
+          pwd
+          ls -la
+          for f in $(ls); do
+            mv $f/*.sha256sum ../artifact-shas/.
+            mv $f/* ../artifact-binaries/.
+          done
+          popd
+
+      - name: Check SHAs
+        run: |
+          cd artifact-binaries
+          ls ../artifact-shas/*.sha256sum | xargs sha256sum --check
+
+      - name: Generate SHA summary
+        id: generate_sha_file
+        run: |
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "Update $(date -u +%F) $(date -u +%T) GMT/UTC" >> $GITHUB_STEP_SUMMARY
+          echo "### SHAs of produced and carried forward binaries by this workflow" >> $GITHUB_STEP_SUMMARY
+          echo "  - $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          sha_output_file=${GITHUB_SHA}_${RANDOM}_shas.txt
+          echo "sha_output_file=${sha_output_file}" >> $GITHUB_OUTPUT
+          cat artifact-shas/*.sha256sum > ${sha_output_file}
+          cat artifact-shas/*.sha256sum >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          # Get a random string of characters to represent the EOF delimiter
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          echo "sha_summary<<$EOF" >> $GITHUB_ENV
+          cat $GITHUB_STEP_SUMMARY >> $GITHUB_ENV
+          echo "$EOF" >> $GITHUB_ENV
+
+      - name: Determine release tag to upload assets to and draft type
+        run: |
+          if [[ "${{ inputs.newRelease }}" == "false" ]]; then
+            echo "use_release_tag=${{ steps.get_previous_release.outputs.prev_release }}" >> $GITHUB_ENV
+            echo "create_draft=false" >> $GITHUB_ENV
+          else
+            echo "use_release_tag=draft_release_${{ github.sha }}" >> $GITHUB_ENV
+            echo "create_draft=true" >> $GITHUB_ENV
+          fi
+
+      - name: Add binaries to release
+        id: create_release
+        uses: softprops/action-gh-release@d4e8205d7e959a9107da6396278b2f1f07af0f9b
+        with:
+          token: ${{ github.token }}
+          draft: ${{ env.create_draft }}
+          tag_name: ${{ env.use_release_tag }}
+          files: |
+            artifact-shas/*
+            artifact-binaries/*
+          body: "${{ env.sha_summary }}"
+          generate_release_notes: true
+          append_body: true
+
+      - name: Add release url to summary
+        run: echo "Release created/updated at ${{ steps.create_release.outputs.url }}" >> $GITHUB_STEP_SUMMARY

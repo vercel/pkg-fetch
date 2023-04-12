@@ -2,6 +2,7 @@ name: Build Node binaries for macOS
 
 on:
   workflow_dispatch:
+  workflow_call:
 
 jobs:
   macos-x64:

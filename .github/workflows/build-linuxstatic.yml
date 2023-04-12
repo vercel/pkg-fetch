@@ -2,6 +2,7 @@ name: Build Node binaries for Linux static
 
 on:
   workflow_dispatch:
+  workflow_call:
 
 jobs:
   linuxstatic:
@@ -11,6 +12,17 @@ jobs:
       fail-fast: false
       matrix:
         target-node: [14, 16, 18, 19]
+        target-arch: [x64, arm64, armv7]
+        include:
+          - target-arch: x64
+            target-triple: x86_64-linux-musl
+            host-arch: x86_64
+          - target-arch: arm64
+            target-triple: aarch64-linux-musl
+            host-arch: x86_64
+          - target-arch: armv7
+            target-triple: armv7l-linux-musleabihf
+            host-arch: i686
 
     steps:
       - uses: actions/checkout@v2
@@ -22,10 +34,14 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           build-args: |
+            HOST_ARCH=${{ matrix.host-arch }}
+            TARGET_TRIPLE=${{ matrix.target-triple }}
+            PKG_FETCH_OPTION_a=${{ matrix.target-arch }}
             PKG_FETCH_OPTION_n=node${{ matrix.target-node }}
             PKG_FETCH_OPTION_p=linuxstatic
           context: .
           file: ./Dockerfile.alpine
+          platforms: linux/amd64
           outputs: type=tar,dest=../out.tar
 
       - name: Extract binaries from Docker image
@@ -40,5 +56,5 @@ jobs:
       - uses: actions/upload-artifact@v2
         if: steps.check_file.outputs.EXISTS == 'true'
         with:
-          name: node${{ matrix.target-node }}-linuxstatic-x64
+          name: node${{ matrix.target-node }}-linuxstatic-${{ matrix.target-arch }}
           path: root/pkg-fetch/dist/*
