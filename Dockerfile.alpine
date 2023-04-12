@@ -37,4 +37,4 @@ COPY . ./
 
 RUN yarn install
 
-RUN yarn start --arch $PKG_FETCH_OPTION_a --node-range $PKG_FETCH_OPTION_n --platform $PKG_FETCH_OPTION_p --output dist
+RUN yarn start --arch $PKG_FETCH_OPTION_a --node-range $PKG_FETCH_OPTION_n --platform $PKG_FETCH_OPTION_p --ninja --output dist

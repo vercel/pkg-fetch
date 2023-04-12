@@ -26,5 +26,5 @@ RUN yarn install
 
 RUN scl enable devtoolset-10 rh-python36 \
     " \
-    yarn start --node-range $PKG_FETCH_OPTION_n --output dist \
+    yarn start --node-range $PKG_FETCH_OPTION_n --ninja --output dist \
     "
