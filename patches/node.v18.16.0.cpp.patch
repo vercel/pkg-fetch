@@ -350,7 +350,7 @@ diff --git node/src/node.cc node/src/node.cc
 index 1067dee74c..8b32a10d08 100644
 --- node/src/node.cc
 +++ node/src/node.cc
-@@ -314,6 +316,8 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
+@@ -314,6 +314,8 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
      return env->RunSnapshotDeserializeMain();
    }
  
@@ -359,7 +359,7 @@ index 1067dee74c..8b32a10d08 100644
    if (env->worker_context() != nullptr) {
      return StartExecution(env, "internal/main/worker_thread");
    }
-@@ -519,14 +521,6 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
+@@ -519,14 +519,6 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
    }
  
    if (!(flags & ProcessInitializationFlags::kNoDefaultSignalHandling)) {
@@ -433,7 +433,7 @@ index ed552ddd55..f757ac3b49 100644
    contextify_script->script_.Reset(isolate, v8_script);
  
    std::unique_ptr<ScriptCompiler::CachedData> new_cached_data;
-@@ -897,6 +997,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -897,6 +897,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
            .IsNothing())
      return;
  
