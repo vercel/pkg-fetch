@@ -15,7 +15,7 @@ diff --git node/configure.py node/configure.py
 index 62c01aaf6a..2913940692 100755
 --- node/configure.py
 +++ node/configure.py
-@@ -1288,9 +1288,7 @@ def configure_node(o):
+@@ -1294,9 +1294,7 @@ def configure_node(o):
  
    o['variables']['want_separate_host_toolset'] = int(cross_compiling)
  
@@ -323,7 +323,7 @@ diff --git node/node.gyp node/node.gyp
 index 0b5c3ff5ba..09776d4b1f 100644
 --- node/node.gyp
 +++ node/node.gyp
-@@ -114,6 +114,9 @@
+@@ -112,6 +112,9 @@
      },
  
      'conditions': [
@@ -337,7 +337,7 @@ diff --git node/src/inspector_agent.cc node/src/inspector_agent.cc
 index 91e7beeaa0..43a8a5d7c6 100644
 --- node/src/inspector_agent.cc
 +++ node/src/inspector_agent.cc
-@@ -692,8 +692,6 @@ bool Agent::Start(const std::string& path,
+@@ -693,8 +693,6 @@ bool Agent::Start(const std::string& path,
                                StartIoThreadAsyncCallback));
      uv_unref(reinterpret_cast<uv_handle_t*>(&start_io_thread_async));
      start_io_thread_async.data = this;
@@ -350,7 +350,7 @@ diff --git node/src/node.cc node/src/node.cc
 index 1067dee74c..8b32a10d08 100644
 --- node/src/node.cc
 +++ node/src/node.cc
-@@ -312,6 +312,8 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
+@@ -314,6 +314,8 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
      return env->RunSnapshotDeserializeMain();
    }
  
@@ -359,7 +359,7 @@ index 1067dee74c..8b32a10d08 100644
    if (env->worker_context() != nullptr) {
      return StartExecution(env, "internal/main/worker_thread");
    }
-@@ -503,14 +505,6 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
+@@ -519,14 +521,6 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
    }
  
    if (!(flags & ProcessInitializationFlags::kNoDefaultSignalHandling)) {
@@ -386,7 +386,7 @@ index ed552ddd55..f757ac3b49 100644
  using v8::Value;
  using v8::WeakCallbackInfo;
  using v8::WeakCallbackType;
-@@ -771,11 +772,12 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -774,11 +775,12 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
    Local<ArrayBufferView> cached_data_buf;
    bool produce_cached_data = false;
    Local<Context> parsing_context = context;
@@ -400,7 +400,7 @@ index ed552ddd55..f757ac3b49 100644
      CHECK(args[2]->IsNumber());
      line_offset = args[2].As<Int32>()->Value();
      CHECK(args[3]->IsNumber());
-@@ -794,6 +796,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -798,6 +800,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
        CHECK_NOT_NULL(sandbox);
        parsing_context = sandbox->context();
      }
@@ -408,7 +408,7 @@ index ed552ddd55..f757ac3b49 100644
    }
  
    ContextifyScript* contextify_script =
-@@ -844,6 +847,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -849,6 +852,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
    ShouldNotAbortOnUncaughtScope no_abort_scope(env);
    Context::Scope scope(parsing_context);
  
@@ -419,7 +419,7 @@ index ed552ddd55..f757ac3b49 100644
    MaybeLocal<UnboundScript> maybe_v8_script =
        ScriptCompiler::CompileUnboundScript(isolate, &source, compile_options);
  
-@@ -857,6 +864,13 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -866,6 +874,13 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
                       "ContextifyScript::New");
      return;
    }
@@ -433,7 +433,7 @@ index ed552ddd55..f757ac3b49 100644
    contextify_script->script_.Reset(isolate, v8_script);
  
    std::unique_ptr<ScriptCompiler::CachedData> new_cached_data;
-@@ -881,6 +895,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -897,6 +901,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
            .IsNothing())
      return;
  
