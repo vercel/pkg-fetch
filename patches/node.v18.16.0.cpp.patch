@@ -386,7 +386,7 @@ index ed552ddd55..f757ac3b49 100644
  using v8::Value;
  using v8::WeakCallbackInfo;
  using v8::WeakCallbackType;
-@@ -774,11 +775,12 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -774,11 +774,12 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
    Local<ArrayBufferView> cached_data_buf;
    bool produce_cached_data = false;
    Local<Context> parsing_context = context;
