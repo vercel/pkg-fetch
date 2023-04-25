@@ -350,7 +350,7 @@ diff --git node/src/node.cc node/src/node.cc
 index 1067dee74c..8b32a10d08 100644
 --- node/src/node.cc
 +++ node/src/node.cc
-@@ -314,6 +314,8 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
+@@ -314,6 +316,8 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
      return env->RunSnapshotDeserializeMain();
    }
  
@@ -400,7 +400,7 @@ index ed552ddd55..f757ac3b49 100644
      CHECK(args[2]->IsNumber());
      line_offset = args[2].As<Int32>()->Value();
      CHECK(args[3]->IsNumber());
-@@ -798,6 +800,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -798,6 +798,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
        CHECK_NOT_NULL(sandbox);
        parsing_context = sandbox->context();
      }
@@ -408,7 +408,7 @@ index ed552ddd55..f757ac3b49 100644
    }
  
    ContextifyScript* contextify_script =
-@@ -849,6 +852,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -849,6 +849,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
    ShouldNotAbortOnUncaughtScope no_abort_scope(env);
    Context::Scope scope(parsing_context);
  
@@ -419,7 +419,7 @@ index ed552ddd55..f757ac3b49 100644
    MaybeLocal<UnboundScript> maybe_v8_script =
        ScriptCompiler::CompileUnboundScript(isolate, &source, compile_options);
  
-@@ -866,6 +874,13 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -866,6 +866,13 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
                       "ContextifyScript::New");
      return;
    }
@@ -433,7 +433,7 @@ index ed552ddd55..f757ac3b49 100644
    contextify_script->script_.Reset(isolate, v8_script);
  
    std::unique_ptr<ScriptCompiler::CachedData> new_cached_data;
-@@ -897,6 +901,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -897,6 +997,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
            .IsNothing())
      return;
  
