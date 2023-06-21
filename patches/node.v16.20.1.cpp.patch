@@ -1,5 +1,5 @@
 diff --git node/common.gypi node/common.gypi
-index cbf9c3810d..991792324e 100644
+index d713ad5586..c6ee5fe47d 100644
 --- node/common.gypi
 +++ node/common.gypi
 @@ -179,7 +179,7 @@
@@ -12,10 +12,10 @@ index cbf9c3810d..991792324e 100644
                'lto': ' -flto ', # Clang
              }],
 diff --git node/configure.py node/configure.py
-index 1d0a1741ce..342ade8435 100755
+index ce41bff4d3..7dd9d14b43 100755
 --- node/configure.py
 +++ node/configure.py
-@@ -1241,10 +1241,6 @@ def configure_node(o):
+@@ -1259,10 +1259,6 @@ def configure_node(o):
  
    o['variables']['want_separate_host_toolset'] = int(cross_compiling)
  
@@ -251,7 +251,7 @@ index a9f463c4d0..81dd9ce272 100644
      const path = require('path');
      try {
 diff --git node/lib/internal/modules/cjs/loader.js node/lib/internal/modules/cjs/loader.js
-index 614ee758d2..a830dfa33d 100644
+index 97bb6e5b13..8b4e0f7c61 100644
 --- node/lib/internal/modules/cjs/loader.js
 +++ node/lib/internal/modules/cjs/loader.js
 @@ -92,7 +92,7 @@ const fs = require('fs');
@@ -299,10 +299,10 @@ index 1bb199363a..18ad0f86f2 100644
        throw e; /* node-do-not-add-exception-line */
      }
 diff --git node/node.gyp node/node.gyp
-index 5a91d76f45..a3299211ab 100644
+index de409a31f3..d26e4366ad 100644
 --- node/node.gyp
 +++ node/node.gyp
-@@ -113,6 +113,9 @@
+@@ -111,6 +111,9 @@
      },
  
      'conditions': [
