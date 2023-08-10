@@ -1,5 +1,5 @@
 diff --git node/common.gypi node/common.gypi
-index 782c871cff..c379e36569 100644
+index 42879b1e6b..c148dfa4f9 100644
 --- node/common.gypi
 +++ node/common.gypi
 @@ -174,7 +174,7 @@
@@ -12,10 +12,10 @@ index 782c871cff..c379e36569 100644
                'lto': ' -flto ', # Clang
              }],
 diff --git node/configure.py node/configure.py
-index 62c01aaf6a..2913940692 100755
+index 7006ee6581..12fb2ac8d1 100755
 --- node/configure.py
 +++ node/configure.py
-@@ -1288,9 +1288,7 @@ def configure_node(o):
+@@ -1289,9 +1289,7 @@ def configure_node(o):
  
    o['variables']['want_separate_host_toolset'] = int(cross_compiling)
  
@@ -169,7 +169,7 @@ index 618cf9e975..64a57e8afe 100644
    uint32_t max_payload_length = this->size_ - kHeaderSize;
    if (payload_length > max_payload_length) {
 diff --git node/lib/child_process.js node/lib/child_process.js
-index 55e6b781cd..2a499d6d5f 100644
+index 59c37b9767..9edfef4bd7 100644
 --- node/lib/child_process.js
 +++ node/lib/child_process.js
 @@ -167,7 +167,7 @@ function fork(modulePath, args = [], options) {
@@ -183,7 +183,7 @@ index 55e6b781cd..2a499d6d5f 100644
  function _forkChild(fd, serializationMode) {
 diff --git node/lib/internal/bootstrap/pkg.js node/lib/internal/bootstrap/pkg.js
 new file mode 100644
-index 0000000000..e97e9e524c
+index 0000000000..a697294fdf
 --- /dev/null
 +++ node/lib/internal/bootstrap/pkg.js
 @@ -0,0 +1,49 @@
@@ -237,7 +237,7 @@ index 0000000000..e97e9e524c
 +  }());
 +}());
 diff --git node/lib/internal/modules/cjs/loader.js node/lib/internal/modules/cjs/loader.js
-index 42e5cc5010..7c4ec56082 100644
+index 88bb870a8f..22bbdd9058 100644
 --- node/lib/internal/modules/cjs/loader.js
 +++ node/lib/internal/modules/cjs/loader.js
 @@ -94,7 +94,7 @@ const fs = require('fs');
@@ -250,7 +250,7 @@ index 42e5cc5010..7c4ec56082 100644
  const { safeGetenv } = internalBinding('credentials');
  const {
 diff --git node/lib/internal/modules/package_json_reader.js node/lib/internal/modules/package_json_reader.js
-index 09eb12bd15..2d2f196737 100644
+index bb175d0df5..07f4834c07 100644
 --- node/lib/internal/modules/package_json_reader.js
 +++ node/lib/internal/modules/package_json_reader.js
 @@ -1,7 +1,7 @@
@@ -263,7 +263,7 @@ index 09eb12bd15..2d2f196737 100644
  const { toNamespacedPath } = require('path');
  
 diff --git node/lib/internal/process/pre_execution.js node/lib/internal/process/pre_execution.js
-index 44a9183d77..3d2268c612 100644
+index 250a43c545..26fa422120 100644
 --- node/lib/internal/process/pre_execution.js
 +++ node/lib/internal/process/pre_execution.js
 @@ -33,7 +33,12 @@ const {
@@ -279,7 +279,7 @@ index 44a9183d77..3d2268c612 100644
    prepareExecution({
      expandArgv1,
      initializeModules,
-@@ -143,7 +148,8 @@ function patchProcessObject(expandArgv1) {
+@@ -142,7 +147,8 @@ function patchProcessObject(expandArgv1) {
    process.argv[0] = process.execPath;
  
    if (expandArgv1 && process.argv[1] &&
@@ -289,19 +289,19 @@ index 44a9183d77..3d2268c612 100644
      // Expand process.argv[1] into a full path.
      const path = require('path');
      try {
-@@ -598,6 +604,7 @@ function loadPreloadModules() {
+@@ -590,6 +596,7 @@ function loadPreloadModules() {
    // For user code, we preload modules if `-r` is passed
    const preloadModules = getOptionValue('--require');
    if (preloadModules && preloadModules.length > 0) {
 +    assert(false, '--require is not supported');
      const {
        Module: {
-         _preloadModules
+         _preloadModules,
 diff --git node/lib/vm.js node/lib/vm.js
-index ec91c8a265..5bb649a377 100644
+index 21acc55e2e..8a128bcb5c 100644
 --- node/lib/vm.js
 +++ node/lib/vm.js
-@@ -79,6 +79,7 @@ class Script extends ContextifyScript {
+@@ -77,6 +77,7 @@ class Script extends ContextifyScript {
        produceCachedData = false,
        importModuleDynamically,
        [kParsingContext]: parsingContext,
@@ -309,7 +309,7 @@ index ec91c8a265..5bb649a377 100644
      } = options;
  
      validateString(filename, 'options.filename');
-@@ -103,7 +104,8 @@ class Script extends ContextifyScript {
+@@ -97,7 +98,8 @@ class Script extends ContextifyScript {
              columnOffset,
              cachedData,
              produceCachedData,
@@ -320,24 +320,24 @@ index ec91c8a265..5bb649a377 100644
        throw e; /* node-do-not-add-exception-line */
      }
 diff --git node/node.gyp node/node.gyp
-index 0b5c3ff5ba..09776d4b1f 100644
+index 6b554d75d8..fce4eb4bd5 100644
 --- node/node.gyp
 +++ node/node.gyp
-@@ -112,6 +112,9 @@
+@@ -113,6 +113,9 @@
      },
  
      'conditions': [
 +      ['target_arch=="arm64"', {
 +        'cflags': ['-msign-return-address=all'],  # Pointer authentication.
 +      }],
-       ['OS=="aix"', {
+       ['OS in "aix os400"', {
          'ldflags': [
            '-Wl,-bnoerrmsg',
 diff --git node/src/inspector_agent.cc node/src/inspector_agent.cc
-index 91e7beeaa0..43a8a5d7c6 100644
+index b1ba86b7b0..e2478e537c 100644
 --- node/src/inspector_agent.cc
 +++ node/src/inspector_agent.cc
-@@ -692,8 +692,6 @@ bool Agent::Start(const std::string& path,
+@@ -703,8 +703,6 @@ bool Agent::Start(const std::string& path,
                                StartIoThreadAsyncCallback));
      uv_unref(reinterpret_cast<uv_handle_t*>(&start_io_thread_async));
      start_io_thread_async.data = this;
@@ -347,10 +347,10 @@ index 91e7beeaa0..43a8a5d7c6 100644
      parent_env_->AddCleanupHook([](void* data) {
        Environment* env = static_cast<Environment*>(data);
 diff --git node/src/node.cc node/src/node.cc
-index 1067dee74c..8b32a10d08 100644
+index 9b0dd072f7..bd54bafbc0 100644
 --- node/src/node.cc
 +++ node/src/node.cc
-@@ -312,6 +312,8 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
+@@ -314,6 +314,8 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
      return env->RunSnapshotDeserializeMain();
    }
  
@@ -359,7 +359,7 @@ index 1067dee74c..8b32a10d08 100644
    if (env->worker_context() != nullptr) {
      return StartExecution(env, "internal/main/worker_thread");
    }
-@@ -503,14 +505,6 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
+@@ -528,14 +530,6 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
    }
  
    if (!(flags & ProcessInitializationFlags::kNoDefaultSignalHandling)) {
@@ -375,7 +375,7 @@ index 1067dee74c..8b32a10d08 100644
    }
  
 diff --git node/src/node_contextify.cc node/src/node_contextify.cc
-index ed552ddd55..f757ac3b49 100644
+index 3da8746e2c..ff60588e77 100644
 --- node/src/node_contextify.cc
 +++ node/src/node_contextify.cc
 @@ -75,6 +75,7 @@ using v8::ScriptOrigin;
@@ -386,7 +386,7 @@ index ed552ddd55..f757ac3b49 100644
  using v8::Value;
  using v8::WeakCallbackInfo;
  using v8::WeakCallbackType;
-@@ -771,11 +772,12 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -787,11 +788,12 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
    Local<ArrayBufferView> cached_data_buf;
    bool produce_cached_data = false;
    Local<Context> parsing_context = context;
@@ -400,7 +400,7 @@ index ed552ddd55..f757ac3b49 100644
      CHECK(args[2]->IsNumber());
      line_offset = args[2].As<Int32>()->Value();
      CHECK(args[3]->IsNumber());
-@@ -794,6 +796,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -810,6 +812,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
        CHECK_NOT_NULL(sandbox);
        parsing_context = sandbox->context();
      }
@@ -408,7 +408,7 @@ index ed552ddd55..f757ac3b49 100644
    }
  
    ContextifyScript* contextify_script =
-@@ -844,6 +847,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -860,6 +863,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
    ShouldNotAbortOnUncaughtScope no_abort_scope(env);
    Context::Scope scope(parsing_context);
  
@@ -419,7 +419,7 @@ index ed552ddd55..f757ac3b49 100644
    MaybeLocal<UnboundScript> maybe_v8_script =
        ScriptCompiler::CompileUnboundScript(isolate, &source, compile_options);
  
-@@ -857,6 +864,13 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -873,6 +880,13 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
                       "ContextifyScript::New");
      return;
    }
@@ -433,7 +433,7 @@ index ed552ddd55..f757ac3b49 100644
    contextify_script->script_.Reset(isolate, v8_script);
  
    std::unique_ptr<ScriptCompiler::CachedData> new_cached_data;
-@@ -881,6 +895,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
+@@ -897,6 +911,10 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
            .IsNothing())
      return;
  
@@ -445,7 +445,7 @@ index ed552ddd55..f757ac3b49 100644
  }
  
 diff --git node/src/node_main.cc node/src/node_main.cc
-index d486bbc31c..eb806b1ce4 100644
+index 8099b2a3a1..9cc8a07a55 100644
 --- node/src/node_main.cc
 +++ node/src/node_main.cc
 @@ -22,6 +22,8 @@
@@ -555,19 +555,20 @@ index d486bbc31c..eb806b1ce4 100644
 +  return adjacent(c, nargv);
 +}
 diff --git node/src/node_options.cc node/src/node_options.cc
-index 6eabf78f1b..e9be1ed5ba 100644
+index 47a24ef5e5..98a750fedd 100644
 --- node/src/node_options.cc
 +++ node/src/node_options.cc
-@@ -308,6 +308,7 @@ void Parse(
- // TODO(addaleax): Make that unnecessary.
+@@ -306,6 +306,8 @@ DebugOptionsParser::DebugOptionsParser() {
+   if (sea::IsSingleExecutable()) return;
+ #endif
  
- DebugOptionsParser::DebugOptionsParser() {
 +  return;
++
    AddOption("--inspect-port",
              "set host:port for inspector",
              &DebugOptions::host_port,
 diff --git node/tools/icu/icu-generic.gyp node/tools/icu/icu-generic.gyp
-index db45e6fbdf..3e39f1fbdf 100644
+index 2655b9e694..1d951571c7 100644
 --- node/tools/icu/icu-generic.gyp
 +++ node/tools/icu/icu-generic.gyp
 @@ -52,7 +52,7 @@
