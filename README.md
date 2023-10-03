@@ -1,4 +1,4 @@
-A utility to fetch or build patched Node binaries used by [pkg](https://github.com/vercel/pkg) to generate executables. This repo hosts prebuilt binaries in [Releases](https://github.com/vercel/pkg-fetch/releases).
+A utility to fetch or build patched Node binaries used by [pkg](https://github.com/yao-pkg/pkg) to generate executables. This repo hosts prebuilt binaries in [Releases](https://github.com/yao-pkg/pkg-fetch/releases).
 
 ## Binary Compatibility
 
@@ -32,14 +32,14 @@ Like most of you, this project does not have access to advance/private disclosur
 
 This project deploys multiple defense measures to ensure that the safe binaries are delivered to users:
 
-- Binaries are compiled by [Github Actions](https://github.com/vercel/pkg-fetch/actions)
+- Binaries are compiled by [Github Actions](https://github.com/yao-pkg/pkg-fetch/actions)
   - Workflows and build logs are transparent and auditable.
   - Artifacts are the source of truth. Even repository/organization administrators can't tamper them.
-- Hashes of binaries are hardcoded in [source](https://github.com/vercel/pkg-fetch/blob/HEAD/lib/expected.ts)
+- Hashes of binaries are hardcoded in [source](https://github.com/yao-pkg/pkg-fetch/blob/HEAD/lib/expected.ts)
   - Origins of the binaries are documented.
   - Changes to the binaries are logged by VCS (Git) and are publicly visible.
   - `pkg-fetch` rejects the binary if it does not match the hardcoded hash.
-- GPG-signed hashes are available in [Releases](https://github.com/vercel/pkg-fetch/releases)
+- GPG-signed hashes are available in [Releases](https://github.com/yao-pkg/pkg-fetch/releases)
   - Easy to spot a compromise.
 - `pkg-fetch` package on npm is strictly permission-controlled
   - Only authorized Vercel employees can push new revisions to npm.
