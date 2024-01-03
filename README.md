@@ -1,3 +1,8 @@
+# `pkg-fetch`
+
+> [!IMPORTANT]  
+> `pkg-fetch` has been deprecated with `3.5` as the last release. There are a number of successful forked versions of `pkg-fetch` already with various feature additions. Further, we’re excited about Node.js 21’s support for [single executable applications](https://nodejs.org/api/single-executable-applications.html). Thank you for the support and contributions over the years. The repository will remain open and archived.
+
 A utility to fetch or build patched Node binaries used by [pkg](https://github.com/vercel/pkg) to generate executables. This repo hosts prebuilt binaries in [Releases](https://github.com/vercel/pkg-fetch/releases).
 
 ## Binary Compatibility
